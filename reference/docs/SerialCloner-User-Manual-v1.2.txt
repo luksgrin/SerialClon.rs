@@ -1,0 +1,657 @@
+Serial Cloner 1.2
+     User Manual
+Part I -Basic functions -
+I      Built-In Help Window
+       You will find in this manual the description of the different windows and
+functions of Serial Cloner as well as some useful tips.
+             A general description is also available inside Serial Cloner using the built-in
+             Help window. You can show or hide the Help window using a menu
+             command available in the Window menu and on the Toolbar window.
+
+                                                         Make the pointer fly over a button
+                                                         or a field of the front-most and
+                                                         active window to dynamically
+                                                         obtain help and hints.
+
+
+
+
+II      Differences between the MacOs X and the Windows versions
+        All the functions of Serial Cloner are available in both versions with only
+interface differences.
+            • The [About Serial Cloner…], [Quit] and [Preferences] windows are
+                located in the ‘SerialCloner’ menu under MacOSX and are found
+                respectively in the ‘Windows’ (about) and ‘File’ (Pref and Quit) menu
+                under Windows.
+            • The ‘Find’ and ‘Info’ windows are shown as drawer windows under
+                MacOS X and as global floating windows under Windows. Hence, while
+                one such a window can be attached to each Sequence window under
+                MacOSX, only one can be shown under Windows. However, the behavior
+                of these windows mimics MacOSX’s drawer windows as they follow the
+                movement of the sequence Window they are linked to. Pressing the ‘info’
+                or ‘find’ button in a ‘Sequence Window’ link them to that ‘Sequence
+                Window’.
+            • The ‘Bring All to Front’ in the ‘Window’ menu is only available under
+                MacOSX as this deals with MacOSX windows management.
+            • As usually, the shortcut are available using the ‘Command’ (apple) key
+                under MacOSX and through the ‘CTRL’ key under Windows. Both are
+                noted [C+…] underneath
+            • You will frequently find contextual menu. As usually they are accessible
+                under Windows using a ‘Right-click’ while under MacOSX using single
+                button mouse contextual menus are displayed using ‘CTRL’ associated to
+                ‘Left-click’.
+
+
+
+
+                                             2
+III.   Serial Cloner Menus
+
+       A. The File Menu
+
+
+
+
+            • New [C+N]
+Displays a new blank ‘Sequence’ Window
+            • Open [C+O]
+Browses available storage devices and opens a Sequence file into a Sequence Window.
+Accepted format file are Strider ™ (extension .xdna), pDRAW32 ™ (extension .pdw),
+fasta (extension .fasta or .fsta) or raw text (extension .txt ; .text ; .asc or .ascii). Serial
+Cloner cannot work with .rtf formatted files. Note that fasta or pDRAW formatted files
+can be opened using the raw text format. Only ACGT letters are accepted. If other
+characters are filtered out a message will be displayed reporting the total number of
+excluded characters.
+            • Open Recent
+A hierarchical menu displays recently opened or saved files for easy opening of current
+projects. The hierarchical menu proposes an option to erase the recent list. The number of
+recent files memorized is adjustable in the preference window (Max 25).
+            • Revert To Save
+Cancels any modification done to a sequenced saved on disk. A message will be shown to
+confirm the reversion.
+            • New Degenerate DNA
+Displays a new blank ‘Sequence’ Window allowing the entry of degenerate DNA.
+Degenerate DNA can then be used in any window and function. Note however that
+restriction maps, site usage, alignment etc… should be taken with care as ay no-ACGT
+nucleotide will be considered as "unknown".
+            • Close [C+W]
+
+
+
+                                              3
+Closes the top-most window. If this is a window were modification have not been saved,
+a confirmation window will be shown.
+             • Close All
+Closes all opened window. If there are windows were modification have not been saved,
+a confirmation window will be shown for each of them.
+             • Page Setup
+Defines the printing parameters.
+             • Print [C+P]
+Prints the information contained in the top-most window. Available for the ‘Graphic
+Map’, ‘Sequence Map’, ‘Build a Construct’ and ‘Align Two Sequences’ windows.
+             • Save [C+S]
+Saves modifications done to an opened Sequence (Sequence Window) or adaptor.
+             • Save As..
+Proposes to save under a new name. When a ‘Graphic Map’ or a ‘Build a Construct’ is
+the top-most window, the menu reads ‘Save Graphic Map As…’ allowing to save a
+picture file.
+             • Export to Fasta
+Save the Sequence in a text file in a fasta format.
+             • Preferences (Windows, under MacOSX, this option is found in the
+                SerialCloner menu) [C+,]
+Opens the ‘Preferences’ window
+             • Quit [C+Q] (Windows, under MacOSX, this option is found in the
+                SerialCloner menu
+Quit Serial Cloner. If there are windows were modifications have not been saved, a
+confirmation window will be shown for each of them.
+
+
+
+
+      B. The Edit Menu
+
+
+
+
+          •   Undo [C+Z]
+
+
+                                          4
+Available in the ‘Sequence’ window, this allows to undo the last action (deletion,
+insertion, upper/lowercase). 5 levels of undo are available.
+             • Open [C+Y]
+Redo and action that has just been undone. Similarly, 5 levels of redo are available.
+             • Select all [C+A]
+Whenever the active field is containing text, this command allows to select all this text.
+             • Cut [C+X]
+Delete the selected text and store it in the clipboard.
+             • Copy [C+C]
+Copy the selected text and store it in the clipboard. When copied from a sequence
+window, the text is formatted as 80 nucleotide-long lines before storing.
+             • Copy as Fasta [C+K]
+Available in the ‘Sequence’ window this command allows to copy the portion of the
+sequence selected and store it in the clipboard after formatting in Fasta format (Header
+starting with a ‘>’ and 80-nucleotide-long lines).
+             • Paste [C+V]
+Paste the text contained in the clipboard at the insertion point. Note that in sequence
+fields, non-ACGT letters are filtered out. In case non-ACGT letters are filtered out, a
+message window will pop-up to indicate how many letters were filtered out. Direct
+parsing of certain format is provided by the Paste function : if the sequence in the
+clipboard is in a FASTA format, then the first line starting by a ‘>’ is pasted in the
+comment field and the rest of the sequence is pasted in the sequence field. In case the
+sequence in the clipboard is a complete HTML page copied from a NCBI Genbank page
+(using any Web browser) then a more complex parsing is executed where some comment
+information are extracted from the page and pasted in the comment field while the
+sequenceis directly extracted and pasted in the sequence field (see examples).
+             • Find [C+F]
+Available in ‘Sequence’’ windows, this command opens the find window.
+             • Find ORF [C+R]
+Available in ‘Sequence’ windows, this commands find the next Open Reading Frame,
+i.e., a piece of sequence starting with an ‘ATG’ and ending with an in-frame STOP
+codons (TAA, TAG or TGA).
+
+
+       C. The Sequence Menu
+
+
+
+
+                                            5
+    • Show Info… [C+I]
+Open an Information Window associated to the up-most Sequence Window. This
+Info Window provides information bout the % of A,C,G,T, the Tm or the
+translation and translated peptide MW of the sub-sequence selected in the
+associated Sequence window.
+    • Copy Translation [C+T]
+Translates into protein the sub-sequence selected in the up-most Sequence window
+and copy it in the clipboard in FASTA format.
+    • UPPERCASE [C+U]
+Put in uppercase the sub-sequence selected in the up-most Sequence window.
+
+    • Lowercase [C+L]
+Put in lowercase the sub-sequence selected in the up-most Sequence window.
+    • Antiparallel [C+/]
+Transform the sub-sequence selected in the up-most Sequence window into its
+anti-parallel sequence (e.g. AAGGAAGG becomes CCTTCCTT). Identical to a
+Reverse+Complement operation.
+    • Reverse
+Reverse the sub-sequence selected in the up-most Sequence window (e.g.
+AAGGAAGG becomes GGAAGGAA).
+    • Complement
+Tranform the sub-sequence selected in the up-most Sequence window into its
+complementary sequence(e.g. AAGGAAGG becomes TTCCTTCC).
+    • Linearize ( or Circularize)
+Modifies the topology of the sequence. The menu indicates ‘Linearize’ if the up-
+most sequence is circular, ‘Circularize if it is linear.
+    • Set Origin
+Sets the origin of the current sequence at the insertion point.
+    • Read selection
+Use the voice set-up of the operating system to read the selected sequence. Stop
+reading by pressing [ESC].
+
+
+
+                                    6
+D. The Restriction Menu
+
+
+
+
+     • Graphic Map [C+G]
+Available with a ‘Sequence’ Window (and in the ‘Adaptor’ window), this
+command will open a new window and display the Graphic map of the sequence.
+Options are available in the ‘Graphic Map’ window (see underneath).
+     • Sequence Map [C+M]
+Available with a ‘Sequence’ Window, this command will open a new window and
+display the textual restriction map of the sequence. Options are available in the
+‘Sequence Map’ window (see underneath). Using these option, one can use the
+‘Sequence Map’ not only to display the restriction map but also the multiframe
+translation of the sequence.
+     • Site Usage (interactive)
+Available with a ‘Sequence’ Window, this command will open a new window and
+display a dynamic table representing the sequence site usage (frequency of
+restriction sites). This table cannot be printed but allows to quickly find absent,
+unique sites (or other sites) quickly and compare to filter the site usage using
+another sequence site usage (see underneath).
+     • Site Usage (table)
+Available with a ‘Sequence’ Window, this command will open a new window and
+display a table representing the sequence site usage (frequency of restriction sites).
+This table can be printed. Three tables are actually displayed : the complete site
+usage table, the unique site table and the absent site table.
+     • Enzyme Library
+This command will open the ‘Enzyme Library’ window. This window allows to
+display, select and modify the enzyme libraries used by Serial Cloner.
+
+
+
+E. The Generate Menu
+
+
+
+
+                                      7
+     • Build a construct [C+1]
+This command will open the ‘Build’ window. This window allows the rapid
+construction of new vector or chimeric sequences based on graphical selection and
+ligation of fragments.
+     • Create an adaptor [C+2]
+This command will open the ‘Create an adaptor’ window. This window allows the
+rapid definition of the oligonucleotides necessary to construct an adaptor. The
+adaptor is constructed by entering the core (double stranded sequence) and the
+optional cohesive extensions.
+     • Run a PCR [C+3]
+This command will open the ‘Run a PCR’ window. This window allows the
+virtual amplification of a fragment from a defined matrix sequence and a couple of
+primer. These primers may contain un-annealed tails.
+     • Make shRNA [C+4]
+This command will open the ‘Make shRNA’ window. This window allows the
+rapid definition of the oligonucleotides necessary to construct a shRNA insert.
+This shRNA insert can then be cloned in a specialized vector using the ‘Build a
+construct’ window. Multiple layout of shRNA can be entered and stored. Based on
+a pre-defined layout, a shRNA is then constructed using the chosen siRNA core
+sequence.
+     • Gateway™ cloning [C+5]
+This command will open the ‘Gateway™ cloning’ window. This window
+automate the two basic Gateway reactions : the LR and the BP reactions. The att
+sites are looked at in the selected vector and the sub-cloning reaction executed
+between donor and acceptor vectors.
+     • Extract Fragment [C+6]
+This command is available with the ‘Sequence’ window when a sequence portion
+has been selected and with the ‘Graphic Map’ window when a fragment has been
+selected between one (circular sequence) or two (circular or linear sequence) sites.
+     • Align two Sequences [C+7]
+This command will open the ‘Align two Sequences’ window. This window allow
+to select to sequences from currently opened sequences, submit them to the
+‘BLAST2Sequences’ server at the NCBI and display the obtained alignment. The
+3-frame translation of the aligned sequence can be additionally displayed.
+
+
+
+
+                                     8
+F. The Window Menu
+
+
+
+
+    • Bring All To Front [C+B]
+Only available under MacOSX, this command will bring all Serial Cloner
+windows to front. Sometimes necessary due to the MacOSX-specific windows
+management system.
+    • Show/Hide Toolbar [C+?]
+This command allows to show or hide the toolbar window.
+    • Show/Hide Help Window [C+?]
+This command allows to show or hide the contextual help window. The
+description/function of most Serial Cloner windows elements is displayed in the
+help window when the element is pointed by the mouse arrow.
+    • Standard Genetic Code
+This command opens the Standard Genetic Code window.
+    • DNA Alphabet
+This command opens the DNA Alphabet window.
+    • About Serial Cloner (accessible in the Apple window under MacOSX)
+This command opens the About… window. This window displays information
+about the current Serial Cloner version, acknowledgment an registration
+information.
+    • Register (accessible in the ‘SerialCloner’ menu under MacOSX)
+This command opens the ‘Register’ window allowing to enter a serial number and
+have the pleasure to be using a registered Serial Cloner software :-)
+    • Opened windows names
+All opened windows (sequence windows, ‘Generate Menu’ windows or
+Preference windows) will be listed at the end of this menu. Selecting one of them
+will bring the corresponding window to the front.
+
+
+
+
+                                    9
+IV.   Serial Cloner Windows (Main windows)
+
+      A. The Sequence Window
+
+
+
+
+      This window allows sequence visualization, manipulation and modification. From
+      the sequence window, other windows can be opened (find, info). The sequence
+      opened in this window is available for other actions like Graphic and Text
+      restriction maps, Site usage or directly usable in the different ‘action’ windows.
+          1. The name of the opened sequence
+          2. The size of the sequence (in nucleotide)
+          3. The type as define by the DNA strider format essentially. So far, Serial
+               Cloner only manipulates DNA and degenerate DNA sequences
+          4. The type of format. Serial Cloner recognize the DNA strider, Serial Cloner
+               (modified Strider type), pDRAW32 and FASTA formats.
+          5. Topology of the sequence. Right-Click or [CTRL]-Click displays a
+               contextual menu allowing to change the topology.
+          6. Use this checkbox to lock or unlock the sequence. A locked sequence
+               cannot be inadvertently modified. Newly opened sequences can be
+               automatically locked (See Preference Window).
+          7. Use these arrows to go directly at the beginning or at the end of the
+               sequence.
+          8. When a selection is made it indicates the position of the first nucleotide
+               selected. Can also be use to set the beginning of the selection : in this case
+               a value can be directly entered and/or the up and down arrows can be used
+
+
+
+                                            10
+              to modify the value. If no selection is made, indicates the coordinates of
+              the insertion point.
+          9. When a selection is made it indicates the position of the last nucleotide
+              selected. Can also be use to set the end of the selection : in this case a
+              value can be directly entered and/or the up and down arrows can be used to
+              modify the value. Blank when no selection is made.
+          10. When a selection is made it indicates the length of the selected fragment.
+              Can also be use to set the length of the selection : in this case a value can
+              be directly entered and/or the up and down arrows can be used to modify
+              the value. Blank when no selection is made.
+          11. Use this tab to show the nucleotide sequence.
+          12. Use this tab to show the comments associated to the sequence.
+
+
+
+
+The comments respects the Strider format and is thus limited to 255 nucleotides.
+However, Serial Cloner comment field accepts longer text to allow you to organize and
+modify it more easily. The number of character in the field is indicated underneath. If
+there are more than 255 character, the comment text will be truncated to 255 when
+saving.
+
+          13. Use this tab to access to the extremities of a linear insert. Extremities can
+              be directly modified here.
+
+
+
+
+          14. Use this slider to scroll the sequence.
+          15. The main sequence field. The sequence can be directly entered and
+              modified here. A contextual menu can be displayed. When a selection is
+              made, this menu brings some of the most used functions
+
+
+
+
+                                            11
+          16. Save or Save As… the sequence. When the sequence has been opened
+              from the disk, the button is not enabled until the sequence is modified. If
+              pressing on the ‘Save’ button, the modified version will replace the
+              previous version. Press [Alt] before clicking on this button to ‘Save as…’
+              and change the name of the modified sequence. When the sequence
+              window contains a new sequence then ‘Save As…’ is indicated and a new
+              name will be asked for.
+          17. Shows the textual sequence map (restriction map and translation) in a
+              separate window. If a selection has been made, the coordinate of the
+              selection will be exported in the sequence map and used to translate only
+              this selection if needed.
+          18. Shows the Graphic map of the sequence in a separate window.
+          19. Opens the ‘Find’ window. Under MacOSX, it opens a drawer Window.
+              Under Windows, this is a separate window that behaves as a drawer
+              window.
+          20. Shows additional data bout the selection (translation, Tm, %GC, etc).
+
+                         When a selection is made, one can extract the fragment using
+                         either the corresponding Toolbar button, the Generate/Extract
+                         Fragment [C+6] menu or using the contextual menu. The
+                         selected fragment is then pasted in a new Sequence Window
+                         and the comments associated with it summarizes how the
+                         fragment was obtained. The fragment is blunt-ended. It can be
+                         saved or used directly in the ‘Build a Construct’ window.
+
+
+Selection Information and Translation
+
+The sequence window is extended when pressing the 'Show…' button in the Sequence
+Window or using the ‘Sequence/Show Info [C+I]’ menu.
+
+
+
+                                           12
+               1. Displays information about the selected DNA (Tm, number of A,C,G
+                  and T and % of GC). The Tm is calculated as follows:
+For fragments <14 nt :Tm= (A+T)*2+(G+C)*4-16.6*log10(0.050)+16.6*log10([Na+])
+For fragments >51 nt: Tm= 100.5+(41*(G+C)/(A+T+G+C))-(820/(A+T+G+C))+16.6*log10([Na+])
+For larger fragments : Tm= 81.5+(41*(G+C)/(A+T+G+C))-(500/(A+T+G+C))+16.6*log10([Na +])
+
+               2. Displays information concerning the translation of the selected
+                  sequence (the size, calculated MW and sequence of the protein).
+               3. Determine whether translation should finish at the first in-frame STOP
+                  codon encountered or should continue through the successive STOP
+                  codons.
+               4. The sequence of the translated peptide is displayed in this box. The
+                  full sequence, or sub-sequences, can be selected. A contextual menu is
+                  accessible here and allows in particular to save the peptide sequence in
+                  FASTA format. When the user clicks in the protein field, then the File
+                  menu is modified to offer the possibility of saving the protein
+                  sequence in Strider or FASTA format.
+
+
+
+
+      B. Find Window
+This window is attached to the Sequence Windows it is referring to.
+             This is a drawer window under MacOSX that is displayed when pressing
+             the Find button in the Sequence Window, using the ‘Edit/Find [C+F]’
+             menu or pressing the corresponding button on the toolbar. To close the
+             Find drawer window either press again the Find button of the Sequence
+             Window, the ‘Close Drawer’ of the Find Window or the Find button in the
+             Toolbar.
+
+Under Windows, only one Find Window can be displayed; to attach it to a particular
+Sequence window, press the Find button of that window, or use the ‘Edit/Find [C+F]’
+
+
+                                             13
+menu or the toolbar when this sequence window is the front most one. To close the info
+window under Windows, click the ‘Close Window’ button in the find window or click on
+the top-right of the window.
+
+
+
+
+      1. Click on this tab if you want to search for a sub-sequence string.
+      2. Click on this tab if you want to search for a restriction site.
+      3. Click on this tab if you want to search for an Open Reading frame (ORF)
+      4. Enter here the nucleotide string you want to look for. The search is case-
+         insensitive. Search will be done on both strand.
+      5. Click here to start searching.
+      6. All the occurrences of the sequence you look for will be displayed here. Click
+         on an occurrence to localize on the sequence window. The strand where the
+         sequence has been found is indicated (+ or – strand). The occurrence can be
+         sorted according to their position, to their size or to the strand where they
+         where found by clicking on the corresponding header of the column.
+      7. Close the drawer (MacOSX) or the window (Windows).
+
+
+
+
+                                         14
+                          Note : To select the restriction site to be looked at either
+                          scroll in the list or enter the first 2 or 3 letters of the
+                          enzyme name to directly scroll to that position. The name
+                          of the selected enzyme is then indicated in the ‘Selected
+                          Enzyme’ box and the recognition site recalled bellow the
+                          enzyme list. Click on find site to find the next occurrence
+                          of the site. The search is only done in the portion of
+                          sequence that is after the insertion point. When a non
+                          palindromic restriction site is found that the orientation of
+                          site is indicated by an arrow.
+
+
+
+
+   C. Graphic Map
+
+          A new graphic map of the sequence contained in the currently active
+          Sequence Window can be displayed pressing the ‘Graphic Map’ button in
+          the Sequence Window, using the ‘Restriction/Graphic Map [C+G] menu
+          or pressing the corresponding button in the Toolbar.
+
+Note that the Graphic Map also constitutes the left part of the ‘Build Construct’
+window.
+A contextual menu can be displayed by Ctrl/right clicking on the map. It allows to
+Linearize/circularize the map (also available using the ‘Sequence’ menu) and to save
+the map as a picture. When a selection has been done (see bellow) it can be used to
+extract the fragment, decide whether sense or antisense selection has to be done or to
+cancel the selection.
+
+              Arranging the map
+
+
+
+
+                                        15
+The map can be save as a bitmap image using the ‘File/Save Graphic Map as…’ or
+using the contextual menu. It can also be printed using the ‘File/Print [C+P] menu.
+The name and size of the sequence is shown at the top.
+Checkbox underneath can be used to display unique sites, double sites or any
+particular set of sites. These option are non-exclusive. Each category (unique, double
+or particular) will be displayed in a different color that can be change using the
+‘Preference’ window.
+
+The set of sites to be displayed when the ‘Particular
+Site’ checkbox is selected is chosen by pressing on
+the ‘Choose Site’ button. This pops-up a window
+where the different restriction site can be selected
+by clicking on the checkbox or double clicking on
+the name. The list of particular site can be erased
+double-clicking on ‘unselect all’ and clicking on
+‘use previous selection’ re-uses the same list as the
+one used in a precedent ‘Graphic Map’.
+Just click outside from the pop-up window to close
+it.
+
+
+
+
+                                        16
+                                                   An example of linear map where
+                                                   unique and double sites have been
+                                                   displayed (in yellow and orange
+                                                   respectively). In addition, a particular
+                                                   site, the site AvaII (present 3 times),
+                                                   is also shown (in blue). The red
+                                                   stretch on both extremities indicate
+                                                   that the fragment is cohesive. The
+                                                   cohesive end sequence is indicated in
+                                                   a gray box.
+
+
+
+
+   The map can be printed using the the File/Print [C+P] menu or saved as an image file
+using the File/Save As… that reads Save Graphic Map as.. when a graphic map is at the
+forefront.
+
+                Saving/Printing the map
+               Use the corresponding Toolbar button, the "File/Save Graphic Map
+               As…" or the contextual Menu to save the graphic map as a PICT file
+               under Macintosh or as a BMP file under Windows.
+
+               Use the corresponding Toolbar button or the "File/Print" to print the
+               graphic map. Under MacOSX, it is then easy to save it as a pdf file.
+
+
+
+                  Selecting and extracting a fragment
+    In addition to display, save and print graphic maps, this window can be use to select
+   and extract sub-fragments delimited by two restriction sites. This method will be
+   similarly used in the ‘Build a construct’ window to proceed to sub-cloning and
+   assembly of new constructs.
+
+
+
+
+                                           17
+To select a fragment one needs to select a BEGINNING and an END restriction site
+that will be the beginning and end of the produced fragment. The BEGINNING site is
+selected clicking on restriction site name box. When selected, the site is shown in a
+different color (green by default, customizable using the preference window). The
+END restriction site is selected by double-clicking or by shift-clicking of the site
+name box. Again, when selected, a different color is displayed (red by default). To
+cancel a selection either press on ‘Delete’ on the keyboard or use the contextual menu.
+Some differences between linear or circular maps :
+     Circular : One should decide whether the selection is done in a clockwise or
+counterclockwise (CW/CCW) way between the Beginning and End restriction sites.
+To change it either press on the Spacebar or use the contextual menu. In a circular
+vector, selecting only one site (Beginning or End) is enough to extract a fragment. The
+resulting fragment is then the complete linearized vector with cohesive ends
+corresponding to the chosen site.
+     Linear : the CW/CCW option is replace by Sense/antisense. In this case the
+Beginning and End restriction sites are logically swapped by pressing on the spacebar.
+In addition, one can ‘Select all’ the linear fragment. To do so, press ‘A’ on the
+keyboard.
+                       After selecting the sites, one can extract the fragment using
+                       either the corresponding Toolbar button, the Generate/Extract
+                       Fragment [C+6] menu or using the contextual menu. The
+                       selected fragment is then pasted in a new Sequence Window
+                       and the comments associated with it summarizes how the
+                       fragment was obtained. Depending on the restriction site used,
+                       the fragment may display cohesive ends. It can be saved or used
+                       directly in the ‘Build a Construct’ window.
+
+
+
+
+                                        18
+   D. Sequence Map
+
+          A new Sequence map of the sequence contained in the currently active
+          Sequence Window can be displayed pressing the ‘Sequence Map’ button
+          in the Sequence Window, using the ‘Restriction/Sequence Map [C+M] '
+          menu or pressing the corresponding button in the Toolbar.
+Most of the default settings of the Sequence Map can be modified in the Preference
+Window.
+
+
+
+
+       1. Find a sub-sequence or a restriction site in the map. A nucleotide or an
+          amino-acid subsequence can be entered in the field box. Amino-acid
+          should be separated by 2 spaces (3 in the codon-based display) to be found
+          (for example V..A..L..F..G should be entered to find the first five
+          amino-acid sequence. Note also that if a sequence is interrupted by a
+          carriage return (continued to next line) then it will not be found. Press
+          Return on the keyboard or click on the magnifying tool icon to start the
+          search. Another click will find the next occurrence. If the end of the map is
+          reach the search will start again from the top.
+          A restriction site can also be searched. Either enter directly the name (or
+          part of it) in the box or click on the pop-up menu to display the restriction
+          enzyme list. As with other enzyme list, enter the first 2 or 3 letters to
+          directly scroll the list to the corresponding name. Double click on the
+          name, select it and press Return on the keyboard or select it and click on
+          the magnifying tool icon to start the search. Another click will find the
+
+
+                                        19
+     next occurrence. If the end of the map is reach the search will start again
+     from the top.
+2.   Modify the display of sequence translation. If 'translate all' is unselected it
+     is then possible to determine the nucleotide between which translation
+     should be displayed. If a segment was selected in the Sequence Window
+     (like an ORF) when the Sequence map was created then the coordinate of
+     this segment will be already pasted here see the screenshot above for
+     example).
+     The 'Frame' checkboxes allow to select the translation frames to display. If
+     only one frame is selected it is possible to display the map highlighting the
+     codons or not.
+3.   Modify the display of the restriction map. All restriction sites can be
+     hidden when selecting 'Do not show RE sites'. If 'Show all sites' is
+     unselected then only RE cutting more than 1 (unique sites), 2, or x times
+     will be shown depending on the value entered.
+4.   You can modify here the display of the map and whether you want to show
+     the antisense strand or the nucleotide coordinates. Character size as well as
+     the number of nucleotide per line can be modified here.
+5.   The sequence map is displayed here and is updated automatically
+     whenever a parameter is modified. Using the Edit Menu or [C+C], it is
+     possible to copy all (Select all [C+A]) or a part of the map.
+6.   Click here to display a window to get some hints about how to set-up the
+     print parameters.
+7.   Modify the page set-up used to print the sequence map. (also available
+     using the File menu)
+8.   Print the map. (also available using the File menu or[C+P] )
+
+
+
+
+                                   20
+

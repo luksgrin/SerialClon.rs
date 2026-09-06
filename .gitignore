@@ -1,0 +1,31 @@
+# Rust
+/target
+**/target
+Cargo.lock.bak
+
+# Node
+node_modules/
+dist/
+.vite/
+*.tsbuildinfo
+
+# Tauri
+src-tauri/target/
+src-tauri/gen/android/
+src-tauri/gen/apple/
+
+# Editors / OS
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json
+*.swp
+
+# Local env / signing material — never commit these
+.env
+.env.*
+*.p12
+*.pfx
+*.cer
+*.mobileprovision

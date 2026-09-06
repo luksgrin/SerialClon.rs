@@ -1,0 +1,55 @@
+What's new in Serial Cloner 2.6 (see the available contextual help window to get more details on new functions)
+
+2.6.1
+- [ADDED] a preference to limit or not the width of Seq & Prot windows
+- [CORRECTED] Detection of overlapping Primers in PCR
+- [CORRECTED] Bug in "show info" toggle under Windows and Linux
+- [CORRECTED] Slow down under certain Windows install due to autosaving
+- [CORRECTED] Error in definition of PreScission site
+- [CORRECTED] Save/Save As problem is PCR window
+- [CORRECTED] Insertion point position when editing a protein sequence
+
+2.6.0
+- [NEW] Estimates Isoelectric point of protein sequences (DNA and Protein Sequence Window)
+- [NEW] MacOSX version now distributed as a signed application (Mountain Lion Gatekeeper compatibility)
+- [ADDED] An option in the Preferences to select pK value tables to use for pI estimation
+- [ADDED] An option in the Preferences to use the Codon code from Codon Usage tables as a Genetic code used for translation
+- [ADDED] An option in the Restriction Map window to only translate nucleotides that are in uppercase
+- [ADDED] A button/menu to choose particular sites to be displayed in Restriction maps.
+- [ADDED] Scan for peptide Features in Protein Sequences
+- [ADDED] Inherit Features when reverse-translating a DNA sequence
+- [ADDED] A rapid switch between a DNA and Protein Align window
+- [ADDED] Non formatted copy of Protein sequence (Copy More… Menu)
+- [ADDED] Inherit Features when copying/Pasting Protein sequences
+- [ADDED] Display Features in Protein Align (Local Align)
+- [ADDED] A toggle button to highlight differences in aligned proteins
+- [ADDED] A shortcut (S) to quickly show or mask Features (in the Features tab of Sequence Windows)
+- [ADDED] 'Anchor' and 'Core' domains of Primers are now recognized as Features in Sequence Windows
+- [ADDED] A button to quickly select a full linear insert in the 'Build a Construct' window
+- [ADDED] Added a shortcut to 'Copy Non Formatted' [COMMAND-SHIFT-K]
+- [ADDED] A menu entry to go to Serial Cloner Forum
+- [ADDED] A menu entry to go to Serial Cloner Youtube Channel (tutorial)
+- [UPDATED] It is now possible to fully resize Sequence windows
+- [UPDATED] Absent sites are indicated in italic in enzyme chooser windows (Graphic and Restriction Maps)
+- [UPDATED] Unique sites are indicated in bold in enzyme chooser windows (Graphic and Restriction Maps)
+- [UPDATED] Parsing of NCBI sequences (Web Access) to take in account changes in NCBI pages.
+- [UPDATED] Improved parsing of sequences containing 'X' in the nucleotide sequence
+- [UPDATED] Changed shortcut of 'Copy All Sequences To Multifasta' to [COMMAND-SHIFT-J] instead of [COMMAND-SHIFT-K]
+- [CORRECTED] A Windows-specific interface bug the the 'Import Codon Bias' window
+- [CORRECTED] A bug sometimes preventing proper copy of images (Graphic map, Virtual Cut, shRNA) in the clipboard (Windows specific)
+- [CORRECTED] A problem arising with uncommon RE names like R1.BceSIV in the particular enzyme" chooser of the Graphic Map.
+- [CORRECTED] A problem [Gateway Cloning] with Features indication when the destination vector  was antisense (att2-att1 direction)
+- [CORRECTED] A bug in the selection of the most used AA when reverse translating
+- [CORRECTED] A problem with "Select All" in Sequence and Protein windows
+- [CORRECTED] A File type problem associated to Serial Cloner files (breaking compatibility with Sequencher  import in particular)
+- [CORRECTED] Ligation : Sometimes unnecessarily produced degenerate DNA
+- [CORRECTED] Gateway : generated DNA but then when then saved as unknown type
+- [CORRECTED] PCR : if done on "unknown format" sequence, incorrectly generated "Protein" type.
+- [CORRECTED] A problem updating Feature when undoing a modification
+- [CORRECTED] When pasting a protein sequence in GenBank format (NCBI) a protein sequence window is now correctly created.
+- [CORRECTED] A problem with the NCBI BLAST server when using non-ASCII characters in Sequence names
+- [CORRECTED] A problem with Feature display after a scan when only one Feature was found
+- [CORRECTED] A rare problem of Feature display in the Construct Window
+- [CORRECTED] A refresh problem when using character size different from 12 pt in Graphic maps.
+- [CORRECTED] A bug in the Restriction map windows where the first line of amino acid translation was shifted in codon mode
+- [CORRECTED] A bug related preventing the use of previously selected enzymes in the Virtual Cutter Window
