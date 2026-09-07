@@ -11,7 +11,9 @@ in **Rust + Tauri 2** and shipping installers for **Windows, macOS and Ubuntu**.
 > derived from the shipped sample files (a scan reproduces the annotations the original stored in
 > them), simple and complex definitions (5'/3' ends, potential ends, up/downstream context, DNA or
 > peptide, sense-only), the **Manage Features** window, and Collection import/export (SerialClon,
-> generic table, ApE). **M5** adds the cloning windows.
+> generic table, ApE). The built-in database is a partial reconstruction — see
+> [`resources/features/README.md`](resources/features/README.md) for what is missing and why.
+> **M5** adds the cloning windows.
 
 ---
 

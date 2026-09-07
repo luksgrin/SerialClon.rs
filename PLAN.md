@@ -271,6 +271,13 @@ Features tab, colour/arrow/show, drag-to-reorder, `+`/`−` with the Alt no-conf
 + up/downstream context, DNA or peptide, sense-only option), Manage Features window,
 import/export (Serial Cloner, generic table, ApE), scan-preserves-user-edits semantics.
 
+**M4 follow-up — the built-in Feature database is incomplete.** The original's Collection files
+are not in the reference material, only the ~150 names; `resources/features/README.md` lists what
+is shipped (63 definitions, each verified against a sample file or a textbook motif) and what is
+missing (mostly long marker genes, yeast markers, promoters and reporter ORFs). Researching and
+adding the missing consensus sequences is a separate step; a copy of the original's
+`SerialCloner/Features/` folder from any old installation would settle it at once.
+
 ### M5 — Cloning (3–4 weeks)
 Build a Construct (graphic selection → slots → blunting → Ligate), Create an Adaptor, Run a PCR
 (tails, TA overhang, primer features, right-click "use selection as forward/reverse primer"),
