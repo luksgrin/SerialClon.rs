@@ -63,6 +63,16 @@ Screenshots extracted from the manuals. These are what "same UI" is measured aga
 | `08-sequence-map.png` | Text map: the four control panels and multi-frame translation |
 | `09-manage-features.png` | Feature Collection editor, Simple / Complex definitions |
 
+## `sequences/genbank/` — public records behind the built-in Features
+
+GenBank records (NCBI, public domain) downloaded on 2026-09-07 with E-utilities, named
+`<accession>-<vector>.gb`. They are the sources of the researched definitions in
+`resources/features/` (see `resources/features/README.md`) and the fixtures of
+`crates/sc-features/tests/researched.rs`, which checks that a scan finds each definition at the
+record's own annotated coordinates: pGEX-4T-1 (U13853), pRS303/304/305/316/424 (U03435, U03436,
+U03437, U03442, U03453), YCp50 (X70276), pBI121 (AF485783), pLKO.1 (PX675714), pTrc99A (U13872),
+pBAD24 (X81837), pAN7-1 (Z32698), pIRES1neo (U89673).
+
 ## `RELibrary-striderc.211`
 
 The enzyme database Serial Cloner 2.6.1 shipped: REBASE version 211, October 2012. Kept so that
