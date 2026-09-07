@@ -34,22 +34,27 @@ jobs:
       matrix:
         include:
           - name: macOS (Apple Silicon)
+            slug: macos-aarch64
             os: macos-14
             args: --target aarch64-apple-darwin --bundles app,dmg
             targets: aarch64-apple-darwin
           - name: macOS (Intel)
+            slug: macos-x86_64
             os: macos-14
             args: --target x86_64-apple-darwin --bundles app,dmg
             targets: x86_64-apple-darwin
           - name: macOS (Universal)
+            slug: macos-universal
             os: macos-14
             args: --target universal-apple-darwin --bundles app,dmg
             targets: aarch64-apple-darwin,x86_64-apple-darwin
           - name: Windows (x86_64)
+            slug: windows-x86_64
             os: windows-latest
             args: --bundles msi,nsis
             targets: x86_64-pc-windows-msvc
           - name: Ubuntu 22.04 (x86_64)
+            slug: ubuntu-22.04-x86_64
             os: ubuntu-22.04
             args: --bundles deb,appimage
             targets: x86_64-unknown-linux-gnu
@@ -76,7 +81,7 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: '. -> target'
-          key: ${{ matrix.name }}
+          key: ${{ matrix.slug }}
 
       - name: Frontend — install
         run: npm ci
@@ -97,4 +102,5 @@ jobs:
           releaseDraft: true
           prerelease: ${{ contains(github.ref_name, '-') }}
           uploadWorkflowArtifacts: true
-          workflowArtifactNamePattern: 'serialclon-[platform]-[arch]-[version]'
+          # Both macOS arches build on the same arm64 runner, so `[arch]` would collide.
+          workflowArtifactNamePattern: serialclon-${{ matrix.slug }}
