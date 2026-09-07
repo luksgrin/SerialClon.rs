@@ -119,12 +119,7 @@ pub fn extract_selection(seq: &Sequence, from: usize, to: usize) -> Option<Seque
     Some(product(
         seq,
         fragment,
-        format!(
-            "{} [{}-{}]",
-            seq.name,
-            from + 1,
-            if from <= to { to } else { to }
-        ),
+        format!("{} [{}-{}]", seq.name, from + 1, to),
         comment,
         lo,
         hi,
