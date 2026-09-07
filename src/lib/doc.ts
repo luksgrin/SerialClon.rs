@@ -58,7 +58,12 @@ export type EditOp =
   | { op: 'set_locked'; locked: boolean }
   | { op: 'set_ends'; ends: EndsView }
   | { op: 'set_degenerate'; degenerate: boolean }
-  | { op: 'set_feature_show'; index: number; show: boolean };
+  | { op: 'set_feature_show'; index: number; show: boolean }
+  | { op: 'add_feature'; feature: FeatureView }
+  | { op: 'update_feature'; index: number; feature: FeatureView }
+  | { op: 'delete_feature'; index: number }
+  | { op: 'move_feature'; from: number; to: number }
+  | { op: 'remove_duplicates' };
 
 export interface EditResponse {
   view: DocumentView;
@@ -102,6 +107,7 @@ export interface EnzymeEntry {
 export interface MapSite {
   name: string;
   position: number;
+  length: number;
   cut_top: number;
   cut_bottom: number;
   forward: boolean | null;
@@ -135,6 +141,35 @@ export interface SiteRefView {
   position: number;
   cut_top: number;
   cut_bottom: number;
+}
+
+export interface FeatureDef {
+  name: string;
+  kind: string;
+  color: string;
+  arrow: boolean;
+  sense_only: boolean;
+  peptide: boolean;
+  five: string;
+  three: string;
+  potential_five: string;
+  potential_three: string;
+  upstream: string;
+  downstream: string;
+  comment: string;
+  scan: boolean;
+}
+
+export interface Collection {
+  name: string;
+  scan: boolean;
+  builtin: boolean;
+  features: FeatureDef[];
+}
+
+export interface ScanReport {
+  added: number;
+  found: number;
 }
 
 /** A selection: 0-based indices in [0, length]; a caret when equal. */
@@ -191,7 +226,25 @@ export const api = {
   openSequenceMap: (id: number, from: number | null, to: number | null) => invoke<void>('open_sequence_map', { id, from, to }),
   savePng: (name: string, dataBase64: string) => invoke<boolean>('save_png', { name, dataBase64 }),
   showParent: (id: number) => invoke<void>('show_parent', { id }),
+  scanFeatures: (id: number) => invoke<ScanReport>('scan_features', { id }),
+  newFeatureFromSelection: (id: number, from: number, to: number, translation: string | null) =>
+    invoke<DocumentView>('new_feature_from_selection', { id, from, to, translation }),
+  newFeatureFromSites: (id: number, begin: SiteRefView, end: SiteRefView, beginLength: number, endLength: number, clockwise: boolean) =>
+    invoke<DocumentView>('new_feature_from_sites', { id, begin, end, beginLength, endLength, clockwise }),
+  listCollections: () => invoke<Collection[]>('list_collections'),
+  saveCollections: (collections: Collection[]) => invoke<void>('save_collections', { collections }),
+  restoreBuiltinCollections: () => invoke<Collection[]>('restore_builtin_collections'),
+  importCollection: () => invoke<Collection[] | null>('import_collection'),
+  exportCollection: (name: string, table: boolean) => invoke<boolean>('export_collection', { name, table }),
+  openReferenceAny: (which: string) => invoke<void>('open_reference_window', { which }),
 };
+
+/** GenBank feature keys offered in the editors. */
+export const FEATURE_KINDS = [
+  'misc_feature', 'CDS', 'gene', 'promoter', 'terminator', 'rep_origin', 'primer_bind', 'misc_binding', 'protein_bind',
+  'misc_recomb', 'polyA_signal', 'polyA_site', 'enhancer', 'RBS', 'sig_peptide', 'mat_peptide', 'intron', 'exon',
+  'mRNA', '5\'UTR', '3\'UTR', 'LTR', 'repeat_region', 'oriT', 'misc_RNA', 'ncRNA', 'tRNA', 'rRNA', 'mobile_element',
+];
 
 /** Fires whenever the shell changes a document (edits, saves, undo…). */
 export function onDocChanged(id: number, handler: (doc: DocumentView) => void): Promise<UnlistenFn> {

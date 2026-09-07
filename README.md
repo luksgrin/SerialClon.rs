@@ -4,13 +4,14 @@ An open-source, maintained reimplementation of **Serial Cloner** — the molecul
 cloning workbench by F. Perez (SerialBasics), whose last release was **2.6.1 in March 2013** — built
 in **Rust + Tauri 2** and shipping installers for **Windows, macOS and Ubuntu**.
 
-> **Status: M3 (maps) done.** The research and the implementation plan live in
-> [`PLAN.md`](PLAN.md). On top of the Sequence Window (M2) the app now has the **Graphic Map**
-> (circular and linear, Features, unique / double / particular sites, draggable labels, two-click
-> fragment selection with spacebar CW/CCW, PNG export, print) and the **Sequence Map** (the text
-> restriction map with multi-frame translation, reproducing the original's printed map line for
-> line), plus **Extract Fragment** with cohesive ends and provenance comments. **M4** adds the
-> Features system.
+> **Status: M4 (Features) done.** The research and the implementation plan live in
+> [`PLAN.md`](PLAN.md). The app has the Sequence Window (M2), the Graphic and Sequence Maps with
+> Extract Fragment (M3), and now the **Features system**: an editable Features tab (Alt-delete,
+> drag to reorder, S to show/hide), **Scan** against five built-in Collections whose sequences were
+> derived from the shipped sample files (a scan reproduces the annotations the original stored in
+> them), simple and complex definitions (5'/3' ends, potential ends, up/downstream context, DNA or
+> peptide, sense-only), the **Manage Features** window, and Collection import/export (SerialClon,
+> generic table, ApE). **M5** adds the cloning windows.
 
 ---
 
@@ -91,6 +92,8 @@ src/
   app.css                design tokens (the Aqua Classic theme will override these)
 assets/app-icon.svg      icon source; `cargo tauri icon assets/app-icon.svg -o src-tauri/icons`
 resources/RELibrary      current REBASE striderc enzyme database, bundled with the app
+resources/features/      the five built-in Feature Collections (JSON), compiled in and seeded
+                         into the user's data directory on first run
 scripts/update-rebase.sh refresh it from rebase.neb.com
 reference/               see reference/README.md
   sequences/             original .xdna/.gb/.fasta/.nucl/.ma4 files — format fixtures

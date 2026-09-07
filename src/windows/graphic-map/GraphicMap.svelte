@@ -8,7 +8,7 @@
   import { onMount } from 'svelte';
   import { Menu } from '@tauri-apps/api/menu';
   import { message } from '@tauri-apps/plugin-dialog';
-  import { api, docIdFromUrl, onDocChanged, onMenu, type DocumentView, type EnzymeEntry, type MapSite, type SiteRefView } from '$lib/doc';
+  import { api, docIdFromUrl, onDocChanged, onMenu, requestSelect, type DocumentView, type EnzymeEntry, type MapSite, type SiteRefView } from '$lib/doc';
 
   const id = docIdFromUrl();
   const COLORS = { unique: '#f2e14c', double: '#f0a53a', particular: '#7cb3e8', begin: '#2ea043', end: '#d1242f' } as const;
@@ -142,6 +142,8 @@
     path: string;
     label: { x: number; y: number };
     head: string;
+    lo: number;
+    hi: number;
   }
   const featureShapes = $derived.by((): FeatureShape[] => {
     if (!doc || !showFeatures || length === 0) return [];
@@ -177,6 +179,8 @@
             path: `M ${p0.x} ${p0.y} A ${r} ${r} 0 ${large} 1 ${p1.x} ${p1.y}`,
             label: mid,
             head: f.arrow ? `M ${h1.x} ${h1.y} L ${h3.x} ${h3.y} L ${h2.x} ${h2.y} Z` : '',
+            lo,
+            hi: (lo + span) % Math.max(1, length) || length,
           };
         }
         const x0 = xOf(lo);
@@ -184,7 +188,7 @@
         const y = bar.y + 14;
         const h = 12;
         const head = f.arrow ? (f.forward ? `M ${x1} ${y} L ${x1 + 8} ${y + h / 2} L ${x1} ${y + h} Z` : `M ${x0} ${y} L ${x0 - 8} ${y + h / 2} L ${x0} ${y + h} Z`) : '';
-        return { name: f.name, color: f.color, forward: f.forward, path: `M ${x0} ${y} H ${x1} V ${y + h} H ${x0} Z`, label: { x: (x0 + x1) / 2, y: y + h + 12 }, head };
+        return { name: f.name, color: f.color, forward: f.forward, path: `M ${x0} ${y} H ${x1} V ${y + h} H ${x0} Z`, label: { x: (x0 + x1) / 2, y: y + h + 12 }, head, lo, hi: Math.min(length, lo + span) };
       });
   });
 
@@ -291,6 +295,16 @@
     }
   }
 
+  async function makeFeature() {
+    const b = placed.find((x) => x.key === begin);
+    const e = placed.find((x) => x.key === end) ?? b;
+    if (!b || !e) {
+      await message('Choose a BEGIN site (click) and an END site (double-click or shift-click) first.', { title: 'Make New Feature' });
+      return;
+    }
+    await api.newFeatureFromSites(id, siteRef(b.key)!, siteRef(e.key)!, b.site.length, e.site.length, clockwise);
+  }
+
   async function toggleTopology() {
     if (!doc) return;
     await api.edit(id, { op: 'set_topology', circular: !doc.circular });
@@ -330,6 +344,7 @@
         { id: 'print', text: 'Print…', action: () => window.print() },
         { item: 'Separator' },
         { id: 'extract', text: 'Extract Fragment', enabled: hasSelection, action: () => void extract() },
+        { id: 'feature', text: 'Make New Feature', enabled: !!begin, action: () => void makeFeature() },
         { id: 'dir', text: circular ? (clockwise ? 'Select Counter-Clockwise' : 'Select Clockwise') : clockwise ? 'Select Antisense' : 'Select Sense', enabled: hasSelection, action: () => (clockwise = !clockwise) },
         { id: 'cancel', text: 'Cancel Selection', enabled: hasSelection, action: clearSelection },
         { item: 'Separator' },
@@ -352,6 +367,9 @@
         break;
       case 'seq.topology':
         void toggleTopology();
+        break;
+      case 'features.from_selection':
+        void makeFeature();
         break;
     }
   }
@@ -483,8 +501,10 @@
         {#each featureShapes as f (f.name + f.path)}
           <path d={f.path} fill={circular ? 'none' : f.color} stroke={f.color} stroke-width={circular ? 10 : 1} />
           {#if f.head}<path d={f.head} fill={f.color} />{/if}
-          <rect x={f.label.x - (f.name.length * CHAR) / 2 - 4} y={f.label.y - 9} width={f.name.length * CHAR + 8} height="14" fill="#ffffff" stroke={f.color} rx="2" />
-          <text x={f.label.x} y={f.label.y + 2} text-anchor="middle" font-size="10" fill="#222">{f.name}</text>
+          <g role="button" tabindex="-1" style="cursor: default" ondblclick={() => void requestSelect(id, f.lo, f.hi)} onclick={(e) => e.stopPropagation()} onkeydown={(e) => { if (e.key === 'Enter') void requestSelect(id, f.lo, f.hi); }}>
+            <rect x={f.label.x - (f.name.length * CHAR) / 2 - 4} y={f.label.y - 9} width={f.name.length * CHAR + 8} height="14" fill="#ffffff" stroke={f.color} rx="2" />
+            <text x={f.label.x} y={f.label.y + 2} text-anchor="middle" font-size="10" fill="#222">{f.name}</text>
+          </g>
         {/each}
 
         {#each placed as p (p.key)}

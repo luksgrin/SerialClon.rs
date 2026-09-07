@@ -1,0 +1,39 @@
+{
+ "name": "Other",
+ "scan": true,
+ "builtin": true,
+ "features": [
+  {
+   "name": "IL2 ss",
+   "kind": "sig_peptide",
+   "color": "#daa520",
+   "arrow": true,
+   "sense_only": false,
+   "peptide": true,
+   "five": "MYRMQLLSCIALSLALVTNS",
+   "three": "",
+   "potential_five": "",
+   "potential_three": "",
+   "upstream": "",
+   "downstream": "",
+   "comment": "human interleukin-2 signal sequence",
+   "scan": true
+  },
+  {
+   "name": "Ig kappa ss",
+   "kind": "sig_peptide",
+   "color": "#daa520",
+   "arrow": true,
+   "sense_only": false,
+   "peptide": true,
+   "five": "METDTLLLWVLLLWVPGSTG",
+   "three": "",
+   "potential_five": "",
+   "potential_three": "",
+   "upstream": "",
+   "downstream": "",
+   "comment": "mouse Ig kappa-chain leader",
+   "scan": true
+  }
+ ]
+}

@@ -287,8 +287,10 @@ pub fn open_reference(app: &AppHandle, which: &str) {
         "about" => ("About SerialClon", (380.0, 300.0)),
         "genetic-code" => ("Standard Genetic Code", (460.0, 400.0)),
         "alphabet" => ("DNA Alphabet", (320.0, 380.0)),
+        "features" => ("Feature Collection", (960.0, 640.0)),
         _ => return,
     };
+    let resizable = which == "features";
     if let Some(w) = app.get_webview_window(which) {
         let _ = w.show();
         let _ = w.set_focus();
@@ -301,9 +303,9 @@ pub fn open_reference(app: &AppHandle, which: &str) {
     )
     .title(title)
     .inner_size(size.0, size.1)
-    .resizable(false)
-    .minimizable(false)
-    .maximizable(false)
+    .resizable(resizable)
+    .minimizable(resizable)
+    .maximizable(resizable)
     .build();
 }
 

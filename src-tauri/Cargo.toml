@@ -22,6 +22,7 @@ sc-seq.workspace = true
 sc-enzyme.workspace = true
 sc-format.workspace = true
 sc-clone.workspace = true
+sc-features.workspace = true
 base64 = "0.22"
 tauri-plugin-dialog = "2"
 tauri-plugin-clipboard-manager = "2"

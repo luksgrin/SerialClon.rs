@@ -40,6 +40,7 @@
       { id: 'gateway', label: 'Gateway', help: 'Opens the Gateway™ cloning window: BP and LR reactions between donor and acceptor vectors.', milestone: 'M5' },
       { id: 'extract', label: 'Extract', help: 'Extracts the selected fragment (or the fragment between two sites on the Graphic Map) into a new Sequence Window, cohesive ends included.', action: () => void api.toolbarAction('generate.extract') },
       { id: 'align', label: 'Align', help: 'Opens the Align two Sequences window: local alignment with 3-frame translation.', milestone: 'M6' },
+      { id: 'scan', label: 'Scan', help: 'Scans the front-most sequence for the Features of the enabled Collections (Features ▸ Scan Sequence). Features you edited are kept.', action: () => void api.toolbarAction('features.scan') },
     ],
     [
       { id: 'help', label: 'Help', help: 'Shows or hides the contextual Help window. Point at any button or field to get help and hints.', action: () => void toggleHelpWindow() },

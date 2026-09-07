@@ -12,7 +12,7 @@ use serde::Serialize;
 use tauri::{AppHandle, Emitter, Manager};
 use tauri_plugin_clipboard_manager::ClipboardExt;
 
-use crate::documents::{DocId, Document, DocumentView, EditOp};
+use crate::documents::{DocId, Document, DocumentView, EditOp, FeatureView};
 use crate::io::ExportFormat;
 use crate::{AppState, autosave, io, menu, windows};
 
@@ -571,6 +571,8 @@ pub struct MapSite {
     pub name: String,
     /// 1-based first base of the site (what the label shows).
     pub position: usize,
+    /// Length of the recognition site.
+    pub length: usize,
     /// 0-based top-strand cut.
     pub cut_top: usize,
     /// 0-based bottom-strand cut.
@@ -613,6 +615,7 @@ pub fn map_data(app: AppHandle, id: DocId) -> Result<MapData, String> {
             sites.push(MapSite {
                 name: enzyme.name.clone(),
                 position: s.position + 1,
+                length: enzyme.site.len(),
                 cut_top: s.cut_top,
                 cut_bottom: s.cut_bottom,
                 forward: enzyme.is_oriented().then_some(s.strand == Strand::Forward),
@@ -815,6 +818,217 @@ pub async fn save_png(app: AppHandle, name: String, data_base64: String) -> Resu
     };
     let path = path.into_path().map_err(|e| e.to_string())?;
     std::fs::write(&path, bytes).map_err(|e| format!("{}: {e}", path.display()))?;
+    Ok(true)
+}
+
+// ------------------------------------------------------------ features ----
+
+/// What a scan reports.
+#[derive(Debug, Serialize)]
+pub struct ScanReport {
+    /// Features added.
+    pub added: usize,
+    /// Features found (including ones already present).
+    pub found: usize,
+}
+
+/// Features ▸ Scan Sequence: finds every enabled definition and merges the
+/// hits into the document (protected features are kept).
+#[tauri::command]
+pub fn scan_features(app: AppHandle, id: DocId) -> Result<ScanReport, String> {
+    let state = app.state::<AppState>();
+    let found = {
+        let store = state.store.lock().unwrap();
+        let doc = store.get(id).ok_or("no such document")?;
+        let collections = state.collections.lock().unwrap();
+        sc_features::scan(&doc.seq, &collections)
+    };
+    let count = found.len();
+    let added = {
+        let mut store = state.store.lock().unwrap();
+        let doc = store.get_mut(id).ok_or("no such document")?;
+        doc.apply(EditOp::MergeScan {
+            found: found.iter().map(FeatureView::from).collect(),
+        })?
+        .filtered
+    };
+    broadcast(&app, id);
+    Ok(ScanReport {
+        added,
+        found: count,
+    })
+}
+
+/// Features ▸ New Feature From Selection (`from..to`, 0-based half-open,
+/// wrapping when `from > to` on a circle). `translation` goes into the
+/// comment when the Info panel was showing.
+#[tauri::command]
+pub fn new_feature_from_selection(
+    app: AppHandle,
+    id: DocId,
+    from: usize,
+    to: usize,
+    translation: Option<String>,
+) -> Result<DocumentView, String> {
+    let feature = FeatureView {
+        name: "New Feature".into(),
+        description: translation
+            .map(|t| format!("translation={t}"))
+            .unwrap_or_default(),
+        kind: "misc_feature".into(),
+        start: from as u32 + 1,
+        end: to as u32,
+        forward: true,
+        show: true,
+        protect: true,
+        arrow: true,
+        color: "#84a4c0".into(),
+    };
+    edit(app, id, EditOp::AddFeature { feature }).map(|r| r.view)
+}
+
+/// Graphic Map ▸ Make New Feature between the BEGIN and END sites: the
+/// feature contains both sites and names them in its comment.
+#[tauri::command]
+pub fn new_feature_from_sites(
+    app: AppHandle,
+    id: DocId,
+    begin: SiteRefView,
+    end: SiteRefView,
+    begin_length: usize,
+    end_length: usize,
+    clockwise: bool,
+) -> Result<DocumentView, String> {
+    let n = {
+        let state = app.state::<AppState>();
+        let store = state.store.lock().unwrap();
+        store.get(id).ok_or("no such document")?.seq.len() as u32
+    };
+    let (a, b) = if clockwise {
+        (&begin, &end)
+    } else {
+        (&end, &begin)
+    };
+    let (al, bl) = if clockwise {
+        (begin_length, end_length)
+    } else {
+        (end_length, begin_length)
+    };
+    let start = a.position as u32;
+    let end_pos = ((b.position + bl - 2) as u32) % n + 1;
+    let _ = al;
+    let feature = FeatureView {
+        name: format!("{}-{}", begin.enzyme, end.enzyme),
+        description: format!(
+            "Between {} ({}) and {} ({})",
+            begin.enzyme, begin.position, end.enzyme, end.position
+        ),
+        kind: "misc_feature".into(),
+        start,
+        end: end_pos,
+        forward: true,
+        show: true,
+        protect: true,
+        arrow: true,
+        color: "#84a4c0".into(),
+    };
+    edit(app, id, EditOp::AddFeature { feature }).map(|r| r.view)
+}
+
+/// Manage Features: every collection.
+#[tauri::command]
+pub fn list_collections(app: AppHandle) -> Vec<sc_features::Collection> {
+    app.state::<AppState>().collections.lock().unwrap().clone()
+}
+
+/// Manage Features ▸ OK: replaces and persists every collection.
+#[tauri::command]
+pub fn save_collections(app: AppHandle, collections: Vec<sc_features::Collection>) {
+    crate::collections::save(&app, &collections);
+    *app.state::<AppState>().collections.lock().unwrap() = collections;
+}
+
+/// Puts the five built-in collections back (user collections are kept).
+#[tauri::command]
+pub fn restore_builtin_collections(app: AppHandle) -> Vec<sc_features::Collection> {
+    let restored = {
+        let state = app.state::<AppState>();
+        let current = state.collections.lock().unwrap();
+        crate::collections::restore_builtins(&current)
+    };
+    crate::collections::save(&app, &restored);
+    *app.state::<AppState>().collections.lock().unwrap() = restored.clone();
+    restored
+}
+
+/// Manage Features ▸ Import: a Serial Cloner (JSON), generic-table or ApE
+/// file becomes a new collection. Returns the new list, or `None` if
+/// cancelled.
+#[tauri::command]
+pub async fn import_collection(
+    app: AppHandle,
+) -> Result<Option<Vec<sc_features::Collection>>, String> {
+    use tauri_plugin_dialog::DialogExt;
+    let Some(file) = app
+        .dialog()
+        .file()
+        .set_title("Import a Feature Collection")
+        .add_filter("Feature collections", &["json", "txt", "tsv", "tab", "csv"])
+        .blocking_pick_file()
+    else {
+        return Ok(None);
+    };
+    let path = file.into_path().map_err(|e| e.to_string())?;
+    let text = std::fs::read_to_string(&path).map_err(|e| format!("{}: {e}", path.display()))?;
+    let name = sc_format::name_from_path(&path);
+    let mut collection = sc_features::formats::read(&text, &name)?;
+    collection.builtin = false;
+    let all = {
+        let state = app.state::<AppState>();
+        let mut cs = state.collections.lock().unwrap();
+        // A collection with the same name is replaced.
+        cs.retain(|c| c.name != collection.name);
+        cs.push(collection);
+        cs.clone()
+    };
+    crate::collections::save(&app, &all);
+    Ok(Some(all))
+}
+
+/// Manage Features ▸ Export (Alt-Import): saves one collection as
+/// SerialClon JSON or a generic table.
+#[tauri::command]
+pub async fn export_collection(app: AppHandle, name: String, table: bool) -> Result<bool, String> {
+    use tauri_plugin_dialog::DialogExt;
+    let collection = {
+        let state = app.state::<AppState>();
+        let cs = state.collections.lock().unwrap();
+        cs.iter()
+            .find(|c| c.name == name)
+            .cloned()
+            .ok_or("no such collection")?
+    };
+    let (filter, ext, text) = if table {
+        (
+            "Generic table",
+            "txt",
+            sc_features::formats::write_table(&collection),
+        )
+    } else {
+        ("SerialClon collection", "json", collection.to_json())
+    };
+    let Some(file) = app
+        .dialog()
+        .file()
+        .set_title("Export Feature Collection")
+        .add_filter(filter, &[ext])
+        .set_file_name(format!("{name}.{ext}"))
+        .blocking_save_file()
+    else {
+        return Ok(false);
+    };
+    let path = file.into_path().map_err(|e| e.to_string())?;
+    std::fs::write(&path, text).map_err(|e| format!("{}: {e}", path.display()))?;
     Ok(true)
 }
 

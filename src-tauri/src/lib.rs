@@ -9,6 +9,7 @@
 //! lives in the [`documents`] store; windows hold ids.
 
 mod autosave;
+mod collections;
 mod commands;
 mod documents;
 mod io;
@@ -38,6 +39,8 @@ pub struct AppState {
     pub menus: Mutex<Option<menu::MenuHandles>>,
     /// The bundled enzyme database.
     pub library: sc_enzyme::Library,
+    /// Feature collections (Manage Features).
+    pub collections: Mutex<Vec<sc_features::Collection>>,
 }
 
 /// The enzyme database compiled in (also bundled as a resource for the
@@ -159,6 +162,7 @@ pub(crate) fn run_menu_action(app: &AppHandle, id: &str) {
         "window.genetic_code" => windows::open_reference(app, "genetic-code"),
         "window.alphabet" => windows::open_reference(app, "alphabet"),
         "window.about" => windows::open_reference(app, "about"),
+        "features.manage" => windows::open_reference(app, "features"),
         _ if id.starts_with("file.recent.") => {
             let index: usize = id["file.recent.".len()..].parse().unwrap_or(usize::MAX);
             let path = app
@@ -208,6 +212,16 @@ pub(crate) fn run_menu_action(app: &AppHandle, id: &str) {
             }
             match id {
                 "restriction.graphic_map" => windows::open_graphic_map(app, doc_id),
+                "features.scan" => {
+                    let _ = commands::scan_features(app.clone(), doc_id);
+                }
+                "features.remove_duplicates" => {
+                    let _ =
+                        commands::edit(app.clone(), doc_id, documents::EditOp::RemoveDuplicates);
+                }
+                "features.from_selection" if matches!(focused, Some(DocWindow::GraphicMap)) => {
+                    let _ = app.emit_to(windows::gmap_label(doc_id).as_str(), "menu", id);
+                }
                 "file.save" | "file.save_as" => {
                     let save_as = id == "file.save_as";
                     std::thread::spawn(move || {
@@ -259,10 +273,12 @@ pub fn run() {
             recent: Mutex::new(recent::Recent::default()),
             menus: Mutex::new(None),
             library: sc_enzyme::Library::parse(RELIBRARY),
+            collections: Mutex::new(Vec::new()),
         })
         .setup(|app| {
             let handle = app.handle().clone();
             *handle.state::<AppState>().recent.lock().unwrap() = recent::Recent::load(&handle);
+            *handle.state::<AppState>().collections.lock().unwrap() = collections::load(&handle);
             let menus = menu::build(&handle)?;
             *handle.state::<AppState>().menus.lock().unwrap() = Some(menus);
             menu::refresh_recent(&handle);
@@ -403,6 +419,14 @@ pub fn run() {
             commands::open_sequence_map,
             commands::save_png,
             commands::show_parent,
+            commands::scan_features,
+            commands::new_feature_from_selection,
+            commands::new_feature_from_sites,
+            commands::list_collections,
+            commands::save_collections,
+            commands::restore_builtin_collections,
+            commands::import_collection,
+            commands::export_collection,
         ])
         .build(tauri::generate_context!())
         .expect("error while building SerialClon")

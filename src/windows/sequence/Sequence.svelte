@@ -26,6 +26,8 @@
     type EndsView,
     type Selection,
     type SelectionInfo,
+    type FeatureView,
+    FEATURE_KINDS,
   } from '$lib/doc';
 
   const id = docIdFromUrl();
@@ -44,6 +46,11 @@
   let ends = $state<EndsView>({ left_length: 0, left_bases: '', right_length: 0, right_bases: '' });
   let canvas = $state<SequenceCanvas | undefined>();
   let renameInput = $state<HTMLInputElement | null>(null);
+  let editMode = $state(false);
+  let selectedFeature = $state(-1);
+  let draft = $state<FeatureView | null>(null);
+  let altHeld = $state(false);
+  let dragIndex = -1;
 
   const INFO_HEIGHT = 200;
   const length = $derived(doc?.bases.length ?? 0);
@@ -296,6 +303,10 @@
       case 'file.print':
         await message('Print is available for the Graphic Map and the Sequence Map.', { title: 'Print' });
         return;
+      case 'features.from_selection':
+        if (selected) await addFeature();
+        else await message('Select a portion of the sequence first.', { title: 'New Feature From Selection' });
+        return;
     }
   }
 
@@ -313,7 +324,7 @@
         { id: 'anti', text: 'Antiparallel', enabled: selected && !doc.locked, action: () => void transform('antiparallel') },
         { item: 'Separator' },
         { id: 'extract', text: 'Extract Fragment', enabled: selected, action: () => void api.extractSelection(id, start, end) },
-        { id: 'feature', text: 'Create New Feature From Selection', enabled: false },
+        { id: 'feature', text: 'Create New Feature From Selection', enabled: selected, action: () => void addFeature() },
         { item: 'Separator' },
         { id: 'all', text: 'Select All', action: () => select(0, length) },
       ],
@@ -390,6 +401,60 @@
     }
   }
 
+  // --- features tab -------------------------------------------------------
+  function pickFeature(i: number) {
+    selectedFeature = i;
+    draft = doc?.features[i] ? { ...doc.features[i] } : null;
+  }
+  async function addFeature() {
+    if (!doc) return;
+    const translation = showInfo && info && selected ? info.peptide : null;
+    const [f, t] = selected ? [start, end] : [0, length];
+    const v = await api.newFeatureFromSelection(id, f, t, translation);
+    apply(v);
+    editMode = true;
+    tab = 'features';
+    pickFeature(v.features.length - 1);
+  }
+  async function deleteFeature() {
+    if (!doc || selectedFeature < 0) return;
+    const f = doc.features[selectedFeature];
+    if (!f) return;
+    if (!altHeld) {
+      const ok = await confirm(`Delete the Feature "${f.name}"? There is no undo for this in the original; here Edit ▸ Undo brings it back.`, { title: 'Delete Feature', kind: 'warning' });
+      if (!ok) return;
+    }
+    await edit({ op: 'delete_feature', index: selectedFeature });
+    pickFeature(Math.min(selectedFeature, (doc?.features.length ?? 1) - 1));
+  }
+  async function applyDraft() {
+    if (!draft || selectedFeature < 0) return;
+    await edit({ op: 'update_feature', index: selectedFeature, feature: { ...draft, start: Math.max(1, Math.min(length, draft.start)), end: Math.max(1, Math.min(length, draft.end)) } });
+    pickFeature(selectedFeature);
+  }
+  async function scan() {
+    try {
+      const r = await api.scanFeatures(id);
+      tab = 'features';
+      if (r.found === 0) await message('No Feature of the enabled Collections was found in this sequence.', { title: 'Scan' });
+    } catch (e) {
+      await message(String(e), { title: 'Scan', kind: 'error' });
+    }
+  }
+  async function dropOn(i: number) {
+    if (dragIndex < 0 || dragIndex === i) return;
+    await edit({ op: 'move_feature', from: dragIndex, to: i });
+    pickFeature(i);
+    dragIndex = -1;
+  }
+  function onWindowKey(e: KeyboardEvent) {
+    altHeld = e.altKey;
+    if (e.type === 'keydown' && tab === 'features' && e.key.toLowerCase() === 's' && !e.metaKey && !e.ctrlKey && !e.altKey && !activeTextField()) {
+      showFeatures = !showFeatures;
+      e.preventDefault();
+    }
+  }
+
   // --- buttons ------------------------------------------------------------
   async function save(saveAs: boolean) {
     const v = await api.save(id, saveAs);
@@ -413,6 +478,8 @@
     return () => unlisteners.forEach((u) => u());
   });
 </script>
+
+<svelte:window onkeydown={onWindowKey} onkeyup={onWindowKey} />
 
 {#if doc}
   <div class="window" class:with-info={showInfo}>
@@ -500,25 +567,59 @@
           </div>
         </div>
       {:else if tab === 'features'}
-        <div class="features">
-          <table>
-            <thead><tr><th>Show</th><th>Name</th><th>Type</th><th>From</th><th>To</th><th>Strand</th><th></th></tr></thead>
-            <tbody>
-              {#each doc.features as f, i (i)}
-                <tr ondblclick={() => selectFeature(i)} class:hidden-feature={!f.show}>
-                  <td><input type="checkbox" checked={f.show} onchange={(e) => void edit({ op: 'set_feature_show', index: i, show: e.currentTarget.checked })} /></td>
-                  <td class:bold={f.show}>{f.name}</td>
-                  <td>{f.kind}</td>
-                  <td class="num">{f.start}</td>
-                  <td class="num">{f.end}</td>
-                  <td>{f.forward ? 'CW' : 'CCW'}</td>
-                  <td><span class="swatch" style:background={f.color}></span></td>
-                </tr>
-              {:else}
-                <tr><td colspan="7" class="empty">No Features. Scanning and editing arrive in M4.</td></tr>
-              {/each}
-            </tbody>
-          </table>
+        <div class="features-pane">
+          <div class="features" data-help-name="Feature list" data-help="The Features of the sequence, in drawing order. Double-click one to select its nucleotides. In Edit mode, click to edit it, drag to reorder (the order dictates how overlapping Features are drawn), + and − add and delete. Shown Features are listed in bold.">
+            <table>
+              <thead><tr><th>Show</th><th>Name</th><th>Type</th><th>From</th><th>To</th><th>Strand</th><th></th></tr></thead>
+              <tbody>
+                {#each doc.features as f, i (i)}
+                  <tr
+                    class:hidden-feature={!f.show}
+                    class:selected={editMode && selectedFeature === i}
+                    draggable={editMode}
+                    ondragstart={() => (dragIndex = i)}
+                    ondragover={(e) => e.preventDefault()}
+                    ondrop={() => void dropOn(i)}
+                    onclick={() => { if (editMode) pickFeature(i); }}
+                    ondblclick={() => selectFeature(i)}
+                  >
+                    <td><input type="checkbox" checked={f.show} onclick={(e) => { if (e.altKey) { e.preventDefault(); const all = !f.show; doc?.features.forEach((_, k) => void edit({ op: 'set_feature_show', index: k, show: all })); } }} onchange={(e) => void edit({ op: 'set_feature_show', index: i, show: e.currentTarget.checked })} /></td>
+                    <td class:bold={f.show}>{f.name}</td>
+                    <td>{f.kind}</td>
+                    <td class="num">{f.start}</td>
+                    <td class="num">{f.end}</td>
+                    <td>{f.forward ? 'CW' : 'CCW'}</td>
+                    <td><span class="swatch" style:background={f.color}></span></td>
+                  </tr>
+                {:else}
+                  <tr><td colspan="7" class="empty">No Features. Press Scan, or + to add one from the selection.</td></tr>
+                {/each}
+              </tbody>
+            </table>
+          </div>
+          <div class="feature-tools">
+            <button type="button" class:active={editMode} onclick={() => { editMode = !editMode; if (!editMode) pickFeature(-1); }} data-help-name="Edit" data-help="Toggles between the protected mode, where no unwanted modification can be done, and the Edit mode.">{editMode ? 'Done' : 'Edit'}</button>
+            <button type="button" onclick={addFeature} disabled={!editMode || doc.locked} data-help-name="+" data-help="Adds a Feature. The coordinates of the current selection are proposed; with the Selection Information shown, its translation goes to the comments.">+</button>
+            <button type="button" class:danger={altHeld} onclick={deleteFeature} disabled={!editMode || selectedFeature < 0} data-help-name="−" data-help="Deletes the selected Feature after confirmation. Press [Alt] before clicking (the button turns red) to delete without confirmation.">−</button>
+            <button type="button" onclick={scan} disabled={doc.locked} data-help-name="Scan" data-help="Scans the sequence against the enabled Feature Collections. Features you modified are protected and kept.">Scan</button>
+            <button type="button" onclick={() => void api.openReferenceAny('features')} data-help-name="Manage" data-help="Opens the Feature Collection window to add, delete or modify the Features to scan for.">Manage…</button>
+            <span class="hint">S shows/hides Features</span>
+          </div>
+          {#if editMode && draft}
+            <div class="feature-editor" data-help-name="Feature editor" data-help="Modify the selected Feature: name, type, coordinates (first and last base in the direction of the Feature), strand, arrow, colour and comments, then Apply. A modified Feature is protected from re-scans.">
+              <label>Name <input type="text" bind:value={draft.name} /></label>
+              <label>Type <select bind:value={draft.kind}>{#each FEATURE_KINDS as k (k)}<option value={k}>{k}</option>{/each}</select></label>
+              <label>From <input type="number" min="1" max={length} bind:value={draft.start} /></label>
+              <label>To <input type="number" min="1" max={length} bind:value={draft.end} /></label>
+              <label><input type="radio" name="strand" checked={draft.forward} onchange={() => { if (draft) draft.forward = true; }} /> CW</label>
+              <label><input type="radio" name="strand" checked={!draft.forward} onchange={() => { if (draft) draft.forward = false; }} /> CCW</label>
+              <label><input type="checkbox" bind:checked={draft.show} /> Show</label>
+              <label><input type="checkbox" bind:checked={draft.arrow} /> Arrow</label>
+              <label>Colour <input type="color" bind:value={draft.color} /></label>
+              <label class="wide">Comments <input type="text" bind:value={draft.description} placeholder="qualifier=value, separated by returns in files" /></label>
+              <button type="button" onclick={applyDraft}>Apply</button>
+            </div>
+          {/if}
         </div>
       {:else}
         <div class="ends" data-help-name="Extremities" data-help="Visualisation and modification of the cohesive ends of a linear fragment: for example add a protruding A at the extremity of a PCR fragment.">
@@ -711,6 +812,54 @@
   .hint {
     color: var(--fg-muted);
     font-size: var(--fs-small);
+  }
+  .features-pane {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-height: 0;
+  }
+  .feature-tools {
+    display: flex;
+    gap: 4px;
+    align-items: center;
+  }
+  .feature-tools .active {
+    background: var(--accent);
+    color: #fff;
+  }
+  .feature-tools .danger {
+    background: var(--select-end);
+    color: #fff;
+  }
+  .feature-editor {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 10px;
+    align-items: center;
+    padding: 6px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--bg-raised);
+  }
+  .feature-editor label {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .feature-editor .wide {
+    flex: 1;
+  }
+  .feature-editor .wide input {
+    flex: 1;
+  }
+  .feature-editor input[type='number'] {
+    width: 72px;
+  }
+  tr.selected {
+    background: var(--accent);
+    color: #fff;
   }
   .features {
     flex: 1;

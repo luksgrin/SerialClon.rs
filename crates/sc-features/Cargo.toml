@@ -8,8 +8,13 @@ repository.workspace = true
 publish = false
 
 [dependencies]
+sc-seq.workspace = true
 serde.workspace = true
+serde_json.workspace = true
 thiserror.workspace = true
 
 [lints]
 workspace = true
+
+[dev-dependencies]
+sc-format.workspace = true
