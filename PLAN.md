@@ -22,8 +22,7 @@ same keystrokes, the same file formats** — on a stack that still builds in 202
 Everything below was extracted from: the official site, the v1.2 User Manual PDF, the "Features
 ReadMe" PDF (v2.1), `Serial-Cloner-History.txt` (full changelog beta10 → 2.6.1), and the shipped
 Linux tarball (`RELibrary`, example `.xdna`/`.gb`/`.nucl`/`.ma4` sequences). Copies of these
-reference artefacts are in the session scratchpad and should be committed under `reference/` in
-step 0 — they are the acceptance fixtures.
+reference artefacts are committed under `reference/` — they are the acceptance fixtures.
 
 ### 1.1 The UX that has to be preserved
 
