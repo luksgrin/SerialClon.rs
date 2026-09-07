@@ -7,6 +7,7 @@
    */
   import { onMount } from 'svelte';
   import { getCurrentWindow, LogicalSize } from '@tauri-apps/api/window';
+  import { emitTo } from '@tauri-apps/api/event';
   import { Menu } from '@tauri-apps/api/menu';
   import { message, confirm } from '@tauri-apps/plugin-dialog';
   import SequenceCanvas from '$lib/components/SequenceCanvas.svelte';
@@ -300,6 +301,10 @@
         if (selected) await api.extractSelection(id, start, end);
         else await message('Select a portion of the sequence first, or choose sites on the Graphic Map.', { title: 'Extract Fragment' });
         return;
+      case 'tools.silent_map':
+        if (selected) await api.openToolWindow('silent', id, start + 1, end);
+        else await message('Select the reading frame (an ORF) to scan for silent sites first.', { title: 'Silent Map' });
+        return;
       case 'file.print':
         await message('Print is available for the Graphic Map and the Sequence Map.', { title: 'Print' });
         return;
@@ -311,8 +316,12 @@
   }
 
   // --- context menus ------------------------------------------------------
+  const COMP: Record<string, string> = { A: 'T', T: 'A', C: 'G', G: 'C', a: 't', t: 'a', c: 'g', g: 'c', N: 'N', n: 'n' };
+  const revcomp = (s: string) => s.split('').reverse().map((c) => COMP[c] ?? c).join('');
+
   async function sequenceContextMenu() {
     if (!doc) return;
+    const pcrOpen = await api.pcrWindowOpen().catch(() => false);
     const menu = await Menu.new({
       items: [
         { id: 'copy', text: 'Copy', enabled: selected, action: () => void copySelection('plain') },
@@ -327,6 +336,13 @@
         { id: 'feature', text: 'Create New Feature From Selection', enabled: selected, action: () => void addFeature() },
         { item: 'Separator' },
         { id: 'all', text: 'Select All', action: () => select(0, length) },
+        ...(pcrOpen && selected
+          ? [
+              { item: 'Separator' as const },
+              { id: 'pfwd', text: 'Use selection as forward primer', action: () => void emitTo('pcr', 'pcr:primer', { which: 'forward', text: doc?.bases.slice(start, end) ?? '' }) },
+              { id: 'prev', text: 'Use selection as reverse primer', action: () => void emitTo('pcr', 'pcr:primer', { which: 'reverse', text: revcomp(doc?.bases.slice(start, end) ?? '') }) },
+            ]
+          : []),
       ],
     });
     await menu.popup();

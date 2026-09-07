@@ -2788,6 +2788,8 @@ name = "sc-clone"
 version = "0.1.0"
 dependencies = [
  "sc-enzyme",
+ "sc-features",
+ "sc-format",
  "sc-seq",
  "serde",
  "thiserror 2.0.20",

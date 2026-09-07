@@ -36,6 +36,27 @@ pub enum DocWindow {
     GraphicMap,
     /// The Sequence Map.
     SequenceMap,
+    /// Site Usage (interactive and table).
+    Usage,
+    /// The Virtual Cutter.
+    Cutter,
+    /// The Silent Map.
+    Silent,
+}
+
+/// Label of a document's Site Usage window.
+pub fn usage_label(id: DocId) -> String {
+    format!("usage-{id}")
+}
+
+/// Label of a document's Virtual Cutter.
+pub fn cutter_label(id: DocId) -> String {
+    format!("cutter-{id}")
+}
+
+/// Label of a document's Silent Map.
+pub fn silent_label(id: DocId) -> String {
+    format!("silent-{id}")
 }
 
 /// Label of a document's Graphic Map.
@@ -71,6 +92,15 @@ pub fn parse_label(label: &str) -> Option<(DocWindow, DocId)> {
     }
     if let Some(id) = label.strip_prefix("smap-") {
         return id.parse().ok().map(|id| (DocWindow::SequenceMap, id));
+    }
+    if let Some(id) = label.strip_prefix("usage-") {
+        return id.parse().ok().map(|id| (DocWindow::Usage, id));
+    }
+    if let Some(id) = label.strip_prefix("cutter-") {
+        return id.parse().ok().map(|id| (DocWindow::Cutter, id));
+    }
+    if let Some(id) = label.strip_prefix("silent-") {
+        return id.parse().ok().map(|id| (DocWindow::Silent, id));
     }
     None
 }
@@ -222,11 +252,83 @@ pub fn close_find(app: &AppHandle, id: DocId) {
 
 /// Closes every map of a document (its Sequence Window went away).
 pub fn close_maps(app: &AppHandle, id: DocId) {
-    for label in [gmap_label(id), smap_label(id)] {
+    for label in [
+        gmap_label(id),
+        smap_label(id),
+        usage_label(id),
+        cutter_label(id),
+        silent_label(id),
+    ] {
         if let Some(w) = app.get_webview_window(&label) {
             let _ = w.close();
         }
     }
+}
+
+fn open_doc_tool(
+    app: &AppHandle,
+    label: &str,
+    dir: &str,
+    title: String,
+    size: (f64, f64),
+    query: &str,
+) {
+    if let Some(w) = app.get_webview_window(label) {
+        let _ = w.set_focus();
+        return;
+    }
+    let _ = WebviewWindowBuilder::new(
+        app,
+        label,
+        WebviewUrl::App(format!("src/windows/{dir}/index.html?{query}").into()),
+    )
+    .title(title)
+    .inner_size(size.0, size.1)
+    .min_inner_size(420.0, 320.0)
+    .build();
+}
+
+/// Restriction ▸ Site Usage (interactive and table share one window).
+pub fn open_usage(app: &AppHandle, id: DocId) {
+    let name = doc_name(app, id);
+    open_doc_tool(
+        app,
+        &usage_label(id),
+        "site-usage",
+        format!("Site Usage of {name}"),
+        (760.0, 600.0),
+        &format!("id={id}"),
+    );
+}
+
+/// Tools ▸ Virtual Cutter.
+pub fn open_cutter(app: &AppHandle, id: DocId) {
+    let name = doc_name(app, id);
+    open_doc_tool(
+        app,
+        &cutter_label(id),
+        "virtual-cutter",
+        format!("Virtual Cutter — {name}"),
+        (760.0, 560.0),
+        &format!("id={id}"),
+    );
+}
+
+/// Tools ▸ Silent Map, for the selected reading frame.
+pub fn open_silent(app: &AppHandle, id: DocId, from: Option<u32>, to: Option<u32>) {
+    let name = doc_name(app, id);
+    let range = match (from, to) {
+        (Some(f), Some(t)) => format!("&from={f}&to={t}"),
+        _ => String::new(),
+    };
+    open_doc_tool(
+        app,
+        &silent_label(id),
+        "silent-map",
+        format!("Silent Map — {name}"),
+        (680.0, 560.0),
+        &format!("id={id}{range}"),
+    );
 }
 
 /// Restriction ▸ Graphic Map: opens (or focuses) the document's map.
@@ -288,9 +390,15 @@ pub fn open_reference(app: &AppHandle, which: &str) {
         "genetic-code" => ("Standard Genetic Code", (460.0, 400.0)),
         "alphabet" => ("DNA Alphabet", (320.0, 380.0)),
         "features" => ("Feature Collection", (960.0, 640.0)),
+        "construct" => ("Build a Construct", (900.0, 620.0)),
+        "adaptor" => ("Create an Adaptor", (620.0, 460.0)),
+        "pcr" => ("Run a PCR", (720.0, 520.0)),
+        "shrna" => ("Make shRNA", (760.0, 600.0)),
+        "gateway" => ("Gateway™ Cloning", (620.0, 440.0)),
+        "enzyme-library" => ("Enzyme Library", (860.0, 620.0)),
         _ => return,
     };
-    let resizable = which == "features";
+    let resizable = !matches!(which, "about" | "genetic-code" | "alphabet");
     if let Some(w) = app.get_webview_window(which) {
         let _ = w.show();
         let _ = w.set_focus();

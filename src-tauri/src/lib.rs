@@ -9,6 +9,7 @@
 //! lives in the [`documents`] store; windows hold ids.
 
 mod autosave;
+mod cloning;
 mod collections;
 mod commands;
 mod documents;
@@ -37,10 +38,21 @@ pub struct AppState {
     pub recent: Mutex<recent::Recent>,
     /// Submenus rebuilt at run time.
     pub menus: Mutex<Option<menu::MenuHandles>>,
-    /// The bundled enzyme database.
-    pub library: sc_enzyme::Library,
+    /// The enzyme database: the bundled REBASE file plus the user's additions.
+    pub library: std::sync::RwLock<sc_enzyme::Library>,
+    /// Names of the enzymes the user added (Enzyme Library).
+    pub user_enzymes: Mutex<Vec<String>>,
+    /// Enzymes unchecked in the Enzyme Library: hidden from maps and lists.
+    pub hidden_enzymes: Mutex<std::collections::HashSet<String>>,
     /// Feature collections (Manage Features).
     pub collections: Mutex<Vec<sc_features::Collection>>,
+}
+
+impl AppState {
+    /// Read access to the enzyme library.
+    pub fn library(&self) -> std::sync::RwLockReadGuard<'_, sc_enzyme::Library> {
+        self.library.read().unwrap()
+    }
 }
 
 /// The enzyme database compiled in (also bundled as a resource for the
@@ -163,6 +175,12 @@ pub(crate) fn run_menu_action(app: &AppHandle, id: &str) {
         "window.alphabet" => windows::open_reference(app, "alphabet"),
         "window.about" => windows::open_reference(app, "about"),
         "features.manage" => windows::open_reference(app, "features"),
+        "generate.construct" => windows::open_reference(app, "construct"),
+        "generate.adaptor" => windows::open_reference(app, "adaptor"),
+        "generate.pcr" => windows::open_reference(app, "pcr"),
+        "generate.shrna" => windows::open_reference(app, "shrna"),
+        "generate.gateway" => windows::open_reference(app, "gateway"),
+        "restriction.library" => windows::open_reference(app, "enzyme-library"),
         _ if id.starts_with("file.recent.") => {
             let index: usize = id["file.recent.".len()..].parse().unwrap_or(usize::MAX);
             let path = app
@@ -212,6 +230,10 @@ pub(crate) fn run_menu_action(app: &AppHandle, id: &str) {
             }
             match id {
                 "restriction.graphic_map" => windows::open_graphic_map(app, doc_id),
+                "restriction.site_usage" | "restriction.site_usage_table" => {
+                    windows::open_usage(app, doc_id)
+                }
+                "tools.virtual_cutter" => windows::open_cutter(app, doc_id),
                 "features.scan" => {
                     let _ = commands::scan_features(app.clone(), doc_id);
                 }
@@ -272,13 +294,16 @@ pub fn run() {
             last_window: Mutex::new(None),
             recent: Mutex::new(recent::Recent::default()),
             menus: Mutex::new(None),
-            library: sc_enzyme::Library::parse(RELIBRARY),
+            library: std::sync::RwLock::new(sc_enzyme::Library::parse(RELIBRARY)),
+            user_enzymes: Mutex::new(Vec::new()),
+            hidden_enzymes: Mutex::new(std::collections::HashSet::new()),
             collections: Mutex::new(Vec::new()),
         })
         .setup(|app| {
             let handle = app.handle().clone();
             *handle.state::<AppState>().recent.lock().unwrap() = recent::Recent::load(&handle);
             *handle.state::<AppState>().collections.lock().unwrap() = collections::load(&handle);
+            cloning::load_user_settings(&handle);
             let menus = menu::build(&handle)?;
             *handle.state::<AppState>().menus.lock().unwrap() = Some(menus);
             menu::refresh_recent(&handle);
@@ -337,8 +362,15 @@ pub fn run() {
                             });
                         }
                     }
-                    Some((DocWindow::Find | DocWindow::GraphicMap | DocWindow::SequenceMap, _)) => {
-                    }
+                    Some((
+                        DocWindow::Find
+                        | DocWindow::GraphicMap
+                        | DocWindow::SequenceMap
+                        | DocWindow::Usage
+                        | DocWindow::Cutter
+                        | DocWindow::Silent,
+                        _,
+                    )) => {}
                     None if label == windows::HELP => {
                         // The Help window is permanent: closing only hides it.
                         api.prevent_close();
@@ -419,6 +451,28 @@ pub fn run() {
             commands::open_sequence_map,
             commands::save_png,
             commands::show_parent,
+            cloning::preview_fragments,
+            cloning::ligate_construct,
+            cloning::run_pcr,
+            cloning::check_primer,
+            cloning::pcr_window_open,
+            cloning::make_adaptor,
+            cloning::shrna_layouts,
+            cloning::save_shrna_layouts,
+            cloning::make_shrna,
+            cloning::gateway,
+            cloning::site_usage,
+            cloning::library_entries,
+            cloning::isoschizomers,
+            cloning::compatible_ends,
+            cloning::add_enzyme,
+            cloning::remove_enzyme,
+            cloning::set_enzymes_hidden,
+            cloning::virtual_cut,
+            cloning::silent_map,
+            cloning::apply_silent_mutation,
+            cloning::open_tool_window,
+            cloning::visible_enzymes,
             commands::scan_features,
             commands::new_feature_from_selection,
             commands::new_feature_from_sites,

@@ -50,9 +50,26 @@ fn product(
     comment: String,
     lo: usize,
     hi: usize,
+    wrap_hi: Option<usize>,
 ) -> Sequence {
     let lead = fragment.start.saturating_sub(lo);
-    let features = inherit(seq, lo, hi, lead);
+    let mut features = inherit(seq, lo, hi, lead);
+    // A fragment crossing the origin also carries the features of its
+    // second part, which starts at base 1 of the source.
+    if let Some(wrap_hi) = wrap_hi {
+        let n = seq.len();
+        for f in inherit(seq, 0, wrap_hi, 0) {
+            let shift = (n - lo + lead) as u32;
+            let g = Feature {
+                start: f.start + shift,
+                end: f.end + shift,
+                ..f
+            };
+            if g.start as usize <= fragment.bases.len() && g.end as usize <= fragment.bases.len() {
+                features.push(g);
+            }
+        }
+    }
     Sequence {
         name,
         bases: fragment.bases,
@@ -100,7 +117,11 @@ pub fn extract_selection(seq: &Sequence, from: usize, to: usize) -> Option<Seque
     if bases.is_empty() {
         return None;
     }
-    let (lo, hi) = if from <= to { (from, to) } else { (from, n) };
+    let (lo, hi, wrap_hi) = if from <= to {
+        (from, to, None)
+    } else {
+        (from, n, Some(to))
+    };
     let fragment = Fragment {
         start: from,
         end: to,
@@ -123,6 +144,7 @@ pub fn extract_selection(seq: &Sequence, from: usize, to: usize) -> Option<Seque
         comment,
         lo,
         hi,
+        wrap_hi,
     ))
 }
 
@@ -150,10 +172,13 @@ pub fn extract_between(
     let mut fragment = fragment_between(&seq.bases, seq.topology, first, second)?;
     let lo = first.0.min(first.1);
     let hi = second.0.max(second.1);
-    let (lo, hi) = if seq.topology.is_circular() && hi < lo {
-        (lo, n)
+    // Crossing the origin: the first part runs to the end, the second from
+    // base 1 to `hi` (a single site gives the whole circle).
+    let wraps = seq.topology.is_circular() && (hi < lo || first == second);
+    let (lo, hi, wrap_hi) = if wraps {
+        (lo, n, Some(hi))
     } else {
-        (lo, hi)
+        (lo, hi, None)
     };
     let comment = format!(
         "Fragment extracted from {} [{} bp] between {} ({}) and {} ({}), {}\rLeft end: {} — Right end: {}\r{}",
@@ -176,7 +201,7 @@ pub fn extract_between(
     if seq.topology == Topology::Linear && !clockwise {
         fragment.bases = reverse_complement(&fragment.bases);
         std::mem::swap(&mut fragment.left, &mut fragment.right);
-        let mut out = product(seq, fragment, name, comment, lo, hi);
+        let mut out = product(seq, fragment, name, comment, lo, hi, wrap_hi);
         // Features flip with the strand.
         let len = out.len() as u32;
         for f in &mut out.features {
@@ -191,7 +216,7 @@ pub fn extract_between(
         }
         return Some(out);
     }
-    Some(product(seq, fragment, name, comment, lo, hi))
+    Some(product(seq, fragment, name, comment, lo, hi, wrap_hi))
 }
 
 fn first_line(comment: &str) -> &str {

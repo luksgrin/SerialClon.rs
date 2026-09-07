@@ -237,7 +237,115 @@ export const api = {
   importCollection: () => invoke<Collection[] | null>('import_collection'),
   exportCollection: (name: string, table: boolean) => invoke<boolean>('export_collection', { name, table }),
   openReferenceAny: (which: string) => invoke<void>('open_reference_window', { which }),
+  listDocuments: () => invoke<[number, string][]>('list_documents'),
+  // --- M5: cloning ---
+  previewFragments: (fragments: FragmentSpec[]) => invoke<FragmentPreview[]>('preview_fragments', { fragments }),
+  ligateConstruct: (fragments: FragmentSpec[], circular: boolean, name: string) =>
+    invoke<DocumentView>('ligate_construct', { fragments, circular, name }),
+  runPcr: (id: number, forward: string, reverse: string, ta: boolean) => invoke<DocumentView>('run_pcr', { id, forward, reverse, ta }),
+  checkPrimer: (id: number, primer: string, reverse: boolean) => invoke<PrimerCheck>('check_primer', { id, primer, reverse }),
+  pcrWindowOpen: () => invoke<boolean>('pcr_window_open'),
+  makeAdaptor: (name: string, core: string, ends: { left_length: number; left_bases: string; right_length: number; right_bases: string }, open: boolean) =>
+    invoke<Oligos>('make_adaptor', { name, core, ends, open }),
+  shrnaLayouts: () => invoke<ShrnaLayout[]>('shrna_layouts'),
+  saveShrnaLayouts: (layouts: ShrnaLayout[]) => invoke<void>('save_shrna_layouts', { layouts }),
+  makeShrna: (name: string, layout: ShrnaLayout, core: string, mutations: number[], open: boolean) =>
+    invoke<Oligos>('make_shrna', { name, layout, core, mutations, open }),
+  gateway: (insert: number, vector: number, reaction: 'bp' | 'lr' | 'hr', minHomology: number | null) =>
+    invoke<DocumentView>('gateway', { insert, vector, reaction, minHomology }),
+  siteUsage: (id: number, other: number | null) => invoke<UsageRow[]>('site_usage', { id, other }),
+  libraryEntries: () => invoke<LibraryEntry[]>('library_entries'),
+  isoschizomers: (name: string) => invoke<string[]>('isoschizomers', { name }),
+  compatibleEnds: (name: string) => invoke<string[]>('compatible_ends', { name }),
+  addEnzyme: (line: string) => invoke<LibraryEntry>('add_enzyme', { line }),
+  removeEnzyme: (name: string) => invoke<void>('remove_enzyme', { name }),
+  setEnzymesHidden: (names: string[], hidden: boolean) => invoke<void>('set_enzymes_hidden', { names, hidden }),
+  virtualCut: (id: number, enzymes: string[]) => invoke<Digest>('virtual_cut', { id, enzymes }),
+  silentMap: (id: number, from: number, to: number) => invoke<SilentRow[]>('silent_map', { id, from, to }),
+  applySilentMutation: (id: number, position: number, mutated: string) => invoke<DocumentView>('apply_silent_mutation', { id, position, mutated }),
+  openToolWindow: (which: string, id: number | null, from: number | null, to: number | null) =>
+    invoke<void>('open_tool_window', { which, id, from, to }),
+  visibleEnzymes: (id: number) => invoke<EnzymeEntry[]>('visible_enzymes', { id }),
 };
+
+export interface FragmentSpec {
+  doc: number;
+  begin: SiteRefView | null;
+  end: SiteRefView | null;
+  clockwise: boolean;
+  blunt_left: boolean;
+  blunt_right: boolean;
+}
+
+export interface FragmentPreview {
+  name: string;
+  length: number;
+  left: string;
+  right: string;
+  features: number;
+}
+
+export interface PrimerCheck {
+  start: number;
+  end: number;
+  tail: number;
+  tm: number;
+}
+
+export interface Oligos {
+  top: string;
+  bottom: string;
+  view: DocumentView | null;
+}
+
+export interface ShrnaLayout {
+  name: string;
+  left_overhang: string;
+  prefix: string;
+  loop_seq: string;
+  suffix: string;
+  right_overhang: string;
+}
+
+export interface UsageRow {
+  name: string;
+  site: string;
+  count: number;
+  other: number | null;
+}
+
+export interface LibraryEntry {
+  name: string;
+  site: string;
+  length: number;
+  overhang: number;
+  type_iis: boolean;
+  user: boolean;
+  hidden: boolean;
+}
+
+export interface Digest {
+  sizes: number[];
+  migrations: number[];
+  ladder: number[];
+  ladder_migrations: number[];
+}
+
+export interface SilentRow {
+  enzyme: string;
+  position: number;
+  changes: number;
+  mutated: string;
+}
+
+/** A Graphic Map selection handed to Build a Construct. */
+export interface ConstructSelection {
+  doc: number;
+  name: string;
+  begin: SiteRefView | null;
+  end: SiteRefView | null;
+  clockwise: boolean;
+}
 
 /** GenBank feature keys offered in the editors. */
 export const FEATURE_KINDS = [
