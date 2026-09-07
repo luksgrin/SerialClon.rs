@@ -5,7 +5,7 @@ import { svelte } from '@sveltejs/vite-plugin-svelte';
 // One HTML entry per Serial Cloner window (PLAN.md §3). Each becomes its own
 // Tauri `WebviewWindow`; the path is what `tauri.conf.json` / `windows.rs`
 // load, and Vite keeps it identical in dev and in `dist/`.
-const windows = ['toolbar', 'help'] as const;
+const windows = ['toolbar', 'help', 'sequence', 'find', 'about', 'genetic-code', 'alphabet'] as const;
 
 const host = process.env.TAURI_DEV_HOST;
 

@@ -7,6 +7,7 @@
    */
   import { onMount } from 'svelte';
   import { appInfo, toggleHelpWindow, type AppInfo } from '$lib/tauri';
+  import { api } from '$lib/doc';
   import { formatShortcut, shortcutById } from '$lib/shortcuts';
 
   interface Tool {
@@ -15,21 +16,21 @@
     help: string;
     /** Milestone that wires the button up; absent = live now. */
     milestone?: string;
-    action?: () => void;
+    action?: (e: MouseEvent) => void;
   }
 
   const groups: Tool[][] = [
     [
-      { id: 'new', label: 'New', help: 'Displays a new blank Sequence Window. Alt-click: New Degenerate DNA.', milestone: 'M2' },
-      { id: 'open', label: 'Open', help: 'Browses available storage devices and opens a sequence file into a Sequence Window. Alt-click: Import.', milestone: 'M2' },
-      { id: 'save', label: 'Save', help: 'Saves modifications done to the front-most sequence. Alt-click: Save As…', milestone: 'M2' },
+      { id: 'new', label: 'New', help: 'Displays a new blank Sequence Window. Alt-click: New Degenerate DNA.', action: (e) => void api.newSequence(e.altKey) },
+      { id: 'open', label: 'Open', help: 'Browses available storage devices and opens a sequence file into a Sequence Window (.xdna, FASTA, GenBank, text).', action: () => void api.openFiles() },
+      { id: 'save', label: 'Save', help: 'Saves modifications done to the front-most sequence. Alt-click: Save As…', action: (e) => void api.toolbarAction(e.altKey ? 'file.save_as' : 'file.save') },
       { id: 'print', label: 'Print', help: 'Prints the front-most Graphic Map, Sequence Map, Build a Construct or Align window.', milestone: 'M3' },
     ],
     [
       { id: 'graphic-map', label: 'Graph Map', help: 'Displays the Graphic Map of the front-most sequence.', milestone: 'M3' },
       { id: 'sequence-map', label: 'Seq Map', help: 'Displays the textual restriction map and multi-frame translation of the front-most sequence.', milestone: 'M3' },
       { id: 'site-usage', label: 'Site Usage', help: 'Displays the printable site usage table of the front-most sequence. Alt-click: interactive site usage.', milestone: 'M5' },
-      { id: 'find', label: 'Find', help: 'Opens the Find drawer of the front-most Sequence Window: sub-sequence, restriction site or ORF, on both strands.', milestone: 'M2' },
+      { id: 'find', label: 'Find', help: 'Opens the Find drawer of the front-most Sequence Window: sub-sequence, restriction site or ORF, on both strands. Press again to close it.', action: () => void api.toolbarAction('edit.find') },
     ],
     [
       { id: 'construct', label: 'Construct', help: 'Opens the Build a Construct window: graphical selection and ligation of fragments.', milestone: 'M5' },

@@ -1,7 +1,19 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "What every SerialClon window may do: invoke commands and exchange events (the Help bus).",
-  "windows": ["toolbar", "help"],
-  "permissions": ["core:default"]
+  "description": "What every SerialClon window may do: invoke commands, exchange events (the Help bus, document updates), pop up context menus, resize itself, and show dialogs.",
+  "windows": ["toolbar", "help", "seq-*", "find-*", "about", "genetic-code", "alphabet"],
+  "permissions": [
+    "core:default",
+    "core:menu:default",
+    "core:window:allow-set-size",
+    "core:window:allow-inner-size",
+    "core:window:allow-outer-size",
+    "core:window:allow-scale-factor",
+    "core:window:allow-set-focus",
+    "core:window:allow-set-title",
+    "core:window:allow-close",
+    "core:window:allow-destroy",
+    "dialog:default"
+  ]
 }
