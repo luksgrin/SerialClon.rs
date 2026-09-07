@@ -114,47 +114,63 @@ requirements; the feature list below is secondary.
 
 ### 1.4 File formats
 
-**Read + write (native): `.xdna`.** Verified byte layout against the shipped
-`pBluescript II KS(+).xdna` and `pBR322-annotated.xdna`:
+**Read + write (native): `.xdna`.** Byte layout verified against all seven shipped `.xdna`
+files (M1; `crates/sc-format/src/xdna.rs` is the reference implementation and round-trips every
+fixture byte for byte):
 
 ```
 offset  size  meaning
 0       1     version (0)
-1       1     sequence type   (0 unknown, 1-2 DNA, 3 RNA, 4 protein)
+1       1     sequence type   (0 unknown, 1 DNA, 2 degenerate DNA, 3 RNA, 4 protein)
 2       1     topology        (0 linear, 1 circular)
-3       25    reserved / Strider fields
+3       25    DNA Strider fields (timestamps, window geometry, selection) — zero in
+              Serial Cloner files, populated in genuine Strider files; preserved verbatim
 28      4     u32be sequence length
-32      4     u32be "negative length" (origin offset)
-36      60    reserved
+32      64    more Strider fields, preserved verbatim
 96      4     u32be comment length
-100     12    reserved (0xFF marker observed at 92 — verify)
-112     …     sequence ASCII (length bytes)
-        …     comment ASCII (comment length bytes)
-        1     0x00 → Serial Cloner annotation block follows
+100     12    reserved; Serial Cloner writes 0xFF at offset 111, DNA Strider at offset 92
+112     …     sequence ASCII (length bytes, case preserved)
+        …     comment ISO-8859-1 (comment length bytes, lines separated by 0x0D)
+        1     0x00 → Serial Cloner annotation block follows (absent in plain Strider files)
 ```
 Annotation block (all strings are Pascal strings: `u8 len` + bytes):
 ```
 pstr right overhang length (decimal text; negative = 3', positive = 5')
-     overhang sequence (abs(len) bytes) if len != 0
+     overhang sequence (abs(len) bytes) if len != 0        ← not attested by any sample
 pstr left overhang  (same)
-u8   feature count
+u8   feature count  — ABSENT when there are no features (block ends after the overhangs)
 per feature:
   pstr name
   pstr description (qualifiers separated by 0x0D)
   pstr type          e.g. "rep_origin", "CDS"
-  pstr start (1-based decimal text)
-  pstr end
-  4 bytes  flags: [strand 0=rev/1=fwd][display][?][arrow]
+  pstr start (1-based decimal text, first base in feature direction)
+  pstr end   (last base in feature direction; start > end for reverse features and for
+              forward features that wrap the origin, e.g. pEGFP-N1 "New Feature" 4000 → 200)
+  4 bytes  flags: [strand 1=fwd/0=rev][show][protect][arrow]
   pstr rgb  e.g. "70,130,180,"
 ```
 Confirmed against pBR322: `ColE1 origin / rep_origin / 3144 / 2516 / 00 01 00 01 / "70,130,180,"`.
-Lower-case in the sequence is meaningful (Serial Cloner can restrict translation to uppercase) and
-must round-trip.
+`protect` is the "user edited, do not replace on re-scan" bit (set on pEGFP-N1's hand-made
+feature, exported as `/SerialCloner_Protect`). Lower-case in the sequence is meaningful (Serial
+Cloner can restrict translation to uppercase) and must round-trip.
+
+Other facts established in M1, each pinned by a test:
+- Restriction maps print the **first base of the recognition site**, and non-palindromic sites get
+  a `>`/`<` strand arrow — verified against the original's printed map of pBluescript II SK(+)
+  (`reference/docs/pBluescript-II-SK+-unique-sites-map.txt`, 51 enzymes).
+- REBASE `#Name,site,a,b,` offsets are counted from the 3' end of the site (REBASE `(a/b)`);
+  negative values encode asymmetric type II sites such as AciI `ccgc,-3,-1`.
+- Tm uses `[Na+] = 0.050 M` and the split `<14 / 14–50 / >50` (the manual's "<14 / >51 / larger"
+  is a typo); the Info-panel screenshot (666 nt, 50 %GC, 79.7 °C) pins it.
+- Protein MW is the sum of **integer** average residue masses with no water term (24.12 kDa for
+  the 221-aa peptide in the same screenshot; fractional tables give 24.13–24.17).
+- GenBank import puts the LOCUS and DEFINITION lines, 0x0D-terminated, into the comment.
 
 **Import:** FASTA (incl. degenerate + multi-FASTA), GenBank/EMBL (with features, incl. Serial
-Cloner's colour qualifiers), ApE, Vector NTI `.ma4` (single and multi-sequence), MacVector `.nucl`,
-DNAStar EditSeq `.seq`, pDRAW32 `.pdw`, raw text. **Export:** `.xdna`, FASTA, GenBank (with
-features + colours), PNG maps, printable text maps.
+Cloner's colour qualifiers) — both done in M1 — then ApE, Vector NTI `.ma4` (single and
+multi-sequence), MacVector `.nucl`, DNAStar EditSeq `.seq`, pDRAW32 `.pdw`, raw text.
+**Export:** `.xdna`, FASTA, GenBank (with features + colours) — done in M1 — PNG maps, printable
+text maps.
 *Stretch:* SnapGene `.dna` import — the format most collaborators send today.
 
 **Enzymes:** REBASE `striderc.NNN`, format `Name,site_with_/[,cut5,cut3],` where a leading `#`
