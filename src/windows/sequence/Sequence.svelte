@@ -286,6 +286,16 @@
       case 'seq.rename':
         startRename();
         return;
+      case 'restriction.sequence_map':
+        await api.openSequenceMap(id, selected ? start + 1 : null, selected ? end : null);
+        return;
+      case 'generate.extract':
+        if (selected) await api.extractSelection(id, start, end);
+        else await message('Select a portion of the sequence first, or choose sites on the Graphic Map.', { title: 'Extract Fragment' });
+        return;
+      case 'file.print':
+        await message('Print is available for the Graphic Map and the Sequence Map.', { title: 'Print' });
+        return;
     }
   }
 
@@ -302,7 +312,7 @@
         { id: 'lower', text: 'Lowercase', enabled: selected && !doc.locked, action: () => void transform('lowercase') },
         { id: 'anti', text: 'Antiparallel', enabled: selected && !doc.locked, action: () => void transform('antiparallel') },
         { item: 'Separator' },
-        { id: 'extract', text: 'Extract Fragment', enabled: false },
+        { id: 'extract', text: 'Extract Fragment', enabled: selected, action: () => void api.extractSelection(id, start, end) },
         { id: 'feature', text: 'Create New Feature From Selection', enabled: false },
         { item: 'Separator' },
         { id: 'all', text: 'Select All', action: () => select(0, length) },
@@ -536,8 +546,8 @@
       <button type="button" data-help-name="Save" data-help="Save or Save As… the sequence. Press [Alt] before clicking to Save As… and change the name of the sequence." onclick={(e) => void save(e.altKey || !doc?.path)} disabled={!doc.dirty && !!doc.path}>
         {doc.path ? 'Save' : 'Save As…'}
       </button>
-      <button type="button" disabled data-help-name="Sequence Map" data-help="Shows the textual sequence map (restriction map and translation) in a separate window. Arrives in M3.">Sequence Map</button>
-      <button type="button" disabled data-help-name="Graphic Map" data-help="Shows the Graphic map of the sequence in a separate window. Arrives in M3.">Graphic Map</button>
+      <button type="button" data-help-name="Sequence Map" data-help="Shows the textual sequence map (restriction map and translation) in a separate window. If a selection has been made, its coordinates are used to translate only this selection." onclick={() => void api.openSequenceMap(id, selected ? start + 1 : null, selected ? end : null)}>Sequence Map</button>
+      <button type="button" data-help-name="Graphic Map" data-help="Shows the Graphic map of the sequence in a separate window." onclick={() => void api.openGraphicMap(id)}>Graphic Map</button>
       <button type="button" data-help-name="Find" data-help="Opens the Find drawer: search for a sub-sequence, a restriction site or an ORF. Press again to close it." onclick={() => void api.toggleFindWindow(id)}>Find</button>
       <button type="button" class="info-toggle" data-help-name="Show Selection Information & Translation" data-help="Shows additional data about the selection: Tm, %GC, base counts, translation, MW." onclick={toggleInfo}>
         {showInfo ? 'Hide' : 'Show'} Selection Information & Translation

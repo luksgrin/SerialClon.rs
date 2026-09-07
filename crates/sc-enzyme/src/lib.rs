@@ -10,9 +10,10 @@
 pub mod digest;
 pub mod library;
 pub mod sites;
+pub mod textmap;
 pub mod usage;
 
-pub use digest::{Fragment, digest};
+pub use digest::{Fragment, digest, fragment_between};
 pub use library::{Enzyme, Library, LibraryInfo, library_info};
 pub use sites::{Site, find_sites};
 pub use usage::{SiteUsage, site_usage};

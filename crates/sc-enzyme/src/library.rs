@@ -87,6 +87,14 @@ impl Enzyme {
         is_palindromic(&self.site)
     }
 
+    /// True if maps must show which way the site reads (`>` / `<`): every
+    /// non-palindromic site, and every offset-notation (type IIs) enzyme even
+    /// when its degenerate site happens to be palindromic, as the original
+    /// does for HaeIV.
+    pub fn is_oriented(&self) -> bool {
+        self.type_iis || !self.is_palindromic()
+    }
+
     /// The site with the top-strand cut marked, e.g. `g/aattc`, or REBASE's
     /// `cacctgc(4/8)` when the cut falls outside the site.
     pub fn display_site(&self) -> String {

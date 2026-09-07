@@ -99,6 +99,44 @@ export interface EnzymeEntry {
   count: number;
 }
 
+export interface MapSite {
+  name: string;
+  position: number;
+  cut_top: number;
+  cut_bottom: number;
+  forward: boolean | null;
+  count: number;
+}
+
+export interface MapData {
+  doc: DocumentView;
+  sites: MapSite[];
+  enzymes: EnzymeEntry[];
+}
+
+export interface TextMapRequest {
+  per_line: number;
+  show_reverse: boolean;
+  show_coords: boolean;
+  translate: 'none' | 'all' | 'range';
+  from: number | null;
+  to: number | null;
+  frames: [boolean, boolean, boolean];
+  codons: boolean;
+  uppercase_only: boolean;
+  sites: 'none' | 'all' | 'max' | 'particular';
+  max_cuts: number | null;
+  particular: string[];
+  features: boolean;
+}
+
+export interface SiteRefView {
+  enzyme: string;
+  position: number;
+  cut_top: number;
+  cut_bottom: number;
+}
+
 /** A selection: 0-based indices in [0, length]; a caret when equal. */
 export interface Selection {
   anchor: number;
@@ -144,6 +182,15 @@ export const api = {
   noteFocus: (id: number) => invoke<void>('note_focus', { id }),
   toolbarAction: (action: string) => invoke<void>('toolbar_action', { action }),
   toggleHelpWindow: () => invoke<boolean>('toggle_help_window'),
+  mapData: (id: number) => invoke<MapData>('map_data', { id }),
+  sequenceMap: (id: number, request: TextMapRequest) => invoke<string>('sequence_map', { id, request }),
+  extractFragment: (id: number, begin: SiteRefView, end: SiteRefView | null, clockwise: boolean) =>
+    invoke<DocumentView>('extract_fragment', { id, begin, end, clockwise }),
+  extractSelection: (id: number, from: number, to: number) => invoke<DocumentView>('extract_selection', { id, from, to }),
+  openGraphicMap: (id: number) => invoke<void>('open_graphic_map', { id }),
+  openSequenceMap: (id: number, from: number | null, to: number | null) => invoke<void>('open_sequence_map', { id, from, to }),
+  savePng: (name: string, dataBase64: string) => invoke<boolean>('save_png', { name, dataBase64 }),
+  showParent: (id: number) => invoke<void>('show_parent', { id }),
 };
 
 /** Fires whenever the shell changes a document (edits, saves, undo…). */

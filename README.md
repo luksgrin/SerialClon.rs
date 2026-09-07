@@ -4,13 +4,13 @@ An open-source, maintained reimplementation of **Serial Cloner** — the molecul
 cloning workbench by F. Perez (SerialBasics), whose last release was **2.6.1 in March 2013** — built
 in **Rust + Tauri 2** and shipping installers for **Windows, macOS and Ubuntu**.
 
-> **Status: M2 (Sequence Window) done.** The research and the implementation plan live in
-> [`PLAN.md`](PLAN.md). The app now has the menu bar with the original's shortcuts, the Sequence
-> Window (tabs, spinners, lock, topology and name context menus, virtualised sequence canvas,
-> Selection Information & Translation panel), the Find drawer (sequence / site / ORFs on both
-> strands, wrapping the origin), Open / Save / Save As / Export / Revert, recent files, five-level
-> undo, autosave with crash recovery, and the Standard Genetic Code and DNA Alphabet cards.
-> **M3** adds the Graphic Map and Sequence Map.
+> **Status: M3 (maps) done.** The research and the implementation plan live in
+> [`PLAN.md`](PLAN.md). On top of the Sequence Window (M2) the app now has the **Graphic Map**
+> (circular and linear, Features, unique / double / particular sites, draggable labels, two-click
+> fragment selection with spacebar CW/CCW, PNG export, print) and the **Sequence Map** (the text
+> restriction map with multi-frame translation, reproducing the original's printed map line for
+> line), plus **Extract Fragment** with cohesive ends and provenance comments. **M4** adds the
+> Features system.
 
 ---
 

@@ -1,3 +1,11 @@
 //! Cloning operations for SerialClon.rs.
 //!
-//! Filled in at milestone **M5** (see `PLAN.md` §4). Extract Fragment (with cohesive ends), Build a Construct (ligation with blunting), Run a PCR (tails, TA overhang), Create an Adaptor, Make shRNA, Gateway BP/LR and homologous recombination, Silent Map, Virtual Cutter with gel migration. Every product carries a provenance comment, exactly as the original did.
+//! Every product carries a provenance note in its comment, exactly as the
+//! original did ("the comments associated with it summarizes how the
+//! fragment was obtained"). [`extract`] arrives with M3; Build a Construct,
+//! PCR, adaptors, shRNA, Gateway, Silent Map and the Virtual Cutter follow in
+//! M5 (`PLAN.md` §4).
+
+pub mod extract;
+
+pub use extract::{SiteRef, extract_between, extract_selection};
