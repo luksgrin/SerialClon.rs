@@ -4,11 +4,13 @@ An open-source, maintained reimplementation of **Serial Cloner** — the molecul
 cloning workbench by F. Perez (SerialBasics), whose last release was **2.6.1 in March 2013** — built
 in **Rust + Tauri 2** and shipping installers for **Windows, macOS and Ubuntu**.
 
-> **Status: M1 (headless core) done.** The research and the implementation plan live in
-> [`PLAN.md`](PLAN.md). The core crates read and write `.xdna` byte for byte, FASTA and GenBank
-> (with Serial Cloner's colour qualifiers), parse REBASE and digest with type IIs enzymes, and
-> reproduce the original's printed restriction map of pBluescript II SK(+). The app itself still
-> only opens the Toolbar and Help windows; **M2** builds the Sequence Window on top of this.
+> **Status: M2 (Sequence Window) done.** The research and the implementation plan live in
+> [`PLAN.md`](PLAN.md). The app now has the menu bar with the original's shortcuts, the Sequence
+> Window (tabs, spinners, lock, topology and name context menus, virtualised sequence canvas,
+> Selection Information & Translation panel), the Find drawer (sequence / site / ORFs on both
+> strands, wrapping the origin), Open / Save / Save As / Export / Revert, recent files, five-level
+> undo, autosave with crash recovery, and the Standard Genetic Code and DNA Alphabet cards.
+> **M3** adds the Graphic Map and Sequence Map.
 
 ---
 
@@ -76,8 +78,14 @@ crates/
   sc-align/              Smith-Waterman, consensus, diff highlight                   (M6)
   sc-net/                NCBI E-utilities, BLAST URL API, EMBL, codon usage          (M6)
 src-tauri/               the Tauri shell: commands, window manager, bundling config
+src-tauri/src/
+  documents.rs           the DocumentStore: sequences, undo/redo, edits
+  menu.rs                the menu bar with the original's shortcuts
+  windows.rs             window manager: Toolbar, Help, seq-{id}, find-{id} drawers
+  io.rs / recent.rs / autosave.rs
 src/
   windows/<name>/        one Vite entry + Svelte component per Serial Cloner window
+  lib/components/SequenceCanvas.svelte  the virtualised sequence field
   lib/help-bus.ts        the contextual Help window bus (`data-help` → Help window)
   lib/shortcuts.ts       the full ⌘/Ctrl shortcut map from the manual
   app.css                design tokens (the Aqua Classic theme will override these)

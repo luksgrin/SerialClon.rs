@@ -20,6 +20,9 @@ serde.workspace = true
 serde_json.workspace = true
 sc-seq.workspace = true
 sc-enzyme.workspace = true
+sc-format.workspace = true
+tauri-plugin-dialog = "2"
+tauri-plugin-clipboard-manager = "2"
 
 [lints]
 workspace = true
