@@ -2563,6 +2563,8 @@ dependencies = [
 name = "sc-enzyme"
 version = "0.1.0"
 dependencies = [
+ "sc-format",
+ "sc-seq",
  "serde",
  "thiserror 2.0.20",
 ]
@@ -2579,6 +2581,7 @@ dependencies = [
 name = "sc-format"
 version = "0.1.0"
 dependencies = [
+ "sc-seq",
  "serde",
  "thiserror 2.0.20",
 ]

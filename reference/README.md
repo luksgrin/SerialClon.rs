@@ -29,6 +29,7 @@ The example sequences shipped inside the application, used as round-trip tests f
 | `pDONR201.xdna`, `pDEST14.xdna` | Xdna | Gateway donor/destination vectors — BP and LR test material |
 | `pEGFP-N1.xdna` / `.fasta` | Xdna / FASTA | feature-scan test material (EGFP, KanR, SV40 polyA…) |
 | `*.fasta` | FASTA | the same plasmids, to check import/export agreement |
+| `pBluescript-II-SK+.gb` | GenBank (Serial Cloner export) | transcribed from the Features ReadMe §VII.A "Copy as GenBank" example — the only sample of the original's own GenBank dialect (`SerialCloner_*` comments and qualifiers) |
 
 Lower case in a sequence is meaningful (Serial Cloner can restrict translation to uppercase) and
 must survive a round trip. Unknown header bytes must be preserved verbatim rather than zeroed.
@@ -41,6 +42,7 @@ must survive a round trip. Unknown header bytes must be preserved verbatim rathe
 | `SerialCloner-Features-ReadMe-v2.1.pdf` / `.txt` | The features/annotation system: data model, display, scanning, collections, and the complete list of ~150 built-in features |
 | `Serial-Cloner-History.txt` | Full changelog, beta10 → 2.6.1 — the most complete function inventory that exists |
 | `version_2-6-1-details.txt` | Final release notes |
+| `pBluescript-II-SK+-unique-sites-map.txt` | The Sequence Map of pBluescript II SK(+) printed by Serial Cloner 2.1 (Features ReadMe §IV), "cutting maximum 1 time": the digestion golden values — 51 enzymes with positions and strand arrows |
 
 `.txt` files are `pdftotext -layout` extractions of the PDFs, kept because they are greppable.
 
