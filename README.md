@@ -4,10 +4,11 @@ An open-source, maintained reimplementation of **Serial Cloner** — the molecul
 cloning workbench by F. Perez (SerialBasics), whose last release was **2.6.1 in March 2013** — built
 in **Rust + Tauri 2** and shipping installers for **Windows, macOS and Ubuntu**.
 
-> **Status: M0 (skeleton) done.** The research and the implementation plan live in
-> [`PLAN.md`](PLAN.md). The Cargo workspace, Tauri shell, Svelte frontend and CI/installer
-> pipeline are in place; the app opens the Toolbar and the contextual Help window and nothing
-> else yet. Next is **M1**, the headless core (`.xdna`, FASTA, GenBank, REBASE, digestion).
+> **Status: M1 (headless core) done.** The research and the implementation plan live in
+> [`PLAN.md`](PLAN.md). The core crates read and write `.xdna` byte for byte, FASTA and GenBank
+> (with Serial Cloner's colour qualifiers), parse REBASE and digest with type IIs enzymes, and
+> reproduce the original's printed restriction map of pBluescript II SK(+). The app itself still
+> only opens the Toolbar and Help windows; **M2** builds the Sequence Window on top of this.
 
 ---
 
