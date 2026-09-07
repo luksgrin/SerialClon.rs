@@ -1,0 +1,41 @@
+[workspace]
+resolver = "2"
+members = ["crates/*", "src-tauri"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.85"
+repository = "https://github.com/luksgrin/SerialClon.rs"
+# Licence is still an open question (PLAN.md §7.3); set it here once decided.
+
+[workspace.dependencies]
+# Internal crates — always referenced through the workspace so versions stay in lock-step.
+sc-seq = { path = "crates/sc-seq" }
+sc-format = { path = "crates/sc-format" }
+sc-enzyme = { path = "crates/sc-enzyme" }
+sc-clone = { path = "crates/sc-clone" }
+sc-align = { path = "crates/sc-align" }
+sc-features = { path = "crates/sc-features" }
+sc-net = { path = "crates/sc-net" }
+
+# Shared third-party dependencies (PLAN.md §3).
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+thiserror = "2.0"
+memchr = "2.8"
+nom = "8.0"
+
+[workspace.lints.rust]
+unsafe_code = "forbid"
+missing_docs = "warn"
+
+[workspace.lints.clippy]
+all = { level = "warn", priority = -1 }
+
+[profile.release]
+codegen-units = 1
+lto = true
+opt-level = "s"
+panic = "abort"
+strip = true

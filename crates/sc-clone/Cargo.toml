@@ -1,0 +1,15 @@
+[package]
+name = "sc-clone"
+description = "Cloning operations: extract, ligate, PCR, adaptor, shRNA, Gateway BP/LR, silent map, virtual digest"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+publish = false
+
+[dependencies]
+serde.workspace = true
+thiserror.workspace = true
+
+[lints]
+workspace = true

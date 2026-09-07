@@ -1,0 +1,15 @@
+[package]
+name = "sc-features"
+description = "Feature collections and the scan engine (simple and complex definitions)"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+publish = false
+
+[dependencies]
+serde.workspace = true
+thiserror.workspace = true
+
+[lints]
+workspace = true

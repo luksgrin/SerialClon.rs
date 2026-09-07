@@ -1,0 +1,15 @@
+[package]
+name = "sc-format"
+description = "Sequence file formats: xdna (read+write), FASTA, GenBank/EMBL, ApE, Vector NTI, MacVector, DNAStar, pDRAW"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+publish = false
+
+[dependencies]
+serde.workspace = true
+thiserror.workspace = true
+
+[lints]
+workspace = true

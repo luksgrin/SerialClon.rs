@@ -1,0 +1,15 @@
+[package]
+name = "sc-seq"
+description = "Sequence model: topology, IUPAC alphabets, translation, genetic codes, Tm/MW/pI/%GC, ORFs"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+publish = false
+
+[dependencies]
+serde.workspace = true
+thiserror.workspace = true
+
+[lints]
+workspace = true

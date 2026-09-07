@@ -4,8 +4,10 @@ An open-source, maintained reimplementation of **Serial Cloner** — the molecul
 cloning workbench by F. Perez (SerialBasics), whose last release was **2.6.1 in March 2013** — built
 in **Rust + Tauri 2** and shipping installers for **Windows, macOS and Ubuntu**.
 
-> **Status: planning.** The research and the implementation plan are done and live in
-> [`PLAN.md`](PLAN.md). No application code has been written yet; the scaffold is milestone **M0**.
+> **Status: M0 (skeleton) done.** The research and the implementation plan live in
+> [`PLAN.md`](PLAN.md). The Cargo workspace, Tauri shell, Svelte frontend and CI/installer
+> pipeline are in place; the app opens the Toolbar and the contextual Help window and nothing
+> else yet. Next is **M1**, the headless core (`.xdna`, FASTA, GenBank, REBASE, digestion).
 
 ---
 
@@ -63,13 +65,32 @@ Your existing files keep working. This is a hard requirement, not a nice-to-have
 
 ```
 PLAN.md                  research findings + the full implementation plan
-resources/RELibrary      current REBASE striderc enzyme database (runtime default)
+Cargo.toml               workspace: crates/* + src-tauri
+crates/
+  sc-seq/                sequence model, topology, alphabets, translation, Tm/MW/pI   (M1)
+  sc-format/             .xdna, FASTA, GenBank/EMBL, ApE, Vector NTI, MacVector, …    (M1)
+  sc-enzyme/             REBASE striderc parser, digestion, site usage                (M1)
+  sc-features/           feature collections + scan engine                           (M4)
+  sc-clone/              extract, ligate, PCR, adaptor, shRNA, Gateway, virtual cut  (M5)
+  sc-align/              Smith-Waterman, consensus, diff highlight                   (M6)
+  sc-net/                NCBI E-utilities, BLAST URL API, EMBL, codon usage          (M6)
+src-tauri/               the Tauri shell: commands, window manager, bundling config
+src/
+  windows/<name>/        one Vite entry + Svelte component per Serial Cloner window
+  lib/help-bus.ts        the contextual Help window bus (`data-help` → Help window)
+  lib/shortcuts.ts       the full ⌘/Ctrl shortcut map from the manual
+  app.css                design tokens (the Aqua Classic theme will override these)
+assets/app-icon.svg      icon source; `cargo tauri icon assets/app-icon.svg -o src-tauri/icons`
+resources/RELibrary      current REBASE striderc enzyme database, bundled with the app
 scripts/update-rebase.sh refresh it from rebase.neb.com
 reference/               see reference/README.md
   sequences/             original .xdna/.gb/.fasta/.nucl/.ma4 files — format fixtures
   docs/                  Serial Cloner manuals and full changelog (PDF + extracted text)
   ui/                    screenshots of every major window — the UI acceptance target
   RELibrary-striderc.211 the enzyme database Serial Cloner 2.6.1 actually shipped
+.github/workflows/
+  ci.yml                 fmt, clippy (-D warnings), tests, svelte-check, Vite build × 3 OSes
+  release.yml            installers via tauri-action; draft GitHub Release on a `v*` tag
 ```
 
 ## Roadmap
@@ -80,16 +101,22 @@ drawers, Graphic Map and Sequence Map — which already covers most of a normal 
 
 ## Building
 
-Nothing to build yet. Once M0 lands:
+Prerequisites: Rust (stable, with `rustfmt` and `clippy`), Node 22+, and on Ubuntu the usual
+Tauri 2 system packages (`libwebkit2gtk-4.1-dev`, `libxdo-dev`, `libayatana-appindicator3-dev`,
+`librsvg2-dev`, `patchelf`, …).
 
 ```sh
 npm install
-npm run tauri dev      # development
-npm run tauri build    # platform installers
+npm run tauri dev      # development: Toolbar + Help window, hot reload
+npm run tauri build    # platform installers under src-tauri/target/release/bundle/
+
+cargo test --workspace                                   # the core crates
+cargo clippy --workspace --all-targets -- -D warnings    # what CI enforces
+npm run check                                            # svelte-check
 ```
 
-Prerequisites will be Rust (stable), Node 22+, and on Ubuntu the usual Tauri 2 system packages
-(`libwebkit2gtk-4.1-dev`, `libxdo-dev`, `libayatana-appindicator3-dev`, `librsvg2-dev`, …).
+Installers for every platform are built by the `Installers` workflow on each push and pull
+request, and attached to a draft GitHub Release when a `v*` tag is pushed.
 
 ## Licence and attribution
 

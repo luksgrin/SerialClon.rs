@@ -1,0 +1,25 @@
+[package]
+name = "serialclon"
+description = "An independent reimplementation of the Serial Cloner DNA cloning workbench"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+publish = false
+
+[lib]
+# Separate lib name so the binary and library targets never collide on Windows.
+name = "serialclon_lib"
+
+[build-dependencies]
+tauri-build = { version = "2.6", features = [] }
+
+[dependencies]
+tauri = { version = "2.11", features = [] }
+serde.workspace = true
+serde_json.workspace = true
+sc-seq.workspace = true
+sc-enzyme.workspace = true
+
+[lints]
+workspace = true
