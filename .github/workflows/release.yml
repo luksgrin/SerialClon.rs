@@ -102,5 +102,6 @@ jobs:
           releaseDraft: true
           prerelease: ${{ contains(github.ref_name, '-') }}
           uploadWorkflowArtifacts: true
-          # Both macOS arches build on the same arm64 runner, so `[arch]` would collide.
-          workflowArtifactNamePattern: serialclon-${{ matrix.slug }}
+          # One artifact per bundle type. Both macOS arches build on the same arm64
+          # runner, so `[arch]` would collide; the matrix slug is the explicit arch.
+          workflowArtifactNamePattern: serialclon-${{ matrix.slug }}-[bundle]
