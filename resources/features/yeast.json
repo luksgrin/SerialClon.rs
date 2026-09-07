@@ -1,0 +1,39 @@
+{
+ "name": "Yeast",
+ "scan": true,
+ "builtin": true,
+ "features": [
+  {
+   "name": "ARS consensus",
+   "kind": "rep_origin",
+   "color": "#4682b4",
+   "arrow": true,
+   "sense_only": false,
+   "peptide": false,
+   "five": "WTTTAYRTTTW",
+   "three": "",
+   "potential_five": "",
+   "potential_three": "",
+   "upstream": "",
+   "downstream": "",
+   "comment": "yeast autonomously replicating sequence, 11-bp core consensus",
+   "scan": true
+  },
+  {
+   "name": "GAL4 UAS",
+   "kind": "protein_bind",
+   "color": "#ff7f00",
+   "arrow": true,
+   "sense_only": false,
+   "peptide": false,
+   "five": "CGGRNNRCYNYNCNCCG",
+   "three": "",
+   "potential_five": "",
+   "potential_three": "",
+   "upstream": "",
+   "downstream": "",
+   "comment": "GAL4 upstream activating sequence (17-mer consensus)",
+   "scan": true
+  }
+ ]
+}

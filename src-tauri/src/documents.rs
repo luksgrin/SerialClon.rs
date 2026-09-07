@@ -75,8 +75,8 @@ pub struct DocumentView {
     pub can_redo: bool,
 }
 
-/// A feature, flattened for the webview.
-#[derive(Debug, Clone, Serialize)]
+/// A feature, flattened for the webview (and accepted back from it).
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FeatureView {
     /// Name.
     pub name: String,
@@ -111,6 +111,32 @@ pub struct EndsView {
     pub right_length: i32,
     /// Right overhang bases.
     pub right_bases: String,
+}
+
+impl FeatureView {
+    /// Back to the model; a bad colour becomes grey.
+    pub fn into_feature(self) -> Feature {
+        Feature {
+            name: self.name,
+            description: self.description,
+            kind: if self.kind.trim().is_empty() {
+                "misc_feature".into()
+            } else {
+                self.kind
+            },
+            start: self.start.max(1),
+            end: self.end.max(1),
+            strand: if self.forward {
+                Strand::Forward
+            } else {
+                Strand::Reverse
+            },
+            show: self.show,
+            protect: self.protect,
+            arrow: self.arrow,
+            color: sc_features::parse_color(&self.color).unwrap_or(sc_seq::Rgb(132, 164, 192)),
+        }
+    }
 }
 
 impl From<&Feature> for FeatureView {
@@ -219,6 +245,37 @@ pub enum EditOp {
         index: usize,
         /// New state.
         show: bool,
+    },
+    /// Features tab `+`: appends a feature (marked protected: user-made).
+    AddFeature {
+        /// The feature.
+        feature: FeatureView,
+    },
+    /// Features tab editor: replaces a feature (marks it protected).
+    UpdateFeature {
+        /// Index.
+        index: usize,
+        /// New values.
+        feature: FeatureView,
+    },
+    /// Features tab `−`.
+    DeleteFeature {
+        /// Index.
+        index: usize,
+    },
+    /// Drag to reorder (list order = drawing order).
+    MoveFeature {
+        /// From index.
+        from: usize,
+        /// To index.
+        to: usize,
+    },
+    /// Features ▸ Remove duplicated Features.
+    RemoveDuplicates,
+    /// Features ▸ Scan Sequence, with the hits computed by the shell.
+    MergeScan {
+        /// Found features.
+        found: Vec<FeatureView>,
     },
 }
 
@@ -425,6 +482,49 @@ impl Document {
                     f.show = show;
                     self.dirty = true;
                 }
+            }
+            EditOp::AddFeature { feature } => {
+                self.push_undo();
+                let mut f = feature.into_feature();
+                f.protect = true;
+                self.seq.features.push(f);
+            }
+            EditOp::UpdateFeature { index, feature } => {
+                if index >= self.seq.features.len() {
+                    return Err("no such feature".into());
+                }
+                self.push_undo();
+                let mut f = feature.into_feature();
+                f.protect = true;
+                self.seq.features[index] = f;
+            }
+            EditOp::DeleteFeature { index } => {
+                if index >= self.seq.features.len() {
+                    return Err("no such feature".into());
+                }
+                self.push_undo();
+                self.seq.features.remove(index);
+            }
+            EditOp::MoveFeature { from, to } => {
+                let n = self.seq.features.len();
+                if from >= n || to >= n {
+                    return Err("no such feature".into());
+                }
+                if from != to {
+                    self.push_undo();
+                    let f = self.seq.features.remove(from);
+                    self.seq.features.insert(to, f);
+                }
+            }
+            EditOp::RemoveDuplicates => {
+                self.push_undo();
+                outcome.filtered = sc_features::scan::remove_duplicates(&mut self.seq.features);
+            }
+            EditOp::MergeScan { found } => {
+                self.push_undo();
+                let found: Vec<Feature> =
+                    found.into_iter().map(FeatureView::into_feature).collect();
+                outcome.filtered = sc_features::merge(&mut self.seq.features, found);
             }
         }
         Ok(outcome)
@@ -702,6 +802,44 @@ mod tests {
         })
         .unwrap();
         assert!(d.seq.features.is_empty());
+    }
+
+    #[test]
+    fn feature_edits_are_undoable_and_mark_protected() {
+        let mut d = doc("ACGTACGT");
+        let fv = FeatureView {
+            name: "f".into(),
+            description: String::new(),
+            kind: String::new(),
+            start: 2,
+            end: 5,
+            forward: true,
+            show: true,
+            protect: false,
+            arrow: true,
+            color: "#ff0000".into(),
+        };
+        d.apply(EditOp::AddFeature {
+            feature: fv.clone(),
+        })
+        .unwrap();
+        assert_eq!(d.seq.features[0].kind, "misc_feature");
+        assert!(d.seq.features[0].protect);
+        assert_eq!(d.seq.features[0].color, Rgb(255, 0, 0));
+        d.apply(EditOp::AddFeature {
+            feature: FeatureView {
+                name: "g".into(),
+                ..fv.clone()
+            },
+        })
+        .unwrap();
+        d.apply(EditOp::MoveFeature { from: 1, to: 0 }).unwrap();
+        assert_eq!(d.seq.features[0].name, "g");
+        d.apply(EditOp::DeleteFeature { index: 0 }).unwrap();
+        assert_eq!(d.seq.features.len(), 1);
+        assert!(d.undo());
+        assert_eq!(d.seq.features.len(), 2);
+        assert!(d.apply(EditOp::DeleteFeature { index: 9 }).is_err());
     }
 
     #[test]

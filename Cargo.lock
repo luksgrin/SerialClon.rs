@@ -2807,7 +2807,10 @@ dependencies = [
 name = "sc-features"
 version = "0.1.0"
 dependencies = [
+ "sc-format",
+ "sc-seq",
  "serde",
+ "serde_json",
  "thiserror 2.0.20",
 ]
 
@@ -3057,6 +3060,7 @@ dependencies = [
  "base64 0.22.1",
  "sc-clone",
  "sc-enzyme",
+ "sc-features",
  "sc-format",
  "sc-seq",
  "serde",
