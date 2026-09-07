@@ -32,6 +32,20 @@ pub enum DocWindow {
     Sequence,
     /// The Find drawer.
     Find,
+    /// The Graphic Map.
+    GraphicMap,
+    /// The Sequence Map.
+    SequenceMap,
+}
+
+/// Label of a document's Graphic Map.
+pub fn gmap_label(id: DocId) -> String {
+    format!("gmap-{id}")
+}
+
+/// Label of a document's Sequence Map.
+pub fn smap_label(id: DocId) -> String {
+    format!("smap-{id}")
 }
 
 /// Label of a document's Sequence Window.
@@ -51,6 +65,12 @@ pub fn parse_label(label: &str) -> Option<(DocWindow, DocId)> {
     }
     if let Some(id) = label.strip_prefix("find-") {
         return id.parse().ok().map(|id| (DocWindow::Find, id));
+    }
+    if let Some(id) = label.strip_prefix("gmap-") {
+        return id.parse().ok().map(|id| (DocWindow::GraphicMap, id));
+    }
+    if let Some(id) = label.strip_prefix("smap-") {
+        return id.parse().ok().map(|id| (DocWindow::SequenceMap, id));
     }
     None
 }
@@ -198,6 +218,67 @@ pub fn close_find(app: &AppHandle, id: DocId) {
     if let Some(w) = app.get_webview_window(&find_label(id)) {
         let _ = w.close();
     }
+}
+
+/// Closes every map of a document (its Sequence Window went away).
+pub fn close_maps(app: &AppHandle, id: DocId) {
+    for label in [gmap_label(id), smap_label(id)] {
+        if let Some(w) = app.get_webview_window(&label) {
+            let _ = w.close();
+        }
+    }
+}
+
+/// Restriction ▸ Graphic Map: opens (or focuses) the document's map.
+pub fn open_graphic_map(app: &AppHandle, id: DocId) {
+    let label = gmap_label(id);
+    if let Some(w) = app.get_webview_window(&label) {
+        let _ = w.set_focus();
+        return;
+    }
+    let name = doc_name(app, id);
+    let _ = WebviewWindowBuilder::new(
+        app,
+        &label,
+        WebviewUrl::App(format!("src/windows/graphic-map/index.html?id={id}").into()),
+    )
+    .title(format!("Graphic Map of {name}"))
+    .inner_size(720.0, 720.0)
+    .min_inner_size(420.0, 420.0)
+    .build();
+}
+
+/// Restriction ▸ Sequence Map. `from`/`to` (1-based) prefill the
+/// translation range from the Sequence Window's selection.
+pub fn open_sequence_map(app: &AppHandle, id: DocId, from: Option<u32>, to: Option<u32>) {
+    let label = smap_label(id);
+    if let Some(w) = app.get_webview_window(&label) {
+        let _ = w.set_focus();
+        return;
+    }
+    let name = doc_name(app, id);
+    let range = match (from, to) {
+        (Some(f), Some(t)) => format!("&from={f}&to={t}"),
+        _ => String::new(),
+    };
+    let _ = WebviewWindowBuilder::new(
+        app,
+        &label,
+        WebviewUrl::App(format!("src/windows/sequence-map/index.html?id={id}{range}").into()),
+    )
+    .title(format!("Restriction Map of {name}"))
+    .inner_size(1000.0, 700.0)
+    .min_inner_size(640.0, 400.0)
+    .build();
+}
+
+fn doc_name(app: &AppHandle, id: DocId) -> String {
+    let state = app.state::<AppState>();
+    let store = state.store.lock().unwrap();
+    store
+        .get(id)
+        .map(|d| d.seq.name.clone())
+        .unwrap_or_default()
 }
 
 /// The reference cards and About box (Window menu).

@@ -2787,6 +2787,8 @@ dependencies = [
 name = "sc-clone"
 version = "0.1.0"
 dependencies = [
+ "sc-enzyme",
+ "sc-seq",
  "serde",
  "thiserror 2.0.20",
 ]
@@ -3052,6 +3054,8 @@ dependencies = [
 name = "serialclon"
 version = "0.1.0"
 dependencies = [
+ "base64 0.22.1",
+ "sc-clone",
  "sc-enzyme",
  "sc-format",
  "sc-seq",

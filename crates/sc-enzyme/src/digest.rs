@@ -128,6 +128,49 @@ pub fn digest(bases: &[u8], topology: Topology, sites: &[Site]) -> Vec<Fragment>
     out
 }
 
+/// The single fragment between two cuts (Graphic Map two-click selection).
+///
+/// `a` and `b` are `(top, bottom)` cut pairs. On a circular sequence the
+/// fragment runs forward from `a` to `b`, wrapping the origin; passing the
+/// same cut twice yields the whole linearised circle with that site's
+/// cohesive ends on both sides. On a linear sequence the cuts are ordered.
+pub fn fragment_between(
+    bases: &[u8],
+    topology: Topology,
+    a: (usize, usize),
+    b: (usize, usize),
+) -> Option<Fragment> {
+    let n = bases.len();
+    if n == 0 {
+        return None;
+    }
+    let (a, b) = if topology.is_circular() || a.0 <= b.0 {
+        (a, b)
+    } else {
+        (b, a)
+    };
+    let sites = [
+        Site {
+            position: 0,
+            strand: sc_seq::Strand::Forward,
+            cut_top: a.0,
+            cut_bottom: a.1,
+        },
+        Site {
+            position: 0,
+            strand: sc_seq::Strand::Forward,
+            cut_top: b.0,
+            cut_bottom: b.1,
+        },
+    ];
+    let frags = digest(bases, topology, &sites);
+    match topology {
+        Topology::Circular => frags.into_iter().find(|f| f.start == a.0),
+        // Linear digests yield the flanks too; the middle one starts at `a`.
+        Topology::Linear => frags.into_iter().find(|f| f.start == a.0 && f.end == b.0),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -177,6 +220,52 @@ mod tests {
         assert_eq!(frags[0].bases, b"AATTCccggGAATT");
         assert_eq!(frags[0].left, Overhang::five_prime(b"AATT"));
         assert_eq!(frags[0].right, Overhang::five_prime(b"AATT"));
+    }
+
+    #[test]
+    fn fragment_between_two_sites_and_around_a_circle() {
+        let eco = parse_entry("EcoRI,g/aattc,").unwrap();
+        let bam = parse_entry("BamHI,g/gatcc,").unwrap();
+        let dna = b"ttGAATTCaaaGGATCCcc";
+        let e = &find_sites(dna, Topology::Circular, &eco)[0];
+        let b = &find_sites(dna, Topology::Circular, &bam)[0];
+        let f = fragment_between(
+            dna,
+            Topology::Circular,
+            (e.cut_top, e.cut_bottom),
+            (b.cut_top, b.cut_bottom),
+        )
+        .unwrap();
+        assert_eq!(f.bases, b"AATTCaaaGGATC");
+        assert_eq!(f.left, Overhang::five_prime(b"AATT"));
+        assert_eq!(f.right, Overhang::five_prime(b"GATC"));
+        // The other way round wraps the origin.
+        let g = fragment_between(
+            dna,
+            Topology::Circular,
+            (b.cut_top, b.cut_bottom),
+            (e.cut_top, e.cut_bottom),
+        )
+        .unwrap();
+        assert_eq!(g.bases, b"GATCCccttGAATT");
+        // One site: the linearised plasmid.
+        let w = fragment_between(
+            dna,
+            Topology::Circular,
+            (e.cut_top, e.cut_bottom),
+            (e.cut_top, e.cut_bottom),
+        )
+        .unwrap();
+        assert_eq!(w.len(), dna.len() + 4);
+        // Linear: order does not matter.
+        let l = fragment_between(
+            dna,
+            Topology::Linear,
+            (b.cut_top, b.cut_bottom),
+            (e.cut_top, e.cut_bottom),
+        )
+        .unwrap();
+        assert_eq!(l.bases, b"AATTCaaaGGATC");
     }
 
     #[test]

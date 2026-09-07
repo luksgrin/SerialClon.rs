@@ -29,6 +29,9 @@ pub struct AppState {
     pub store: Mutex<DocumentStore>,
     /// The document last used, for the Toolbar and menu bar.
     pub last_doc: Mutex<Option<DocId>>,
+    /// The document window last focused (label), so Toolbar buttons such as
+    /// Print and Extract reach a map when that is what the user was using.
+    pub last_window: Mutex<Option<String>>,
     /// File ▸ Open Recent.
     pub recent: Mutex<recent::Recent>,
     /// Submenus rebuilt at run time.
@@ -41,15 +44,33 @@ pub struct AppState {
 /// Enzyme Library window and `scripts/update-rebase.sh`).
 const RELIBRARY: &str = include_str!("../../resources/RELibrary");
 
-/// The document a menu command targets: the focused Sequence Window, else
-/// the last one used.
+/// The focused document window, else the one last focused (the Toolbar and
+/// the menu bar steal focus when clicked).
+fn focused_doc_window(app: &AppHandle) -> Option<(DocWindow, DocId)> {
+    let focused = app
+        .webview_windows()
+        .iter()
+        .filter(|(_, w)| w.is_focused().unwrap_or(false))
+        .find_map(|(label, _)| windows::parse_label(label));
+    focused.or_else(|| {
+        let last = app.state::<AppState>().last_window.lock().unwrap().clone();
+        last.and_then(|l| windows::parse_label(&l))
+            .filter(|(_, id)| {
+                app.state::<AppState>()
+                    .store
+                    .lock()
+                    .unwrap()
+                    .get(*id)
+                    .is_some()
+            })
+    })
+}
+
+/// The document a menu command targets: the focused document window's,
+/// else the last one used.
 fn current_doc(app: &AppHandle) -> Option<DocId> {
-    for (label, w) in app.webview_windows() {
-        if let Some((DocWindow::Sequence, id)) = windows::parse_label(&label)
-            && w.is_focused().unwrap_or(false)
-        {
-            return Some(id);
-        }
+    if let Some((_, id)) = focused_doc_window(app) {
+        return Some(id);
     }
     let state = app.state::<AppState>();
     let last = *state.last_doc.lock().unwrap();
@@ -162,7 +183,31 @@ pub(crate) fn run_menu_action(app: &AppHandle, id: &str) {
         // Everything else needs a document.
         _ => {
             let Some(doc_id) = doc else { return };
+            let focused = focused_doc_window(app).map(|(k, _)| k);
+            // Map windows handle their own Save As (picture), Print and Extract.
+            if matches!(
+                focused,
+                Some(DocWindow::GraphicMap | DocWindow::SequenceMap)
+            ) && matches!(
+                id,
+                "file.save_as"
+                    | "file.print"
+                    | "generate.extract"
+                    | "seq.topology"
+                    | "edit.copy"
+                    | "edit.select_all"
+            ) && let Some((kind, _)) = focused_doc_window(app)
+            {
+                let label = if kind == DocWindow::GraphicMap {
+                    windows::gmap_label(doc_id)
+                } else {
+                    windows::smap_label(doc_id)
+                };
+                let _ = app.emit_to(label.as_str(), "menu", id);
+                return;
+            }
             match id {
+                "restriction.graphic_map" => windows::open_graphic_map(app, doc_id),
                 "file.save" | "file.save_as" => {
                     let save_as = id == "file.save_as";
                     std::thread::spawn(move || {
@@ -210,6 +255,7 @@ pub fn run() {
         .manage(AppState {
             store: Mutex::new(DocumentStore::default()),
             last_doc: Mutex::new(None),
+            last_window: Mutex::new(None),
             recent: Mutex::new(recent::Recent::default()),
             menus: Mutex::new(None),
             library: sc_enzyme::Library::parse(RELIBRARY),
@@ -275,7 +321,8 @@ pub fn run() {
                             });
                         }
                     }
-                    Some((DocWindow::Find, _)) => {}
+                    Some((DocWindow::Find | DocWindow::GraphicMap | DocWindow::SequenceMap, _)) => {
+                    }
                     None if label == windows::HELP => {
                         // The Help window is permanent: closing only hides it.
                         api.prevent_close();
@@ -290,8 +337,10 @@ pub fn run() {
                 WindowEvent::Destroyed => {
                     if let Some((DocWindow::Sequence, id)) = windows::parse_label(&label) {
                         app.state::<AppState>().store.lock().unwrap().remove(id);
+                        *app.state::<AppState>().last_window.lock().unwrap() = None;
                         autosave::discard(&app, id);
                         windows::close_find(&app, id);
+                        windows::close_maps(&app, id);
                         menu::refresh_windows(&app);
                         let state = app.state::<AppState>();
                         let mut last = state.last_doc.lock().unwrap();
@@ -302,7 +351,9 @@ pub fn run() {
                 }
                 WindowEvent::Focused(true) => {
                     if let Some((_, id)) = windows::parse_label(&label) {
-                        *app.state::<AppState>().last_doc.lock().unwrap() = Some(id);
+                        let state = app.state::<AppState>();
+                        *state.last_doc.lock().unwrap() = Some(id);
+                        *state.last_window.lock().unwrap() = Some(label.clone());
                     }
                 }
                 WindowEvent::Moved(_) | WindowEvent::Resized(_) => {
@@ -344,6 +395,14 @@ pub fn run() {
             commands::note_focus,
             commands::toolbar_action,
             commands::autosave_now,
+            commands::map_data,
+            commands::sequence_map,
+            commands::extract_fragment,
+            commands::extract_selection,
+            commands::open_graphic_map,
+            commands::open_sequence_map,
+            commands::save_png,
+            commands::show_parent,
         ])
         .build(tauri::generate_context!())
         .expect("error while building SerialClon")

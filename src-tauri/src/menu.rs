@@ -101,7 +101,7 @@ pub fn build(app: &AppHandle) -> tauri::Result<MenuHandles> {
         .item(&export)
         .separator()
         .item(&disabled(app, "file.page_setup", "Page Setup…", None)?)
-        .item(&disabled(app, "file.print", "Print…", Some("CmdOrCtrl+P"))?)
+        .item(&item(app, "file.print", "Print…", Some("CmdOrCtrl+P"))?)
         .build()?;
 
     let edit = SubmenuBuilder::new(app, "Edit")

@@ -322,3 +322,84 @@ fn polylinker_is_unique_and_between_the_promoters() {
         );
     }
 }
+
+/// The Sequence Map renderer against the original's printed map of SK(+):
+/// same labels at the same columns (the 2012 library adds a few enzymes and
+/// lost UthSI), and the same translation, reverse strand and coordinate
+/// lines in the first block (pdftotext collapsed the spaces between amino
+/// acids, so those are compared without spaces).
+#[test]
+fn sequence_map_reproduces_the_printed_sk_plus_map() {
+    use sc_enzyme::textmap::{SiteFilter, TextMapOptions, render};
+    let printed_text = read("reference/docs/pBluescript-II-SK+-unique-sites-map.txt");
+    let printed = parse_map(&printed_text, FEATURES);
+    let seq = sk_plus();
+    let lib = library_211();
+    let opts = TextMapOptions {
+        sites: SiteFilter::MaxCuts(1),
+        ..Default::default()
+    };
+    let ours_text = render(&seq, &lib, &opts, None);
+    let ours = parse_map(&ours_text, FEATURES);
+    assert!(
+        ours.len() >= printed.len() - 1,
+        "ours {} vs printed {}",
+        ours.len(),
+        printed.len()
+    );
+    for p in &printed {
+        if p.name == "UthSI" {
+            continue;
+        }
+        let found = ours.iter().any(|o| {
+            o.name == p.name && o.arrow == p.arrow && o.position.abs_diff(p.position) <= 1
+        });
+        assert!(
+            found,
+            "{}{} @{} not in our map",
+            p.arrow.map(String::from).unwrap_or_default(),
+            p.name,
+            p.position
+        );
+    }
+    // First block, line by line.
+    let strip = |s: &str| s.replace(' ', "");
+    let printed_lines: Vec<&str> = printed_text.lines().collect();
+    let ours_lines: Vec<&str> = ours_text.lines().collect();
+    let p0 = printed_lines
+        .iter()
+        .position(|l| l.starts_with("  CTAAATTGTAAGCG"))
+        .unwrap();
+    let o0 = ours_lines
+        .iter()
+        .position(|l| l.starts_with("  CTAAATTGTAAGCG"))
+        .unwrap();
+    assert_eq!(ours_lines[o0], printed_lines[p0]); // top strand + "< 100"
+    for k in 1..=3 {
+        assert_eq!(
+            strip(ours_lines[o0 + k]),
+            strip(printed_lines[p0 + k]),
+            "frame {k}"
+        );
+        assert_eq!(
+            ours_lines[o0 + k].len() - ours_lines[o0 + k].trim_start().len(),
+            1 + k,
+            "frame {k} indent"
+        );
+    }
+    assert_eq!(ours_lines[o0 + 4], printed_lines[p0 + 4]); // reverse strand
+    assert_eq!(
+        ours_lines[o0 + 5].trim_end(),
+        printed_lines[p0 + 5].trim_end()
+    ); // coordinates
+    assert_eq!(ours_lines[o0 - 1], printed_lines[p0 - 1]); // the PsiI pipe
+    // The 2012 library adds AanI, PsiI's isoschizomer, stacked at the same
+    // column; the printed PsiI label must be one of the rows above the pipe.
+    assert!(
+        ours_lines[o0 - 3..o0 - 1].contains(&printed_lines[p0 - 2]),
+        "{:?}",
+        &ours_lines[o0 - 3..o0]
+    );
+    // Legend.
+    assert!(ours_text.contains("Features :\nT3             : [790 : 771 - CCW]\n"));
+}

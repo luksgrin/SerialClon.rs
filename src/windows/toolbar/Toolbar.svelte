@@ -24,11 +24,11 @@
       { id: 'new', label: 'New', help: 'Displays a new blank Sequence Window. Alt-click: New Degenerate DNA.', action: (e) => void api.newSequence(e.altKey) },
       { id: 'open', label: 'Open', help: 'Browses available storage devices and opens a sequence file into a Sequence Window (.xdna, FASTA, GenBank, text).', action: () => void api.openFiles() },
       { id: 'save', label: 'Save', help: 'Saves modifications done to the front-most sequence. Alt-click: Save As…', action: (e) => void api.toolbarAction(e.altKey ? 'file.save_as' : 'file.save') },
-      { id: 'print', label: 'Print', help: 'Prints the front-most Graphic Map, Sequence Map, Build a Construct or Align window.', milestone: 'M3' },
+      { id: 'print', label: 'Print', help: 'Prints the front-most Graphic Map or Sequence Map.', action: () => void api.toolbarAction('file.print') },
     ],
     [
-      { id: 'graphic-map', label: 'Graph Map', help: 'Displays the Graphic Map of the front-most sequence.', milestone: 'M3' },
-      { id: 'sequence-map', label: 'Seq Map', help: 'Displays the textual restriction map and multi-frame translation of the front-most sequence.', milestone: 'M3' },
+      { id: 'graphic-map', label: 'Graph Map', help: 'Displays the Graphic Map of the front-most sequence: circular or linear, with unique / double / particular sites and Features.', action: () => void api.toolbarAction('restriction.graphic_map') },
+      { id: 'sequence-map', label: 'Seq Map', help: 'Displays the textual restriction map and multi-frame translation of the front-most sequence. A selection sets the translation range.', action: () => void api.toolbarAction('restriction.sequence_map') },
       { id: 'site-usage', label: 'Site Usage', help: 'Displays the printable site usage table of the front-most sequence. Alt-click: interactive site usage.', milestone: 'M5' },
       { id: 'find', label: 'Find', help: 'Opens the Find drawer of the front-most Sequence Window: sub-sequence, restriction site or ORF, on both strands. Press again to close it.', action: () => void api.toolbarAction('edit.find') },
     ],
@@ -38,7 +38,7 @@
       { id: 'pcr', label: 'PCR', help: 'Opens the Run a PCR window: virtual amplification with primers that may carry un-annealed tails.', milestone: 'M5' },
       { id: 'shrna', label: 'shRNA', help: 'Opens the Make shRNA window: oligonucleotides for a shRNA insert from a stored layout.', milestone: 'M5' },
       { id: 'gateway', label: 'Gateway', help: 'Opens the Gateway™ cloning window: BP and LR reactions between donor and acceptor vectors.', milestone: 'M5' },
-      { id: 'extract', label: 'Extract', help: 'Extracts the selected fragment (or the fragment between two sites on the Graphic Map) into a new Sequence Window.', milestone: 'M3' },
+      { id: 'extract', label: 'Extract', help: 'Extracts the selected fragment (or the fragment between two sites on the Graphic Map) into a new Sequence Window, cohesive ends included.', action: () => void api.toolbarAction('generate.extract') },
       { id: 'align', label: 'Align', help: 'Opens the Align two Sequences window: local alignment with 3-frame translation.', milestone: 'M6' },
     ],
     [

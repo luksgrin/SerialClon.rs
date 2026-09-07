@@ -12,7 +12,7 @@ use serde::Serialize;
 use tauri::{AppHandle, Emitter, Manager};
 use tauri_plugin_clipboard_manager::ClipboardExt;
 
-use crate::documents::{DocId, DocumentView, EditOp};
+use crate::documents::{DocId, Document, DocumentView, EditOp};
 use crate::io::ExportFormat;
 use crate::{AppState, autosave, io, menu, windows};
 
@@ -560,6 +560,268 @@ pub fn note_focus(app: AppHandle, id: DocId) {
 pub async fn toolbar_action(app: AppHandle, action: String) -> Result<(), String> {
     crate::run_menu_action(&app, &action);
     Ok(())
+}
+
+// ---------------------------------------------------------------- maps ----
+
+/// A restriction site on the Graphic Map.
+#[derive(Debug, Clone, Serialize)]
+pub struct MapSite {
+    /// Enzyme name.
+    pub name: String,
+    /// 1-based first base of the site (what the label shows).
+    pub position: usize,
+    /// 0-based top-strand cut.
+    pub cut_top: usize,
+    /// 0-based bottom-strand cut.
+    pub cut_bottom: usize,
+    /// Strand for oriented enzymes; `None` for palindromic type II sites.
+    pub forward: Option<bool>,
+    /// How many times the enzyme cuts.
+    pub count: usize,
+}
+
+/// Everything the Graphic Map needs.
+#[derive(Debug, Clone, Serialize)]
+pub struct MapData {
+    /// The document.
+    pub doc: DocumentView,
+    /// Sites of every enzyme cutting at least once.
+    pub sites: Vec<MapSite>,
+    /// The enzyme chooser list.
+    pub enzymes: Vec<EnzymeEntry>,
+}
+
+/// Graphic Map data: all sites (the window filters unique / double /
+/// particular itself) plus the chooser list.
+#[tauri::command]
+pub fn map_data(app: AppHandle, id: DocId) -> Result<MapData, String> {
+    let state = app.state::<AppState>();
+    let store = state.store.lock().unwrap();
+    let doc = store.get(id).ok_or("no such document")?;
+    let mut sites = Vec::new();
+    let mut enzymes = Vec::new();
+    for enzyme in &state.library.enzymes {
+        let found = sc_enzyme::find_sites(&doc.seq.bases, doc.seq.topology, enzyme);
+        enzymes.push(EnzymeEntry {
+            name: enzyme.name.clone(),
+            site: enzyme.display_site(),
+            count: found.len(),
+        });
+        let count = found.len();
+        for s in found {
+            sites.push(MapSite {
+                name: enzyme.name.clone(),
+                position: s.position + 1,
+                cut_top: s.cut_top,
+                cut_bottom: s.cut_bottom,
+                forward: enzyme.is_oriented().then_some(s.strand == Strand::Forward),
+                count,
+            });
+        }
+    }
+    enzymes.sort_by_key(|e| e.name.to_ascii_lowercase());
+    Ok(MapData {
+        doc: doc.view(id),
+        sites,
+        enzymes,
+    })
+}
+
+/// The Sequence Map's control panels, as sent by the window.
+#[derive(Debug, Clone, serde::Deserialize)]
+pub struct TextMapRequest {
+    /// Bases per line.
+    pub per_line: usize,
+    /// Show the reverse strand.
+    pub show_reverse: bool,
+    /// Show coordinates.
+    pub show_coords: bool,
+    /// `none`, `all` or `range`.
+    pub translate: String,
+    /// Range start (1-based) when `translate == "range"`.
+    pub from: Option<usize>,
+    /// Range end.
+    pub to: Option<usize>,
+    /// Frames.
+    pub frames: [bool; 3],
+    /// Codon mode.
+    pub codons: bool,
+    /// Translate upper-case only.
+    pub uppercase_only: bool,
+    /// `none`, `all`, `max` or `particular`.
+    pub sites: String,
+    /// Max cuts when `sites == "max"`.
+    pub max_cuts: Option<usize>,
+    /// Enzyme names when `sites == "particular"`.
+    pub particular: Vec<String>,
+    /// Show features.
+    pub features: bool,
+}
+
+/// Renders the Sequence Map text.
+#[tauri::command]
+pub fn sequence_map(app: AppHandle, id: DocId, request: TextMapRequest) -> Result<String, String> {
+    use sc_enzyme::textmap::{Header, SiteFilter, TextMapOptions, Translate, render};
+    let state = app.state::<AppState>();
+    let store = state.store.lock().unwrap();
+    let doc = store.get(id).ok_or("no such document")?;
+    let opts = TextMapOptions {
+        per_line: request.per_line,
+        show_reverse: request.show_reverse,
+        show_coords: request.show_coords,
+        translate: match request.translate.as_str() {
+            "none" => Translate::None,
+            "range" => Translate::Range(
+                request.from.unwrap_or(1),
+                request.to.unwrap_or(doc.seq.len()),
+            ),
+            _ => Translate::All,
+        },
+        frames: request.frames,
+        codons: request.codons,
+        uppercase_only: request.uppercase_only,
+        sites: match request.sites.as_str() {
+            "none" => SiteFilter::None,
+            "max" => SiteFilter::MaxCuts(request.max_cuts.unwrap_or(1).max(1)),
+            "particular" => SiteFilter::Particular(request.particular.clone()),
+            _ => SiteFilter::All,
+        },
+        features: request.features,
+    };
+    let header = Header {
+        app: format!("SerialClon {}", app.package_info().version),
+        date: io::today(),
+        library: format!(
+            "RELibrary (REBASE {})",
+            state.library.info.rebase_release.unwrap_or(0)
+        ),
+    };
+    Ok(render(&doc.seq, &state.library, &opts, Some(&header)))
+}
+
+/// A site chosen on the Graphic Map, as sent by the window.
+#[derive(Debug, Clone, serde::Deserialize)]
+pub struct SiteRefView {
+    /// Enzyme name.
+    pub enzyme: String,
+    /// 1-based first base.
+    pub position: usize,
+    /// 0-based top cut.
+    pub cut_top: usize,
+    /// 0-based bottom cut.
+    pub cut_bottom: usize,
+}
+
+impl From<SiteRefView> for sc_clone::SiteRef {
+    fn from(s: SiteRefView) -> Self {
+        sc_clone::SiteRef {
+            enzyme: s.enzyme,
+            position: s.position,
+            cut_top: s.cut_top,
+            cut_bottom: s.cut_bottom,
+        }
+    }
+}
+
+fn open_product(app: &AppHandle, product: sc_seq::Sequence) -> DocumentView {
+    let id = {
+        let state = app.state::<AppState>();
+        let mut store = state.store.lock().unwrap();
+        let mut doc = Document::new(product, None);
+        doc.dirty = true;
+        store.insert(doc)
+    };
+    windows::open_sequence(app, id);
+    menu::refresh_windows(app);
+    view_of(app, id).expect("just inserted")
+}
+
+/// Generate ▸ Extract Fragment between one or two sites of the Graphic Map.
+/// With `end` absent (circular sequences) the whole linearised plasmid is
+/// produced with that site's cohesive ends.
+#[tauri::command]
+pub fn extract_fragment(
+    app: AppHandle,
+    id: DocId,
+    begin: SiteRefView,
+    end: Option<SiteRefView>,
+    clockwise: bool,
+) -> Result<DocumentView, String> {
+    let product = {
+        let state = app.state::<AppState>();
+        let store = state.store.lock().unwrap();
+        let doc = store.get(id).ok_or("no such document")?;
+        let begin: sc_clone::SiteRef = begin.into();
+        let end: sc_clone::SiteRef = end.map(Into::into).unwrap_or_else(|| begin.clone());
+        sc_clone::extract_between(&doc.seq, &begin, &end, clockwise)
+            .ok_or("nothing to extract between these sites")?
+    };
+    Ok(open_product(&app, product))
+}
+
+/// Generate ▸ Extract Fragment from the Sequence Window's selection
+/// (0-based, half-open; the whole sequence keeps its own ends).
+#[tauri::command]
+pub fn extract_selection(
+    app: AppHandle,
+    id: DocId,
+    from: usize,
+    to: usize,
+) -> Result<DocumentView, String> {
+    let product = {
+        let state = app.state::<AppState>();
+        let store = state.store.lock().unwrap();
+        let doc = store.get(id).ok_or("no such document")?;
+        let mut p = sc_clone::extract_selection(&doc.seq, from, to)
+            .ok_or("select a portion of the sequence first")?;
+        if from == 0 && to == doc.seq.len() && !doc.seq.topology.is_circular() {
+            p.ends = doc.seq.ends.clone();
+        }
+        p
+    };
+    Ok(open_product(&app, product))
+}
+
+/// Restriction ▸ Graphic Map.
+#[tauri::command]
+pub fn open_graphic_map(app: AppHandle, id: DocId) {
+    windows::open_graphic_map(&app, id);
+}
+
+/// Restriction ▸ Sequence Map, with the selection as translation range.
+#[tauri::command]
+pub fn open_sequence_map(app: AppHandle, id: DocId, from: Option<u32>, to: Option<u32>) {
+    windows::open_sequence_map(&app, id, from, to);
+}
+
+/// File ▸ Save Graphic Map As…: saves a PNG rendered by the window.
+#[tauri::command]
+pub async fn save_png(app: AppHandle, name: String, data_base64: String) -> Result<bool, String> {
+    use base64::Engine;
+    use tauri_plugin_dialog::DialogExt;
+    let bytes = base64::engine::general_purpose::STANDARD
+        .decode(data_base64.as_bytes())
+        .map_err(|e| e.to_string())?;
+    let Some(path) = app
+        .dialog()
+        .file()
+        .set_title("Save Graphic Map As…")
+        .add_filter("PNG image", &["png"])
+        .set_file_name(format!("{name}.png"))
+        .blocking_save_file()
+    else {
+        return Ok(false);
+    };
+    let path = path.into_path().map_err(|e| e.to_string())?;
+    std::fs::write(&path, bytes).map_err(|e| format!("{}: {e}", path.display()))?;
+    Ok(true)
+}
+
+/// Sequence ▸ (map windows) bring the parent Sequence Window up.
+#[tauri::command]
+pub fn show_parent(app: AppHandle, id: DocId) {
+    windows::open_sequence(&app, id);
 }
 
 /// Autosave now (called when a window is about to lose its document).
