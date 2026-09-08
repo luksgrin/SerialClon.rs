@@ -227,8 +227,9 @@ SerialClon.rs/
 └── .github/workflows/
 ```
 
-Key dependencies: `tauri 2.11`, `bio 4.0` (pairwise alignment), `gb-io 0.9` (GenBank read/write),
-`noodles-fasta 0.66`, `serde`, `thiserror`, `nom` (binary/format parsing), `memchr`.
+Key dependencies: `tauri 2.11`, `bio 4.0` (pairwise alignment), `mafft 0.2` (multiple alignment,
+M6b), `serde`, `thiserror`, `memchr`. (GenBank and FASTA ended up hand-written in `sc-format`
+rather than through `gb-io` / `noodles`, to match the original's dialects byte for byte.)
 
 **Tauri command surface** — coarse-grained and document-oriented (`open_sequence`, `save_sequence`,
 `digest`, `scan_features`, `run_pcr`, `ligate`, `gateway`, `align`, …). Sequence state lives in a
@@ -302,6 +303,17 @@ to `BlastAlign.cgi` (NCBI refuses `SUBJECTS` on `Blast.cgi`); polling is once a 
 NCBI asks. Deferred to M7: the pK-table and genetic-code choices are in the Protein menu until the
 Preferences window exists; "use the codon usage table as the genetic code" is implemented in
 `sc-seq` (`CodonTable::genetic_code`) but not yet exposed.
+
+### M6b — Multiple alignment with rust-MAFFT (after M6, ~1 week)
+A window the original never had but its "Copy All Sequences To Multifasta … for CLUSTAL" workflow
+points at: **Generate ▸ Align Multiple Sequences**, built on the user's own pure-Rust port of
+MAFFT 7.526 (`mafft` on crates.io, MIT, no `unsafe`, byte-identical to the C reference across
+BAliBASE; https://github.com/luksgrin/rust-MAFFT). In-process like everything else — no bundled
+binaries. Pick any open sequences (default all), DNA/protein auto-detected, modes Auto / FFT-NS-2 /
+L-INS-i / G-INS-i / E-INS-i, `adjustdirection` for plasmids in either orientation, the pairwise
+Align window's aligned view (features, highlight differences), consensus extraction, export as FASTA
+and Clustal. The pairwise Align window keeps Smith-Waterman: local alignment is the original's
+semantics. Decided 2026-09-08.
 
 ### M7 — Polish & ship 1.0 (2–3 weeks)
 Preferences (every knob the original had), printing on all three platforms, Aqua Classic theme,
