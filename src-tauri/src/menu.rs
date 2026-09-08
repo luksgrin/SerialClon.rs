@@ -194,71 +194,66 @@ pub fn build(app: &AppHandle) -> tauri::Result<MenuHandles> {
         .build()?;
 
     let restriction = SubmenuBuilder::new(app, "Restriction")
-        .item(&disabled(
+        .item(&item(
             app,
             "restriction.graphic_map",
             "Graphic Map",
             Some("CmdOrCtrl+G"),
         )?)
-        .item(&disabled(
+        .item(&item(
             app,
             "restriction.sequence_map",
             "Sequence Map",
             Some("CmdOrCtrl+M"),
         )?)
-        .item(&disabled(
+        .item(&item(
             app,
             "restriction.site_usage",
             "Site Usage (interactive)",
             None,
         )?)
-        .item(&disabled(
+        .item(&item(
             app,
             "restriction.site_usage_table",
             "Site Usage (table)",
             None,
         )?)
         .separator()
-        .item(&disabled(
-            app,
-            "restriction.library",
-            "Enzyme Library",
-            None,
-        )?)
+        .item(&item(app, "restriction.library", "Enzyme Library", None)?)
         .build()?;
 
     let generate = SubmenuBuilder::new(app, "Generate")
-        .item(&disabled(
+        .item(&item(
             app,
             "generate.construct",
             "Build a Construct…",
             Some("CmdOrCtrl+1"),
         )?)
-        .item(&disabled(
+        .item(&item(
             app,
             "generate.adaptor",
             "Create an Adaptor…",
             Some("CmdOrCtrl+2"),
         )?)
-        .item(&disabled(
+        .item(&item(
             app,
             "generate.pcr",
             "Run a PCR…",
             Some("CmdOrCtrl+3"),
         )?)
-        .item(&disabled(
+        .item(&item(
             app,
             "generate.shrna",
             "Make shRNA…",
             Some("CmdOrCtrl+4"),
         )?)
-        .item(&disabled(
+        .item(&item(
             app,
             "generate.gateway",
             "Gateway™ Cloning…",
             Some("CmdOrCtrl+5"),
         )?)
-        .item(&disabled(
+        .item(&item(
             app,
             "generate.extract",
             "Extract Fragment",
@@ -273,19 +268,33 @@ pub fn build(app: &AppHandle) -> tauri::Result<MenuHandles> {
         .build()?;
 
     let features = SubmenuBuilder::new(app, "Features")
-        .item(&disabled(
+        .item(&item(
             app,
             "features.from_selection",
             "New Feature From Selection",
             Some("CmdOrCtrl+Shift+2"),
         )?)
-        .item(&disabled(
+        .item(&item(
             app,
             "features.scan",
             "Scan Sequence",
             Some("CmdOrCtrl+Alt+S"),
         )?)
-        .item(&disabled(app, "features.manage", "Manage Features…", None)?)
+        .item(&item(
+            app,
+            "features.remove_duplicates",
+            "Remove duplicated Features",
+            None,
+        )?)
+        .separator()
+        .item(&item(app, "features.manage", "Manage Features…", None)?)
+        .build()?;
+
+    let tools = SubmenuBuilder::new(app, "Tools")
+        .item(&item(app, "tools.virtual_cutter", "Virtual Cutter…", None)?)
+        .item(&item(app, "tools.silent_map", "Silent Map…", None)?)
+        .separator()
+        .item(&disabled(app, "tools.web", "Web Access…", None)?)
         .build()?;
 
     let windows = SubmenuBuilder::with_id(app, "window.list", "Open Windows").build()?;
@@ -350,6 +359,7 @@ pub fn build(app: &AppHandle) -> tauri::Result<MenuHandles> {
                 &restriction,
                 &generate,
                 &features,
+                &tools,
                 &window,
             ])
             .build()?
@@ -371,6 +381,7 @@ pub fn build(app: &AppHandle) -> tauri::Result<MenuHandles> {
                 &restriction,
                 &generate,
                 &features,
+                &tools,
                 &window,
             ])
             .build()?

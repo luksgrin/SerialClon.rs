@@ -7,8 +7,9 @@
    */
   import { onMount } from 'svelte';
   import { Menu } from '@tauri-apps/api/menu';
+  import { emitTo } from '@tauri-apps/api/event';
   import { message } from '@tauri-apps/plugin-dialog';
-  import { api, docIdFromUrl, onDocChanged, onMenu, requestSelect, type DocumentView, type EnzymeEntry, type MapSite, type SiteRefView } from '$lib/doc';
+  import { api, docIdFromUrl, onDocChanged, onMenu, requestSelect, type ConstructSelection, type DocumentView, type EnzymeEntry, type MapSite, type SiteRefView } from '$lib/doc';
 
   const id = docIdFromUrl();
   const COLORS = { unique: '#f2e14c', double: '#f0a53a', particular: '#7cb3e8', begin: '#2ea043', end: '#d1242f' } as const;
@@ -345,6 +346,19 @@
         { item: 'Separator' },
         { id: 'extract', text: 'Extract Fragment', enabled: hasSelection, action: () => void extract() },
         { id: 'feature', text: 'Make New Feature', enabled: !!begin, action: () => void makeFeature() },
+        {
+          id: 'construct',
+          text: 'Use Selection in Build a Construct',
+          enabled: !!begin || selectAll,
+          action: () =>
+            void emitTo('construct', 'construct:selection', {
+              doc: id,
+              name: doc?.name ?? '',
+              begin: selectAll ? null : siteRef(begin),
+              end: selectAll ? null : siteRef(end),
+              clockwise,
+            } satisfies ConstructSelection),
+        },
         { id: 'dir', text: circular ? (clockwise ? 'Select Counter-Clockwise' : 'Select Clockwise') : clockwise ? 'Select Antisense' : 'Select Sense', enabled: hasSelection, action: () => (clockwise = !clockwise) },
         { id: 'cancel', text: 'Cancel Selection', enabled: hasSelection, action: clearSelection },
         { item: 'Separator' },

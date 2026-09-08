@@ -208,6 +208,28 @@ impl Library {
         }
     }
 
+    /// Adds an enzyme (Enzyme Library ▸ add a type II or IIs enzyme).
+    pub fn push(&mut self, enzyme: Enzyme) {
+        self.index
+            .insert(enzyme.name.to_ascii_lowercase(), self.enzymes.len());
+        self.enzymes.push(enzyme);
+        self.info.enzyme_count = self.enzymes.len();
+    }
+
+    /// Removes an enzyme by name, case-insensitively.
+    pub fn remove(&mut self, name: &str) -> Option<Enzyme> {
+        let i = self.index.remove(&name.to_ascii_lowercase())?;
+        let e = self.enzymes.remove(i);
+        self.index = self
+            .enzymes
+            .iter()
+            .enumerate()
+            .map(|(i, e)| (e.name.to_ascii_lowercase(), i))
+            .collect();
+        self.info.enzyme_count = self.enzymes.len();
+        Some(e)
+    }
+
     /// Looks an enzyme up by name, case-insensitively.
     pub fn get(&self, name: &str) -> Option<&Enzyme> {
         self.index

@@ -40,8 +40,8 @@ pub fn app_info(app: AppHandle) -> AppInfo {
         name: package.name.clone(),
         version: package.version.to_string(),
         tauri_version: tauri::VERSION.to_string(),
-        rebase_release: state.library.info.rebase_release,
-        enzyme_count: state.library.len(),
+        rebase_release: state.library().info.rebase_release,
+        enzyme_count: state.library().len(),
     }
 }
 
@@ -73,7 +73,7 @@ pub fn broadcast(app: &AppHandle, id: DocId) {
     }
 }
 
-fn view_of(app: &AppHandle, id: DocId) -> Result<DocumentView, String> {
+pub(crate) fn view_of(app: &AppHandle, id: DocId) -> Result<DocumentView, String> {
     let state = app.state::<AppState>();
     let store = state.store.lock().unwrap();
     store
@@ -438,7 +438,8 @@ pub fn find_site(app: AppHandle, id: DocId, enzyme: String) -> Result<Vec<Hit>, 
     let state = app.state::<AppState>();
     let store = state.store.lock().unwrap();
     let doc = store.get(id).ok_or("no such document")?;
-    let enzyme = state.library.get(&enzyme).ok_or("unknown enzyme")?;
+    let library = state.library();
+    let enzyme = library.get(&enzyme).ok_or("unknown enzyme")?;
     Ok(
         sc_enzyme::find_sites(&doc.seq.bases, doc.seq.topology, enzyme)
             .into_iter()
@@ -510,7 +511,7 @@ pub fn enzyme_list(app: AppHandle, id: DocId) -> Result<Vec<EnzymeEntry>, String
     let store = state.store.lock().unwrap();
     let doc = store.get(id).ok_or("no such document")?;
     let mut list: Vec<EnzymeEntry> =
-        sc_enzyme::site_usage(&doc.seq.bases, doc.seq.topology, &state.library)
+        sc_enzyme::site_usage(&doc.seq.bases, doc.seq.topology, &state.library())
             .into_iter()
             .map(|u| EnzymeEntry {
                 name: u.enzyme.name.clone(),
@@ -603,7 +604,7 @@ pub fn map_data(app: AppHandle, id: DocId) -> Result<MapData, String> {
     let doc = store.get(id).ok_or("no such document")?;
     let mut sites = Vec::new();
     let mut enzymes = Vec::new();
-    for enzyme in &state.library.enzymes {
+    for enzyme in &state.library().enzymes {
         let found = sc_enzyme::find_sites(&doc.seq.bases, doc.seq.topology, enzyme);
         enzymes.push(EnzymeEntry {
             name: enzyme.name.clone(),
@@ -697,10 +698,10 @@ pub fn sequence_map(app: AppHandle, id: DocId, request: TextMapRequest) -> Resul
         date: io::today(),
         library: format!(
             "RELibrary (REBASE {})",
-            state.library.info.rebase_release.unwrap_or(0)
+            state.library().info.rebase_release.unwrap_or(0)
         ),
     };
-    Ok(render(&doc.seq, &state.library, &opts, Some(&header)))
+    Ok(render(&doc.seq, &state.library(), &opts, Some(&header)))
 }
 
 /// A site chosen on the Graphic Map, as sent by the window.
@@ -727,7 +728,7 @@ impl From<SiteRefView> for sc_clone::SiteRef {
     }
 }
 
-fn open_product(app: &AppHandle, product: sc_seq::Sequence) -> DocumentView {
+pub(crate) fn open_product(app: &AppHandle, product: sc_seq::Sequence) -> DocumentView {
     let id = {
         let state = app.state::<AppState>();
         let mut store = state.store.lock().unwrap();

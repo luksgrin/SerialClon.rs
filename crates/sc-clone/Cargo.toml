@@ -10,8 +10,12 @@ publish = false
 [dependencies]
 sc-seq.workspace = true
 sc-enzyme.workspace = true
+sc-features.workspace = true
 serde.workspace = true
 thiserror.workspace = true
+
+[dev-dependencies]
+sc-format.workspace = true
 
 [lints]
 workspace = true
