@@ -15,6 +15,10 @@
 //!   between `bases[p-1]` and `bases[p]`.
 
 pub mod alphabet;
+pub mod bisulfite;
+pub mod codon;
+pub mod genetic_codes;
+pub mod pi;
 pub mod sequence;
 pub mod stats;
 pub mod translate;

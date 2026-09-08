@@ -396,6 +396,9 @@ pub fn open_reference(app: &AppHandle, which: &str) {
         "shrna" => ("Make shRNA", (760.0, 600.0)),
         "gateway" => ("Gateway™ Cloning", (620.0, 440.0)),
         "enzyme-library" => ("Enzyme Library", (860.0, 620.0)),
+        "align" => ("Align two Sequences", (960.0, 640.0)),
+        "web" => ("Web Access", (820.0, 640.0)),
+        "codon-usage" => ("Codon Usage", (760.0, 560.0)),
         _ => return,
     };
     let resizable = !matches!(which, "about" | "genetic-code" | "alphabet");

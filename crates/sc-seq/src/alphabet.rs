@@ -24,6 +24,27 @@ pub fn mask(base: u8) -> u8 {
     }
 }
 
+/// The IUPAC code for a four-bit mask (upper case); `N` for an empty mask.
+pub fn from_mask(mask: u8) -> u8 {
+    match mask & 0b1111 {
+        0b0001 => b'A',
+        0b0010 => b'C',
+        0b0100 => b'G',
+        0b1000 => b'T',
+        0b0101 => b'R',
+        0b1010 => b'Y',
+        0b0110 => b'S',
+        0b1001 => b'W',
+        0b1100 => b'K',
+        0b0011 => b'M',
+        0b1110 => b'B',
+        0b1101 => b'D',
+        0b1011 => b'H',
+        0b0111 => b'V',
+        _ => b'N',
+    }
+}
+
 /// True for the plain alphabet Serial Cloner's "DNA" windows accept.
 pub fn is_acgt(base: u8) -> bool {
     matches!(base.to_ascii_uppercase(), b'A' | b'C' | b'G' | b'T')

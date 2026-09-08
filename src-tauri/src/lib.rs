@@ -15,6 +15,7 @@ mod commands;
 mod documents;
 mod io;
 mod menu;
+mod protein;
 mod recent;
 mod windows;
 
@@ -181,6 +182,25 @@ pub(crate) fn run_menu_action(app: &AppHandle, id: &str) {
         "generate.shrna" => windows::open_reference(app, "shrna"),
         "generate.gateway" => windows::open_reference(app, "gateway"),
         "restriction.library" => windows::open_reference(app, "enzyme-library"),
+        "generate.align" | "protein.align" => windows::open_reference(app, "align"),
+        "tools.web" => protein::open_web(app, None),
+        "file.new_protein" => {
+            protein::new_protein(app.clone());
+        }
+        "file.open_protein" => {
+            tauri::async_runtime::spawn(protein::open_protein_files(handle));
+        }
+        "protein.codon_usage" | "protein.import_codon" => {
+            windows::open_reference(app, "codon-usage")
+        }
+        _ if id.starts_with("code.") => {
+            if let Ok(code) = id["code.".len()..].parse::<u8>() {
+                let _ = protein::set_genetic_code(app.clone(), code);
+            }
+        }
+        _ if id.starts_with("pk.") => {
+            protein::set_pk_table(app.clone(), id["pk.".len()..].to_owned())
+        }
         _ if id.starts_with("file.recent.") => {
             let index: usize = id["file.recent.".len()..].parse().unwrap_or(usize::MAX);
             let path = app
@@ -234,7 +254,32 @@ pub(crate) fn run_menu_action(app: &AppHandle, id: &str) {
                     windows::open_usage(app, doc_id)
                 }
                 "tools.virtual_cutter" => windows::open_cutter(app, doc_id),
-                "features.scan" => {
+                "seq.bisulfite_sense" | "seq.bisulfite_antisense" => {
+                    let _ = protein::bisulfite(app.clone(), doc_id, id.ends_with("antisense"));
+                }
+                "protein.blast" | "seq.blast" => {
+                    let protein = app
+                        .state::<AppState>()
+                        .store
+                        .lock()
+                        .unwrap()
+                        .get(doc_id)
+                        .is_some_and(|d| d.seq.seq_type == sc_seq::SeqType::Protein);
+                    protein::open_web(
+                        app,
+                        Some((
+                            doc_id,
+                            0,
+                            0,
+                            if protein {
+                                "blastp".into()
+                            } else {
+                                "blastn".into()
+                            },
+                        )),
+                    );
+                }
+                "features.scan" | "protein.scan" => {
                     let _ = commands::scan_features(app.clone(), doc_id);
                 }
                 "features.remove_duplicates" => {
@@ -299,14 +344,17 @@ pub fn run() {
             hidden_enzymes: Mutex::new(std::collections::HashSet::new()),
             collections: Mutex::new(Vec::new()),
         })
+        .manage(protein::ProteinState::default())
         .setup(|app| {
             let handle = app.handle().clone();
             *handle.state::<AppState>().recent.lock().unwrap() = recent::Recent::load(&handle);
             *handle.state::<AppState>().collections.lock().unwrap() = collections::load(&handle);
             cloning::load_user_settings(&handle);
+            protein::load(&handle);
             let menus = menu::build(&handle)?;
             *handle.state::<AppState>().menus.lock().unwrap() = Some(menus);
             menu::refresh_recent(&handle);
+            menu::refresh_protein(&handle);
             windows::ensure_help(&handle)?;
             for id in autosave::recover(&handle) {
                 windows::open_sequence(&handle, id);
@@ -473,6 +521,28 @@ pub fn run() {
             cloning::apply_silent_mutation,
             cloning::open_tool_window,
             cloning::visible_enzymes,
+            protein::genetic_codes,
+            protein::set_genetic_code,
+            protein::pk_tables,
+            protein::set_pk_table,
+            protein::codon_tables,
+            protein::codon_table_rows,
+            protein::select_codon_table,
+            protein::import_codon_table,
+            protein::delete_codon_table,
+            protein::new_protein,
+            protein::open_protein_files,
+            protein::peptide_to_document,
+            protein::reverse_translate,
+            protein::bisulfite,
+            protein::translate_frames,
+            protein::align_documents,
+            protein::align_consensus,
+            protein::web_fetch,
+            protein::web_create_document,
+            protein::blast_submit,
+            protein::blast_status,
+            protein::blast_result,
             commands::scan_features,
             commands::new_feature_from_selection,
             commands::new_feature_from_sites,

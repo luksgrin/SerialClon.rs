@@ -4,17 +4,17 @@ An open-source, maintained reimplementation of **Serial Cloner** — the molecul
 cloning workbench by F. Perez (SerialBasics), whose last release was **2.6.1 in March 2013** — built
 in **Rust + Tauri 2** and shipping installers for **Windows, macOS and Ubuntu**.
 
-> **Status: M5 (cloning) done.** The research and the implementation plan live in
+> **Status: M6 (alignment, protein, web) done.** The research and the implementation plan live in
 > [`PLAN.md`](PLAN.md). The app has the Sequence Window (M2), the Graphic and Sequence Maps with
 > Extract Fragment (M3), the Features system (M4; the built-in database is a partial
-> reconstruction, see [`resources/features/README.md`](resources/features/README.md)), and now the
-> **cloning windows**: Build a Construct (fragments between sites or from the Graphic Map's
-> selection, blunting, ligation with cohesive-end checking), Create an Adaptor, Run a PCR (tails,
-> TA overhang, primer Features), Make shRNA (stored layouts), Gateway BP/LR and homologous
-> recombination, Site Usage (interactive with a second-sequence filter, and printable), the Enzyme
-> Library (filters, isoschizomers, compatible ends, add/uncheck enzymes), the Virtual Cutter with
-> a simulated gel, and the Silent Map. A test reproduces a real subcloning end to end (EGFP out of
-> pEGFP-N1 into pBluescript II KS(+)). **M6** adds alignment, protein windows and web access.
+> reconstruction, see [`resources/features/README.md`](resources/features/README.md)), the cloning
+> windows (M5: Build a Construct, Adaptor, PCR, shRNA, Gateway, Site Usage, Enzyme Library, Virtual
+> Cutter, Silent Map), and now **Align two Sequences** (local Smith–Waterman on both strands, DNA or
+> protein, 3-frame translation, features, highlight differences, consensus; NCBI BLAST2Seq),
+> **protein windows** (pI with selectable pK tables, reverse translation with Kazusa codon-usage
+> tables, peptide Feature scans, New/Open Protein), the **NCBI genetic codes**, **bisulfite
+> conversion**, and **Web Access** (NCBI / EMBL records by accession, remote BLAST) — all network use
+> on explicit request only. **M7** polishes and ships 1.0.
 
 ---
 
@@ -97,6 +97,7 @@ assets/app-icon.svg      icon source; `cargo tauri icon assets/app-icon.svg -o s
 resources/RELibrary      current REBASE striderc enzyme database, bundled with the app
 resources/features/      the five built-in Feature Collections (JSON), compiled in and seeded
                          into the user's data directory on first run
+resources/codon-usage/   five Kazusa codon-usage tables (JSON, source URL and date in each)
 scripts/update-rebase.sh refresh it from rebase.neb.com
 reference/               see reference/README.md
   sequences/             original .xdna/.gb/.fasta/.nucl/.ma4 files — format fixtures

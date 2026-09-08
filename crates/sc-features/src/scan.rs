@@ -166,6 +166,33 @@ pub fn scan_one(seq: &Sequence, def: &FeatureDef) -> Vec<Feature> {
     if n == 0 || def.five.trim().is_empty() {
         return Vec::new();
     }
+    // Protein windows (changelog 2.6: "Scan for peptide Features in Protein
+    // Sequences"): peptide definitions match the residues directly; DNA
+    // definitions do not apply.
+    if seq.seq_type == sc_seq::SeqType::Protein {
+        if !def.peptide {
+            return Vec::new();
+        }
+        let hay: Vec<u8> = seq.bases.iter().map(|b| b.to_ascii_uppercase()).collect();
+        let five = upper(&def.five);
+        let up = upper(&def.upstream);
+        let down = upper(&def.downstream);
+        let mut out = Vec::new();
+        for s in find_all_peptide(&hay, &five) {
+            let end = s + five.len();
+            if !up.is_empty() && !(s >= up.len() && peptide_matches(&up, &hay[s - up.len()..s])) {
+                continue;
+            }
+            if !down.is_empty()
+                && !(end + down.len() <= hay.len()
+                    && peptide_matches(&down, &hay[end..end + down.len()]))
+            {
+                continue;
+            }
+            out.push(feature_from(def, s as u32 + 1, end as u32, Strand::Forward));
+        }
+        return out;
+    }
     let circular = seq.topology.is_circular();
     let mut forward: Vec<u8> = seq.bases.clone();
     if circular {
@@ -363,6 +390,19 @@ mod tests {
         let f = scan_one(&seq("TGTGTGCTGCTGTGTAAA"), &cys); // C V L L C K
         assert_eq!(f.len(), 1);
         assert_eq!((f[0].start, f[0].end), (1, 3));
+    }
+
+    #[test]
+    fn protein_windows_match_peptide_definitions_directly() {
+        let mut ha = FeatureDef::simple("HA", "misc_feature", "#000000", "YPYDVPDYA");
+        ha.peptide = true;
+        let dna_def = FeatureDef::simple("site", "misc_feature", "#000000", "GAATTC");
+        let mut prot = seq("MGYPYDVPDYAGAATTC");
+        prot.seq_type = sc_seq::SeqType::Protein;
+        let f = scan_one(&prot, &ha);
+        assert_eq!(f.len(), 1);
+        assert_eq!((f[0].start, f[0].end), (3, 11));
+        assert!(scan_one(&prot, &dna_def).is_empty());
     }
 
     #[test]

@@ -27,6 +27,37 @@ pub static STANDARD: GeneticCode = GeneticCode {
     starts: *b"---M------**--*----M---------------M----------------------------",
 };
 
+impl GeneticCode {
+    /// Looks a table up by NCBI id (Protein ▸ Choose genetic code).
+    pub fn by_id(id: u8) -> Option<&'static GeneticCode> {
+        crate::genetic_codes::GENETIC_CODES
+            .iter()
+            .find(|c| c.id == id)
+    }
+
+    /// Every codon that starts translation in this code, as `ATG`-style text.
+    pub fn start_codons(&self) -> Vec<String> {
+        (0..64usize)
+            .filter(|&i| self.starts[i] == b'M')
+            .map(|i| {
+                String::from_utf8_lossy(&[TCAG[i >> 4], TCAG[(i >> 2) & 3], TCAG[i & 3]])
+                    .into_owned()
+            })
+            .collect()
+    }
+
+    /// Every stop codon of this code.
+    pub fn stop_codons(&self) -> Vec<String> {
+        (0..64usize)
+            .filter(|&i| self.amino_acids[i] == b'*')
+            .map(|i| {
+                String::from_utf8_lossy(&[TCAG[i >> 4], TCAG[(i >> 2) & 3], TCAG[i & 3]])
+                    .into_owned()
+            })
+            .collect()
+    }
+}
+
 /// Index of a codon in a [`GeneticCode`] table, or `None` if any base is not
 /// a plain `ACGTU`.
 pub fn codon_index(codon: &[u8]) -> Option<usize> {
@@ -201,6 +232,45 @@ mod tests {
         assert!(
             !STANDARD.is_start(b"CTG") || STANDARD.starts[codon_index(b"CTG").unwrap()] == b'M'
         );
+    }
+
+    #[test]
+    fn ncbi_tables_translate_their_documented_starts_and_stops() {
+        let codes = crate::genetic_codes::GENETIC_CODES;
+        assert_eq!(codes.len(), 27);
+        assert_eq!(
+            GeneticCode::by_id(1).unwrap().amino_acids,
+            STANDARD.amino_acids
+        );
+        // Vertebrate mitochondrial: TGA = Trp, AGA/AGG = stop, ATA = Met start.
+        let mito = GeneticCode::by_id(2).unwrap();
+        assert_eq!(mito.amino_acid(b"TGA"), b'W');
+        assert_eq!(mito.amino_acid(b"AGA"), b'*');
+        assert_eq!(mito.amino_acid(b"ATA"), b'M');
+        assert!(mito.is_start(b"ATA") && mito.is_start(b"ATT"));
+        // Bacterial (11): GTG and TTG are starts.
+        let bact = GeneticCode::by_id(11).unwrap();
+        assert!(bact.is_start(b"GTG") && bact.is_start(b"TTG") && bact.is_start(b"ATG"));
+        assert_eq!(bact.stop_codons(), ["TAA", "TAG", "TGA"]);
+        // Ciliate (6): TAA/TAG = Gln, only TGA stops.
+        let cil = GeneticCode::by_id(6).unwrap();
+        assert_eq!(cil.amino_acid(b"TAA"), b'Q');
+        assert_eq!(cil.stop_codons(), ["TGA"]);
+        // Every table: 64 valid entries and at least one start codon.
+        for c in codes {
+            for (i, &aa) in c.amino_acids.iter().enumerate() {
+                assert!(
+                    aa.is_ascii_uppercase() || aa == b'*',
+                    "{} entry {i}",
+                    c.name
+                );
+            }
+            assert!(
+                !c.start_codons().is_empty(),
+                "{} has no start codon",
+                c.name
+            );
+        }
     }
 
     #[test]
