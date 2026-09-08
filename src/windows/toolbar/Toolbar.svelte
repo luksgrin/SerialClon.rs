@@ -39,7 +39,7 @@
       { id: 'shrna', label: 'shRNA', help: 'Opens the Make shRNA window: oligonucleotides for a shRNA insert from a stored layout.', action: () => void api.toolbarAction('generate.shrna') },
       { id: 'gateway', label: 'Gateway', help: 'Opens the Gateway™ cloning window: BP and LR reactions between donor and acceptor vectors, or homologous recombination.', action: () => void api.toolbarAction('generate.gateway') },
       { id: 'extract', label: 'Extract', help: 'Extracts the selected fragment (or the fragment between two sites on the Graphic Map) into a new Sequence Window, cohesive ends included.', action: () => void api.toolbarAction('generate.extract') },
-      { id: 'align', label: 'Align', help: 'Opens the Align two Sequences window: local alignment with 3-frame translation.', milestone: 'M6' },
+      { id: 'align', label: 'Align', help: 'Opens the Align two Sequences window: local (Smith-Waterman) or NCBI BLAST2Seq alignment of two open sequences, with 3-frame translation and features.', action: () => void api.toolbarAction('generate.align') },
       { id: 'scan', label: 'Scan', help: 'Scans the front-most sequence for the Features of the enabled Collections (Features ▸ Scan Sequence). Features you edited are kept.', action: () => void api.toolbarAction('features.scan') },
     ],
     [

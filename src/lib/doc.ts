@@ -81,6 +81,9 @@ export interface SelectionInfo {
   peptide: string;
   size_aa: number;
   mw: number;
+  pi: number | null;
+  protein: boolean;
+  genetic_code: string;
 }
 
 export interface Hit {
@@ -172,6 +175,77 @@ export interface ScanReport {
   found: number;
 }
 
+export interface GeneticCodeView {
+  id: number;
+  name: string;
+  starts: string[];
+  stops: string[];
+  selected: boolean;
+}
+
+export interface CodonTableView {
+  name: string;
+  slug: string;
+  source: string;
+  retrieved: string;
+  cds: number | null;
+  builtin: boolean;
+  selected: boolean;
+}
+
+export interface CodonUsageRow {
+  codon: string;
+  amino_acid: string;
+  fraction: number;
+  per_thousand: number;
+  count: number;
+}
+
+export interface Alignment {
+  kind: 'Dna' | 'Protein';
+  score: number;
+  a_start: number;
+  a_end: number;
+  b_start: number;
+  b_end: number;
+  b_reverse: boolean;
+  a_line: string;
+  b_line: string;
+  midline: string;
+  matches: number;
+  length: number;
+  identity: number;
+}
+
+export interface AlignView {
+  alignment: Alignment;
+  a_name: string;
+  b_name: string;
+  a_len: number;
+  b_len: number;
+  a_features: FeatureView[];
+  b_features: FeatureView[];
+  swapped: boolean;
+  a_id: number;
+  b_id: number;
+}
+
+export interface RecordView {
+  text: string;
+  format: 'genbank' | 'genpept' | 'embl';
+  name: string;
+}
+
+export interface BlastJobView {
+  rid: string;
+  rtoe: number;
+}
+
+export interface BlastStatusView {
+  status: 'waiting' | 'ready' | 'nohits' | 'failed' | 'unknown';
+  wait: number;
+}
+
 /** A selection: 0-based indices in [0, length]; a caret when equal. */
 export interface Selection {
   anchor: number;
@@ -226,6 +300,35 @@ export const api = {
   openSequenceMap: (id: number, from: number | null, to: number | null) => invoke<void>('open_sequence_map', { id, from, to }),
   savePng: (name: string, dataBase64: string) => invoke<boolean>('save_png', { name, dataBase64 }),
   showParent: (id: number) => invoke<void>('show_parent', { id }),
+  // ---- M6: protein, codon usage, alignment, web ----
+  geneticCodes: () => invoke<GeneticCodeView[]>('genetic_codes'),
+  setGeneticCode: (id: number) => invoke<void>('set_genetic_code', { id }),
+  pkTables: () => invoke<[string, boolean][]>('pk_tables'),
+  setPkTable: (name: string) => invoke<void>('set_pk_table', { name }),
+  codonTables: () => invoke<CodonTableView[]>('codon_tables'),
+  codonTableRows: (slug: string) => invoke<CodonUsageRow[]>('codon_table_rows', { slug }),
+  selectCodonTable: (slug: string) => invoke<void>('select_codon_table', { slug }),
+  importCodonTable: (name: string, text: string | null, url: string | null) =>
+    invoke<CodonTableView>('import_codon_table', { name, text, url }),
+  deleteCodonTable: (slug: string) => invoke<void>('delete_codon_table', { slug }),
+  newProtein: () => invoke<DocumentView>('new_protein'),
+  openProteinFiles: () => invoke<number[]>('open_protein_files'),
+  peptideToDocument: (id: number, from: number, to: number, firstOrf: boolean) =>
+    invoke<DocumentView>('peptide_to_document', { id, from, to, firstOrf }),
+  reverseTranslate: (id: number, from: number, to: number) => invoke<DocumentView>('reverse_translate', { id, from, to }),
+  bisulfite: (id: number, antisense: boolean) => invoke<DocumentView>('bisulfite', { id, antisense }),
+  translateFrames: (text: string) => invoke<[string, string, string]>('translate_frames', { text }),
+  alignDocuments: (a: number, b: number, protein: boolean, short: boolean) =>
+    invoke<AlignView>('align_documents', { a, b, protein, short }),
+  alignConsensus: (alignment: Alignment, aName: string, bName: string) =>
+    invoke<DocumentView>('align_consensus', { alignment, aName, bName }),
+  webFetch: (source: 'ncbi' | 'ncbi-protein' | 'ena', accession: string) => invoke<RecordView>('web_fetch', { source, accession }),
+  webCreateDocument: (text: string, name: string, protein: boolean) =>
+    invoke<DocumentView>('web_create_document', { text, name, protein }),
+  blastSubmit: (id: number, from: number, to: number, program: string, database: string | null, subject: number | null) =>
+    invoke<BlastJobView>('blast_submit', { id, from, to, program, database, subject }),
+  blastStatus: (rid: string) => invoke<BlastStatusView>('blast_status', { rid }),
+  blastResult: (rid: string) => invoke<string>('blast_result', { rid }),
   scanFeatures: (id: number) => invoke<ScanReport>('scan_features', { id }),
   newFeatureFromSelection: (id: number, from: number, to: number, translation: string | null) =>
     invoke<DocumentView>('new_feature_from_selection', { id, from, to, translation }),

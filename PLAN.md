@@ -291,6 +291,18 @@ Local Smith-Waterman align with translation/features/consensus/diff-highlight, p
 reverse translation + codon usage tables, pI, bisulfite, NCBI/EMBL import via E-utilities, remote
 BLAST via the BLAST URL API, multi-FASTA export.
 
+**M6 notes (done).** Alignment is a self-contained Smith–Waterman with affine gaps (`sc-align`),
+not the `bio` crate: fewer dependencies and a traceback we control; DNA is aligned against both
+strands, protein with BLOSUM62. The NCBI genetic codes come from `gc.prt` (27 tables, generated
+into `sc-seq/src/genetic_codes.rs`). pI offers six pK sets, default Bjellqvist/ExPASy, verified
+against ExPASy (6.78 for the twenty amino acids, 5.92 for serum albumin). Codon usage tables are
+Kazusa's (`resources/codon-usage/`, source URL and date in each file; the *E. coli* K-12 one is the
+W3110 entry, 4332 CDS, because Kazusa's "K12" entry has 14). Two-sequence BLAST must be submitted
+to `BlastAlign.cgi` (NCBI refuses `SUBJECTS` on `Blast.cgi`); polling is once a minute per RID as
+NCBI asks. Deferred to M7: the pK-table and genetic-code choices are in the Protein menu until the
+Preferences window exists; "use the codon usage table as the genetic code" is implemented in
+`sc-seq` (`CodonTable::genetic_code`) but not yet exposed.
+
 ### M7 — Polish & ship 1.0 (2–3 weeks)
 Preferences (every knob the original had), printing on all three platforms, Aqua Classic theme,
 file-type associations for `.xdna`, code signing + notarisation (macOS) and Authenticode (Windows),

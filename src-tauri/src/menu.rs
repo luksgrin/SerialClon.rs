@@ -3,8 +3,8 @@
 //! to the front-most Sequence Window as a `menu` event.
 
 use tauri::menu::{
-    AboutMetadataBuilder, Menu, MenuBuilder, MenuItemBuilder, PredefinedMenuItem, Submenu,
-    SubmenuBuilder,
+    AboutMetadataBuilder, CheckMenuItem, CheckMenuItemBuilder, Menu, MenuBuilder, MenuItem,
+    MenuItemBuilder, PredefinedMenuItem, Submenu, SubmenuBuilder,
 };
 use tauri::{AppHandle, Manager, Wry};
 
@@ -16,6 +16,12 @@ pub struct MenuHandles {
     pub recent: Submenu<Wry>,
     /// The open-windows list at the end of the Window menu.
     pub windows: Submenu<Wry>,
+    /// Protein ▸ Choose genetic code (check items, one per NCBI table).
+    pub codes: Vec<CheckMenuItem<Wry>>,
+    /// Protein ▸ pK table for pI (check items).
+    pub pks: Vec<CheckMenuItem<Wry>>,
+    /// Protein ▸ "Codon usage: …" (shows the selected table).
+    pub codon_label: MenuItem<Wry>,
 }
 
 fn item(
@@ -81,6 +87,20 @@ pub fn build(app: &AppHandle) -> tauri::Result<MenuHandles> {
         )?)
         .item(&item(app, "file.open", "Open…", Some("CmdOrCtrl+O"))?)
         .item(&recent)
+        .separator()
+        .item(&item(
+            app,
+            "file.new_protein",
+            "New Protein Sequence",
+            None,
+        )?)
+        .item(&item(
+            app,
+            "file.open_protein",
+            "Open Protein Sequence…",
+            None,
+        )?)
+        .separator()
         .item(&item(app, "file.revert", "Revert To Saved", None)?)
         .separator()
         .item(&item(app, "file.close", "Close", Some("CmdOrCtrl+W"))?)
@@ -183,6 +203,23 @@ pub fn build(app: &AppHandle) -> tauri::Result<MenuHandles> {
             "Transform to / from Degenerate DNA",
             None,
         )?)
+        .item(
+            &SubmenuBuilder::new(app, "Bisulfite Conversion")
+                .item(&item(
+                    app,
+                    "seq.bisulfite_sense",
+                    "Sense Strand (C>>T)",
+                    None,
+                )?)
+                .item(&item(
+                    app,
+                    "seq.bisulfite_antisense",
+                    "Antisense Strand (C>>T)",
+                    None,
+                )?)
+                .build()?,
+        )
+        .item(&item(app, "seq.blast", "BLAST at the NCBI…", None)?)
         .separator()
         .item(&item(app, "seq.rename", "Rename Sequence…", None)?)
         .item(&item(
@@ -259,12 +296,72 @@ pub fn build(app: &AppHandle) -> tauri::Result<MenuHandles> {
             "Extract Fragment",
             Some("CmdOrCtrl+6"),
         )?)
-        .item(&disabled(
+        .item(&item(
             app,
             "generate.align",
             "Align two Sequences…",
             Some("CmdOrCtrl+7"),
         )?)
+        .build()?;
+
+    // Protein menu (changelog 2.5 / 2.6).
+    let mut codes = Vec::new();
+    let code_menu = SubmenuBuilder::new(app, "Choose Genetic Code");
+    let mut code_menu = code_menu;
+    for c in sc_seq::genetic_codes::GENETIC_CODES {
+        let it = CheckMenuItemBuilder::with_id(
+            format!("code.{}", c.id),
+            format!("{} — {}", c.id, c.name),
+        )
+        .checked(c.id == 1)
+        .build(app)?;
+        code_menu = code_menu.item(&it);
+        codes.push(it);
+    }
+    let code_menu = code_menu.build()?;
+    let mut pks = Vec::new();
+    let mut pk_menu = SubmenuBuilder::new(app, "pK Table for pI");
+    for (i, t) in sc_seq::pi::PK_TABLES.iter().enumerate() {
+        let it = CheckMenuItemBuilder::with_id(format!("pk.{}", t.name), t.name)
+            .checked(i == 0)
+            .build(app)?;
+        pk_menu = pk_menu.item(&it);
+        pks.push(it);
+    }
+    let pk_menu = pk_menu.build()?;
+    let codon_label =
+        MenuItemBuilder::with_id("protein.codon_usage", "Codon Usage: —").build(app)?;
+    let protein = SubmenuBuilder::new(app, "Protein")
+        .item(&item(
+            app,
+            "protein.reverse_translate",
+            "Reverse Translate…",
+            None,
+        )?)
+        .item(&item(
+            app,
+            "protein.scan",
+            "Scan for Peptide Features",
+            None,
+        )?)
+        .item(&item(app, "protein.align", "Protein Align…", None)?)
+        .item(&item(
+            app,
+            "protein.blast",
+            "BLAST Protein Sequence…",
+            None,
+        )?)
+        .separator()
+        .item(&codon_label)
+        .item(&item(
+            app,
+            "protein.import_codon",
+            "Import Codon Usage…",
+            None,
+        )?)
+        .separator()
+        .item(&code_menu)
+        .item(&pk_menu)
         .build()?;
 
     let features = SubmenuBuilder::new(app, "Features")
@@ -294,7 +391,7 @@ pub fn build(app: &AppHandle) -> tauri::Result<MenuHandles> {
         .item(&item(app, "tools.virtual_cutter", "Virtual Cutter…", None)?)
         .item(&item(app, "tools.silent_map", "Silent Map…", None)?)
         .separator()
-        .item(&disabled(app, "tools.web", "Web Access…", None)?)
+        .item(&item(app, "tools.web", "Web Access…", None)?)
         .build()?;
 
     let windows = SubmenuBuilder::with_id(app, "window.list", "Open Windows").build()?;
@@ -359,6 +456,7 @@ pub fn build(app: &AppHandle) -> tauri::Result<MenuHandles> {
                 &restriction,
                 &generate,
                 &features,
+                &protein,
                 &tools,
                 &window,
             ])
@@ -381,13 +479,50 @@ pub fn build(app: &AppHandle) -> tauri::Result<MenuHandles> {
                 &restriction,
                 &generate,
                 &features,
+                &protein,
                 &tools,
                 &window,
             ])
             .build()?
     };
     app.set_menu(menu)?;
-    Ok(MenuHandles { recent, windows })
+    Ok(MenuHandles {
+        recent,
+        windows,
+        codes,
+        pks,
+        codon_label,
+    })
+}
+
+/// Reflects the chosen genetic code, pK table and codon usage table in the
+/// Protein menu.
+pub fn refresh_protein(app: &AppHandle) {
+    let state = app.state::<AppState>();
+    let menus = state.menus.lock().unwrap();
+    let Some(m) = menus.as_ref() else { return };
+    let settings = app
+        .state::<crate::protein::ProteinState>()
+        .settings
+        .lock()
+        .unwrap()
+        .clone();
+    for it in &m.codes {
+        let id = it
+            .id()
+            .as_ref()
+            .strip_prefix("code.")
+            .and_then(|s| s.parse::<u8>().ok());
+        let _ = it.set_checked(id == Some(settings.genetic_code));
+    }
+    for it in &m.pks {
+        let name = it.id().as_ref().strip_prefix("pk.").unwrap_or("");
+        let _ = it.set_checked(name == settings.pk_table);
+    }
+    let _ = m.codon_label.set_text(format!(
+        "Codon Usage: {}…",
+        crate::protein::current_codon_table_name(app)
+    ));
 }
 
 fn clear(submenu: &Submenu<Wry>) {

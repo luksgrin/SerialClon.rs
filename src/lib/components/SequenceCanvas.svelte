@@ -16,11 +16,13 @@
     selection: Selection;
     locked: boolean;
     degenerate: boolean;
+    /** Protein window: the amino-acid alphabet is accepted. */
+    protein?: boolean;
     onselect: (s: Selection) => void;
     onedit: (from: number, to: number, text: string) => void;
     oncontextmenu?: (e: MouseEvent) => void;
   }
-  let { bases, features, showFeatures, selection, locked, degenerate, onselect, onedit, oncontextmenu }: Props = $props();
+  let { bases, features, showFeatures, selection, locked, degenerate, protein = false, onselect, onedit, oncontextmenu }: Props = $props();
 
   const FONT = '13px ui-monospace, "SF Mono", Menlo, Consolas, monospace';
   const ROW_H = 22;
@@ -171,6 +173,7 @@
   }
 
   function accepts(ch: string): boolean {
+    if (protein) return /^[A-Za-z*]$/.test(ch);
     return degenerate ? /^[ACGTRYSWKMBDHVNUacgtryswkmbdhvnu]$/.test(ch) : /^[ACGTacgt]$/.test(ch);
   }
 

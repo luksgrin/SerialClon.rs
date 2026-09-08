@@ -338,10 +338,17 @@ pub struct SelectionInfo {
     pub size_aa: usize,
     /// MW in Da.
     pub mw: f64,
+    /// Isoelectric point with the chosen pK table (M6), `None` when empty.
+    pub pi: Option<f64>,
+    /// True for a Protein window: `peptide` is the selection itself.
+    pub protein: bool,
+    /// Name of the genetic code used.
+    pub genetic_code: String,
 }
 
 /// Computes the Info panel for a selection. With `first_orf` the peptide
-/// stops at the first stop codon.
+/// stops at the first stop codon. In a Protein window the selection is the
+/// peptide.
 #[tauri::command]
 pub fn selection_info(
     app: AppHandle,
@@ -350,14 +357,21 @@ pub fn selection_info(
     to: usize,
     first_orf: bool,
 ) -> Result<SelectionInfo, String> {
+    let code = crate::protein::current_code(&app);
     let state = app.state::<AppState>();
     let store = state.store.lock().unwrap();
     let doc = store.get(id).ok_or("no such document")?;
     let n = doc.seq.len();
     let (from, to) = (from.min(n), to.min(n).max(from.min(n)));
     let sel = &doc.seq.bases[from..to];
+    let protein = doc.seq.seq_type == sc_seq::SeqType::Protein;
     let counts = BaseCounts::of(sel);
-    let peptide = STANDARD.translate(sel, !first_orf);
+    let peptide = if protein {
+        String::from_utf8_lossy(sel).into_owned()
+    } else {
+        code.translate(sel, !first_orf)
+    };
+    let pi = crate::protein::pi_of(&app, peptide.as_bytes());
     Ok(SelectionInfo {
         a: counts.a,
         c: counts.c,
@@ -368,6 +382,9 @@ pub fn selection_info(
         tm: melting_temperature(&counts, DEFAULT_NA_MOLAR),
         size_aa: peptide_len(peptide.as_bytes()),
         mw: protein_mw(peptide.as_bytes()),
+        pi,
+        protein,
+        genetic_code: code.name.to_owned(),
         peptide,
     })
 }

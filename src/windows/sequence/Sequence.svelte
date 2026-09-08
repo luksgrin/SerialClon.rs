@@ -162,7 +162,22 @@
     const ta = e.currentTarget as HTMLTextAreaElement;
     if (!info || ta.selectionStart === ta.selectionEnd) return;
     const base = start;
-    select(base + ta.selectionStart * 3, Math.min(end, base + ta.selectionEnd * 3));
+    const per = info.protein ? 1 : 3;
+    select(base + ta.selectionStart * per, Math.min(end, base + ta.selectionEnd * per));
+  }
+
+  /** The peptide field's context menu: a Protein window or a FASTA copy of the translation. */
+  async function peptideMenu() {
+    if (!doc || !info) return;
+    const [f, t] = selected ? [start, end] : [0, length];
+    const menu = await Menu.new({
+      items: [
+        { id: 'open', text: 'Open as Protein Sequence', enabled: !info.protein, action: () => void api.peptideToDocument(id, f, t, firstOrf) },
+        { id: 'copy', text: 'Copy Peptide as Fasta', action: () => void api.clipboardWrite(`> [${doc!.name}] translation ${f + 1}-${t} (${info!.genetic_code})\n${formatLines(info!.peptide)}`) },
+        { id: 'raw', text: 'Copy Non Formatted', action: () => void api.clipboardWrite(info!.peptide) },
+      ],
+    });
+    await menu.popup();
   }
 
   // --- clipboard ----------------------------------------------------------
@@ -291,6 +306,19 @@
       case 'seq.degenerate':
         await edit({ op: 'set_degenerate', degenerate: !doc.degenerate });
         return;
+      case 'protein.reverse_translate':
+        try {
+          await api.reverseTranslate(id, selected ? start : 0, selected ? end : 0);
+        } catch (e) {
+          await message(String(e), { title: 'Reverse Translate' });
+        }
+        return;
+      case 'protein.blast':
+      case 'seq.blast': {
+        // Forwarded here only when the selection matters; the shell opens Web Access.
+        await api.toolbarAction(cmd);
+        return;
+      }
       case 'seq.rename':
         startRename();
         return;
@@ -570,6 +598,7 @@
             selection={sel}
             locked={doc.locked}
             degenerate={doc.degenerate}
+            protein={doc.seq_type === 'Protein'}
             onselect={setSel}
             onedit={onEdit}
             oncontextmenu={() => void sequenceContextMenu()}
@@ -673,27 +702,31 @@
 
     {#if showInfo}
       <section class="info">
-        <div class="info-block" data-help-name="Selected DNA" data-help="Information about the selected DNA: Tm, number of A, C, G and T, and %GC. Tm uses the three formulas of the manual with [Na+] = 50 mM.">
-          <h2>Selected DNA</h2>
-          {#if info}
-            <div class="stats">
-              <span>Tm: <b>{info.tm.toFixed(1)}</b></span>
-              <span>A: {info.a}</span><span>C: {info.c}</span><span>G: {info.g}</span><span>T: {info.t}</span>
-              <span>%GC: <b>{info.gc_percent.toFixed(1)}%</b></span>
-            </div>
-          {:else}
-            <div class="stats hint">Select a portion of the sequence.</div>
-          {/if}
-        </div>
-        <div class="info-block" data-help-name="Translation" data-help="Information about the translation of the selected sequence: size, calculated MW and sequence of the protein. Select residues in the peptide field to back-select the corresponding nucleotides.">
-          <h2>Translation</h2>
+        {#if doc.seq_type !== 'Protein'}
+          <div class="info-block" data-help-name="Selected DNA" data-help="Information about the selected DNA: Tm, number of A, C, G and T, and %GC. Tm uses the three formulas of the manual with [Na+] = 50 mM.">
+            <h2>Selected DNA</h2>
+            {#if info}
+              <div class="stats">
+                <span>Tm: <b>{info.tm.toFixed(1)}</b></span>
+                <span>A: {info.a}</span><span>C: {info.c}</span><span>G: {info.g}</span><span>T: {info.t}</span>
+                <span>%GC: <b>{info.gc_percent.toFixed(1)}%</b></span>
+              </div>
+            {:else}
+              <div class="stats hint">Select a portion of the sequence.</div>
+            {/if}
+          </div>
+        {/if}
+        <div class="info-block" data-help-name={doc.seq_type === 'Protein' ? 'Selected protein' : 'Translation'} data-help={doc.seq_type === 'Protein' ? 'Size, MW and isoelectric point of the selected residues (pK table chosen in the Protein menu). Right-click the field to copy it as FASTA.' : 'Information about the translation of the selected sequence with the chosen genetic code: size, calculated MW, pI and sequence of the protein. Select residues in the peptide field to back-select the corresponding nucleotides; right-click it to open it as a Protein window or copy it as FASTA.'}>
+          <h2>{doc.seq_type === 'Protein' ? 'Selected protein' : `Translation (${info?.genetic_code ?? 'Standard'})`}</h2>
           <div class="stats">
             <span>Size (aa): <b>{info?.size_aa ?? ''}</b></span>
             <span>MW: <b>{info ? (info.mw / 1000).toFixed(2) + ' kDa' : ''}</b></span>
-            <span>pI: <b>–</b></span>
-            <label><input type="checkbox" bind:checked={firstOrf} /> Show only 1st ORF</label>
+            <span>pI: <b>{info?.pi != null ? info.pi.toFixed(2) : '–'}</b></span>
+            {#if doc.seq_type !== 'Protein'}
+              <label><input type="checkbox" bind:checked={firstOrf} /> Show only 1st ORF</label>
+            {/if}
           </div>
-          <textarea class="peptide" readonly value={info?.peptide ?? ''} onselect={onPeptideSelect} spellcheck="false"></textarea>
+          <textarea class="peptide" readonly value={info?.peptide ?? ''} onselect={onPeptideSelect} oncontextmenu={(e) => { e.preventDefault(); void peptideMenu(); }} spellcheck="false"></textarea>
         </div>
       </section>
     {/if}
