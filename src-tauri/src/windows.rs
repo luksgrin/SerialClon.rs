@@ -394,7 +394,7 @@ pub fn open_reference(app: &AppHandle, which: &str) {
         w => (w, format!("src/windows/{w}/index.html")),
     };
     let (title, size) = match which {
-        "about" => ("About SerialClon", (380.0, 300.0)),
+        "about" => ("About SerialClon.rs", (380.0, 300.0)),
         "genetic-code" => ("Standard Genetic Code", (460.0, 400.0)),
         "alphabet" => ("DNA Alphabet", (320.0, 380.0)),
         "features" => ("Feature Collection", (960.0, 640.0)),
