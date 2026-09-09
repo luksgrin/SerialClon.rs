@@ -30,3 +30,6 @@ Thumbs.db
 *.pfx
 *.cer
 *.mobileprovision
+
+# Claude Code agent worktrees and session files
+.claude/
