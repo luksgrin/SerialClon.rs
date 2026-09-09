@@ -6,6 +6,7 @@
    */
   import { onMount } from 'svelte';
   import { api, docIdFromUrl, onDocChanged, onMenu, type DocumentView, type EnzymeEntry, type TextMapRequest } from '$lib/doc';
+  import { currentPrefs, prefs, prefsReady, printPage } from '$lib/prefs';
 
   const id = docIdFromUrl();
   const params = new URLSearchParams(window.location.search);
@@ -28,10 +29,10 @@
   let maxCuts = $state(1);
   let particular = $state<string[]>([]);
   let chooser = $state(false);
-  let showReverse = $state(true);
+  let showReverse = $state(currentPrefs().smap_show_reverse);
   let showCoords = $state(true);
-  let charSize = $state(12);
-  let perLine = $state(100);
+  let charSize = $state(currentPrefs().smap_char_size);
+  let perLine = $state(currentPrefs().smap_per_line);
   let showFeatures = $state(true);
   let pre = $state<HTMLPreElement | undefined>();
 
@@ -58,6 +59,7 @@
       max_cuts: maxCuts,
       particular,
       features: showFeatures,
+      aa_middle: $prefs.smap_aa_middle,
     };
     try {
       text = await api.sequenceMap(id, request);
@@ -97,7 +99,7 @@
   }
 
   function handleMenu(cmd: string) {
-    if (cmd === 'file.print') window.print();
+    if (cmd === 'file.print') void printPage();
     if (cmd === 'edit.select_all') {
       const range = document.createRange();
       if (pre) range.selectNodeContents(pre);
@@ -111,6 +113,10 @@
   onMount(() => {
     const unlisteners: (() => void)[] = [];
     (async () => {
+      const p = await prefsReady;
+      showReverse = p.smap_show_reverse;
+      charSize = p.smap_char_size;
+      perLine = p.smap_per_line;
       try {
         doc = await api.getDocument(id);
         enzymes = await api.enzymeList(id);
@@ -191,7 +197,7 @@
 
   <footer class="no-print">
     <span class="hint">{doc ? `${doc.name} — ${doc.bases.length} bp` : ''}</span>
-    <button type="button" onclick={() => window.print()} data-help-name="Print" data-help="Prints the map. 8 pt characters and 100 nt per line usually fit a landscape page.">Print</button>
+    <button type="button" onclick={() => void printPage()} data-help-name="Print" data-help="Prints the map. 8 pt characters and 100 nt per line usually fit a landscape page.">Print</button>
   </footer>
 </div>
 
@@ -330,7 +336,7 @@
     pre {
       border: none;
       overflow: visible;
-      font-size: 8px !important;
+      font-size: var(--smap-print-size, 8px) !important;
     }
   }
 </style>

@@ -4,14 +4,13 @@ An open-source, maintained reimplementation of **Serial Cloner** — the molecul
 cloning workbench by F. Perez (SerialBasics), whose last release was **2.6.1 in March 2013** — built
 in **Rust + Tauri 2** and shipping installers for **Windows, macOS and Ubuntu**.
 
-> **Status: M6b (multiple alignment) done.** The research and the implementation plan live in
-> [`PLAN.md`](PLAN.md). The app has the Sequence Window (M2), the maps and Extract Fragment (M3),
-> the Features system (M4), the cloning windows (M5), pairwise alignment, protein windows,
-> reverse translation, pI, bisulfite and the NCBI/EMBL/BLAST network features (M6), and now
-> **Generate ▸ Align Multiple Sequences** on the pure-Rust MAFFT port — in-process, byte-identical
-> to MAFFT 7.526 — with conservation colouring, Features above each row, consensus extraction and
-> FASTA/Clustal export. **M7** polishes and ships 1.0.
-
+> **Status: 1.0.0.** Every window of Serial Cloner 2.6.1 is reimplemented — the Sequence Window
+> with its Find and Info drawers, the Graphic and Sequence Maps, Features with scanning and five
+> built-in Collections, the cloning windows (Build a Construct, Adaptor, PCR, shRNA, Gateway, Site
+> Usage, Enzyme Library, Virtual Cutter, Silent Map), alignment, protein windows, Web Access and
+> Preferences — plus a multiple-alignment window on the pure-Rust MAFFT port. See
+> [`CHANGELOG.md`](CHANGELOG.md). The built-in Feature database still lacks 19 of the original's
+> 150 names, see [`resources/features/README.md`](resources/features/README.md).
 ---
 
 ## Why
@@ -111,6 +110,15 @@ Seven milestones, each ending in installers on all three platforms
 ([`PLAN.md` §4](PLAN.md)). First genuinely usable build at **M3** — Sequence Window, Find/Info
 drawers, Graphic Map and Sequence Map — which already covers most of a normal working day.
 
+## Installation
+
+Installers for macOS (`.dmg`, Apple Silicon / Intel / Universal), Windows (`.msi`, NSIS `.exe`)
+and Ubuntu (`.deb`, `.AppImage`) are attached to each
+[GitHub Release](https://github.com/luksgrin/SerialClon.rs/releases). They are **not code-signed**:
+the first launch needs the usual unblocking step on macOS and Windows, described in the
+[installation guide](https://luksgrin.github.io/SerialClon.rs/installation/). The app checks
+GitHub for a new version once a day (Preferences ▸ Check for a new version).
+
 ## Building
 
 Prerequisites: Rust (stable, with `rustfmt` and `clippy`), Node 22+, and on Ubuntu the usual
@@ -143,4 +151,7 @@ academic use — <http://rebase.neb.com>.
 "Gateway" is a trademark of Thermo Fisher Scientific and is used here descriptively, to name the
 cloning chemistry the corresponding window automates.
 
-Project licence: **TBD** (MIT or Apache-2.0 — see [`PLAN.md` §7](PLAN.md)).
+SerialClon.rs is licensed under either of the [MIT licence](LICENSE-MIT) or the
+[Apache License, Version 2.0](LICENSE-APACHE), at your option. Unless you explicitly state
+otherwise, any contribution intentionally submitted for inclusion in the work by you shall be
+dual licensed as above, without any additional terms or conditions.

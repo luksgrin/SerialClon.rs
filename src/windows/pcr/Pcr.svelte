@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { currentPrefs, prefsReady } from '$lib/prefs';
   /**
    * Run a PCR (⌘3): a matrix and two primers with optional un-annealed
    * tails; the Sequence Window's context menu can send a selection here as
@@ -14,7 +15,8 @@
   let matrix = $state<number | null>(null);
   let forward = $state('');
   let reverse = $state('');
-  let ta = $state(false);
+  let ta = $state(currentPrefs().pcr_ta_overhang);
+  void prefsReady.then((p) => (ta = p.pcr_ta_overhang));
   let fwdCheck = $state<PrimerCheck | string | null>(null);
   let revCheck = $state<PrimerCheck | string | null>(null);
 

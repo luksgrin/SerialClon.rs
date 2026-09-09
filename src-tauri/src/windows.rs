@@ -385,6 +385,14 @@ fn doc_name(app: &AppHandle, id: DocId) -> String {
 
 /// The reference cards and About box (Window menu).
 pub fn open_reference(app: &AppHandle, which: &str) {
+    // Page Setup is the Preferences window opened at its Printing section.
+    let (which, url) = match which {
+        "page-setup" => (
+            "prefs",
+            "src/windows/prefs/index.html?section=printing".to_owned(),
+        ),
+        w => (w, format!("src/windows/{w}/index.html")),
+    };
     let (title, size) = match which {
         "about" => ("About SerialClon", (380.0, 300.0)),
         "genetic-code" => ("Standard Genetic Code", (460.0, 400.0)),
@@ -400,6 +408,7 @@ pub fn open_reference(app: &AppHandle, which: &str) {
         "msa" => ("Align Multiple Sequences", (1040.0, 680.0)),
         "web" => ("Web Access", (820.0, 640.0)),
         "codon-usage" => ("Codon Usage", (760.0, 560.0)),
+        "prefs" | "page-setup" => ("Preferences", (680.0, 720.0)),
         _ => return,
     };
     let resizable = !matches!(which, "about" | "genetic-code" | "alphabet");
@@ -408,17 +417,35 @@ pub fn open_reference(app: &AppHandle, which: &str) {
         let _ = w.set_focus();
         return;
     }
-    let _ = WebviewWindowBuilder::new(
-        app,
-        which,
-        WebviewUrl::App(format!("src/windows/{which}/index.html").into()),
-    )
-    .title(title)
-    .inner_size(size.0, size.1)
-    .resizable(resizable)
-    .minimizable(resizable)
-    .maximizable(resizable)
-    .build();
+    let _ = WebviewWindowBuilder::new(app, which, WebviewUrl::App(url.into()))
+        .title(title)
+        .inner_size(size.0, size.1)
+        .resizable(resizable)
+        .minimizable(resizable)
+        .maximizable(resizable)
+        .build();
+}
+
+/// Preferences ▸ Toolbar vertical shift: moves the Toolbar strip.
+pub fn apply_toolbar_shift(app: &AppHandle, shift: i32) {
+    if let Some(w) = app.get_webview_window(TOOLBAR) {
+        let _ = w.set_position(tauri::LogicalPosition::new(
+            12.0,
+            f64::from((40 + shift).max(0)),
+        ));
+    }
+}
+
+/// Logical width limit of Sequence / Protein windows when the preference is on.
+pub const MAX_SEQUENCE_WIDTH: f64 = 960.0;
+
+/// Preferences ▸ Limit the width of Sequence and Protein windows.
+pub fn apply_width_limit(app: &AppHandle, limit: bool) {
+    for (label, w) in app.webview_windows() {
+        if matches!(parse_label(&label), Some((DocWindow::Sequence, _))) {
+            let _ = w.set_max_size(limit.then_some(LogicalSize::new(MAX_SEQUENCE_WIDTH, 10_000.0)));
+        }
+    }
 }
 
 /// Window ▸ Bring All To Front.

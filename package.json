@@ -1,6 +1,6 @@
 {
   "name": "serialclon",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "private": true,
   "description": "An independent reimplementation of the Serial Cloner DNA cloning workbench (Rust + Tauri 2)",
   "type": "module",
@@ -13,7 +13,8 @@
   },
   "dependencies": {
     "@tauri-apps/api": "^2.11.1",
-    "@tauri-apps/plugin-dialog": "^2.7.3"
+    "@tauri-apps/plugin-dialog": "^2.7.3",
+    "@tauri-apps/plugin-opener": "^2.5.5"
   },
   "devDependencies": {
     "@sveltejs/vite-plugin-svelte": "^7.3.0",
@@ -26,5 +27,6 @@
   },
   "engines": {
     "node": ">=22"
-  }
+  },
+  "license": "MIT OR Apache-2.0"
 }

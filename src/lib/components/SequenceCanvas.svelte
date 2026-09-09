@@ -21,11 +21,12 @@
     onselect: (s: Selection) => void;
     onedit: (from: number, to: number, text: string) => void;
     oncontextmenu?: (e: MouseEvent) => void;
+    fontSize?: number;
   }
-  let { bases, features, showFeatures, selection, locked, degenerate, protein = false, onselect, onedit, oncontextmenu }: Props = $props();
+  let { bases, features, showFeatures, selection, locked, degenerate, protein = false, onselect, onedit, oncontextmenu, fontSize = 13 }: Props = $props();
 
-  const FONT = '13px ui-monospace, "SF Mono", Menlo, Consolas, monospace';
-  const ROW_H = 22;
+  const FONT = $derived(`${fontSize}px ui-monospace, "SF Mono", Menlo, Consolas, monospace`);
+  const ROW_H = $derived(Math.round(fontSize * 1.7));
   const GUTTER_CHARS = 7;
 
   let container: HTMLDivElement;
@@ -247,6 +248,11 @@
   });
 
   $effect(() => {
+    void FONT;
+    if (canvas) measure();
+  });
+
+  $effect(() => {
     // Redraw on any input change.
     void bases;
     void features;
@@ -257,6 +263,7 @@
     void scrollTop;
     void focused;
     void charW;
+    void FONT;
     draw();
   });
 </script>

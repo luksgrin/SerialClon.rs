@@ -137,6 +137,7 @@ export interface TextMapRequest {
   max_cuts: number | null;
   particular: string[];
   features: boolean;
+  aa_middle?: boolean;
 }
 
 export interface SiteRefView {
@@ -389,6 +390,7 @@ export const api = {
   importCollection: () => invoke<Collection[] | null>('import_collection'),
   exportCollection: (name: string, table: boolean) => invoke<boolean>('export_collection', { name, table }),
   openReferenceAny: (which: string) => invoke<void>('open_reference_window', { which }),
+  printWindow: () => invoke<void>('print_window'),
   listDocuments: () => invoke<[number, string][]>('list_documents'),
   // --- M5: cloning ---
   previewFragments: (fragments: FragmentSpec[]) => invoke<FragmentPreview[]>('preview_fragments', { fragments }),

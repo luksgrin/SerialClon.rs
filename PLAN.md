@@ -332,6 +332,21 @@ Preferences (every knob the original had), printing on all three platforms, Aqua
 file-type associations for `.xdna`, code signing + notarisation (macOS) and Authenticode (Windows),
 Tauri updater, docs site (mkdocs, mirroring the reference repo), migration guide.
 
+**M7 notes (done, 1.0.0).** Preferences hold every knob of the original (`src-tauri/src/prefs.rs`,
+`prefs.json`, live through a `prefs:changed` event); the genetic-code, pK-table and codon-table
+choices moved there from the Protein menu (the menu still shows them checked) and "use the codon
+usage table as the genetic code" is exposed. Printing goes through the native print dialog
+(`WebviewWindow::print`), because WKWebView and WebView2 ignore `window.print()`; Page Setup is
+the Preferences window's Printing section, applied as `@page` CSS. The Aqua Classic theme is a
+token and control override in `src/app.css` selected by `data-theme`. File associations are in
+`tauri.conf.json`; macOS `RunEvent::Opened`, the command line and drag-and-drop all open files.
+No code signing, by decision: the release notes link to the installation guide's unblocking
+steps. No Tauri updater (it needs a signing key); the original's daily update check against
+GitHub Releases replaces it. The original's Ctrl+Shift-at-launch preference reset is
+`--reset-prefs` on the command line (modifier state is not readable before the event loop) plus
+the Reset button. Deferred: pixel-faithful Aqua chrome (the theme is a close approximation),
+Windows-side document icons for the associated types (Tauri derives them from the app icon).
+
 **Total: ~4–5 months of focused part-time work**, first genuinely usable build at M3 (~2 months).
 
 ---

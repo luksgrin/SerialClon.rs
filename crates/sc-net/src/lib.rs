@@ -121,11 +121,23 @@ impl Client {
     /// A client identifying itself as `tool` with a contact `email` (NCBI
     /// asks for both) and a 60 s timeout.
     pub fn new(tool: &str, email: &str) -> Result<Client> {
-        let http = reqwest::blocking::Client::builder()
+        Self::with_proxy(tool, email, None)
+    }
+
+    /// Like [`Client::new`], routed through `proxy` (an `http://host:port`
+    /// URL) instead of the system proxy settings.
+    pub fn with_proxy(tool: &str, email: &str, proxy: Option<&str>) -> Result<Client> {
+        let mut builder = reqwest::blocking::Client::builder()
             .user_agent(format!(
                 "{tool} (+https://github.com/luksgrin/SerialClon.rs)"
             ))
-            .timeout(Duration::from_secs(60))
+            .timeout(Duration::from_secs(60));
+        if let Some(url) = proxy.map(str::trim).filter(|u| !u.is_empty()) {
+            let proxy = reqwest::Proxy::all(url)
+                .map_err(|e| NetError::Unreachable("proxy".into(), e.to_string()))?;
+            builder = builder.proxy(proxy);
+        }
+        let http = builder
             .build()
             .map_err(|e| NetError::Unreachable("client".into(), e.to_string()))?;
         Ok(Client {
@@ -482,5 +494,57 @@ mod tests {
             )
             .unwrap();
         assert!(page.contains("UUU"));
+    }
+}
+
+/// A GitHub release, for the update check.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Release {
+    /// The tag, e.g. `v1.2.0`.
+    pub tag_name: String,
+    /// The release page.
+    pub html_url: String,
+}
+
+impl Client {
+    /// The latest published (non-draft, non-prerelease) release of a GitHub
+    /// repository (`owner/name`), via the public REST API.
+    pub fn latest_github_release(&self, repo: &str) -> Result<Release> {
+        let text = self.get(
+            "api.github.com",
+            &format!("https://api.github.com/repos/{repo}/releases/latest"),
+            &[],
+        )?;
+        serde_json::from_str::<Release>(&text)
+            .map_err(|e| NetError::Malformed(format!("GitHub release: {e}")))
+    }
+}
+
+/// Compares two `vMAJOR.MINOR.PATCH` strings; `true` when `candidate` is
+/// newer than `current`. Pre-release suffixes are ignored.
+pub fn is_newer(candidate: &str, current: &str) -> bool {
+    fn parts(v: &str) -> Vec<u64> {
+        v.trim_start_matches('v')
+            .split(['-', '+'])
+            .next()
+            .unwrap_or("")
+            .split('.')
+            .map(|p| p.parse().unwrap_or(0))
+            .collect()
+    }
+    parts(candidate) > parts(current)
+}
+
+#[cfg(test)]
+mod version_tests {
+    use super::is_newer;
+
+    #[test]
+    fn version_comparison() {
+        assert!(is_newer("v1.0.1", "1.0.0"));
+        assert!(is_newer("v1.1.0", "v1.0.9"));
+        assert!(!is_newer("v1.0.0", "1.0.0"));
+        assert!(!is_newer("0.9.9", "1.0.0"));
+        assert!(is_newer("v2.0.0-beta.1", "1.9.0"));
     }
 }

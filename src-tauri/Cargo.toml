@@ -5,6 +5,7 @@ version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
 repository.workspace = true
+license.workspace = true
 publish = false
 
 [lib]
@@ -28,6 +29,7 @@ sc-net.workspace = true
 base64 = "0.22"
 tauri-plugin-dialog = "2"
 tauri-plugin-clipboard-manager = "2"
+tauri-plugin-opener = "2"
 
 [lints]
 workspace = true

@@ -1,7 +1,7 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "SerialClon",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "identifier": "io.github.luksgrin.serialclon",
   "build": {
     "beforeDevCommand": "npm run dev",
@@ -31,7 +31,14 @@
   },
   "bundle": {
     "active": true,
-    "targets": ["app", "dmg", "msi", "nsis", "deb", "appimage"],
+    "targets": [
+      "app",
+      "dmg",
+      "msi",
+      "nsis",
+      "deb",
+      "appimage"
+    ],
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
@@ -59,6 +66,38 @@
       "deb": {
         "section": "science"
       }
-    }
+    },
+    "fileAssociations": [
+      {
+        "ext": [
+          "xdna"
+        ],
+        "name": "Serial Cloner sequence",
+        "description": "DNA Strider / Serial Cloner sequence",
+        "role": "Editor",
+        "mimeType": "application/x-serialclon-xdna"
+      },
+      {
+        "ext": [
+          "fasta",
+          "fa",
+          "fsta"
+        ],
+        "name": "FASTA sequence",
+        "description": "FASTA sequence file",
+        "role": "Viewer",
+        "mimeType": "text/x-fasta"
+      },
+      {
+        "ext": [
+          "gb",
+          "gbk"
+        ],
+        "name": "GenBank record",
+        "description": "GenBank flat file",
+        "role": "Viewer",
+        "mimeType": "chemical/x-genbank"
+      }
+    ]
   }
 }
