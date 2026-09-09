@@ -2,7 +2,7 @@
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
   "description": "What every SerialClon window may do: invoke commands, exchange events (the Help bus, document updates), pop up context menus, resize itself, and show dialogs.",
-  "windows": ["toolbar", "help", "seq-*", "find-*", "gmap-*", "smap-*", "usage-*", "cutter-*", "silent-*", "about", "genetic-code", "alphabet", "features", "construct", "adaptor", "pcr", "shrna", "gateway", "enzyme-library", "align", "web", "codon-usage"],
+  "windows": ["toolbar", "help", "seq-*", "find-*", "gmap-*", "smap-*", "usage-*", "cutter-*", "silent-*", "about", "genetic-code", "alphabet", "features", "construct", "adaptor", "pcr", "shrna", "gateway", "enzyme-library", "align", "web", "codon-usage", "msa"],
   "permissions": [
     "core:default",
     "core:menu:default",

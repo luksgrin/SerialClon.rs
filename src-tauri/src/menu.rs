@@ -302,6 +302,12 @@ pub fn build(app: &AppHandle) -> tauri::Result<MenuHandles> {
             "Align two Sequences…",
             Some("CmdOrCtrl+7"),
         )?)
+        .item(&item(
+            app,
+            "generate.align_multiple",
+            "Align Multiple Sequences…",
+            Some("CmdOrCtrl+8"),
+        )?)
         .build()?;
 
     // Protein menu (changelog 2.5 / 2.6).

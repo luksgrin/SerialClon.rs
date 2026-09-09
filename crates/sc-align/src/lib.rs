@@ -15,6 +15,7 @@ use sc_seq::alphabet::{from_mask, mask, reverse_complement};
 use serde::{Deserialize, Serialize};
 
 pub mod blosum;
+pub mod multiple;
 
 /// DNA or protein scoring.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]

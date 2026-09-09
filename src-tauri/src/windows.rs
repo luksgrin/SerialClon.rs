@@ -397,6 +397,7 @@ pub fn open_reference(app: &AppHandle, which: &str) {
         "gateway" => ("Gateway™ Cloning", (620.0, 440.0)),
         "enzyme-library" => ("Enzyme Library", (860.0, 620.0)),
         "align" => ("Align two Sequences", (960.0, 640.0)),
+        "msa" => ("Align Multiple Sequences", (1040.0, 680.0)),
         "web" => ("Web Access", (820.0, 640.0)),
         "codon-usage" => ("Codon Usage", (760.0, 560.0)),
         _ => return,

@@ -230,6 +230,50 @@ export interface AlignView {
   b_id: number;
 }
 
+export type MsaMode = 'auto' | 'fft-ns-2' | 'fft-nsi' | 'l-insi' | 'g-insi' | 'e-insi';
+
+export interface MsaOptions {
+  mode: MsaMode;
+  adjust_direction: boolean;
+  keep_case: boolean;
+}
+
+export interface MsaRow {
+  name: string;
+  aligned: string;
+  reversed: boolean;
+  length: number;
+}
+
+export interface Msa {
+  kind: 'Dna' | 'Protein';
+  mode: MsaMode;
+  rows: MsaRow[];
+  marks: string;
+  consensus: string;
+  length: number;
+  score: number;
+}
+
+export interface MsaCandidate {
+  id: number;
+  name: string;
+  seq_type: string;
+  protein: boolean;
+  length: number;
+}
+
+export interface MsaRowView {
+  id: number;
+  features: FeatureView[];
+}
+
+export interface MultipleAlignmentView {
+  msa: Msa;
+  rows: MsaRowView[];
+  elapsed_ms: number;
+}
+
 export interface RecordView {
   text: string;
   format: 'genbank' | 'genpept' | 'embl';
@@ -322,6 +366,11 @@ export const api = {
     invoke<AlignView>('align_documents', { a, b, protein, short }),
   alignConsensus: (alignment: Alignment, aName: string, bName: string) =>
     invoke<DocumentView>('align_consensus', { alignment, aName, bName }),
+  msaCandidates: () => invoke<MsaCandidate[]>('msa_candidates'),
+  alignMultiple: (ids: number[], options: MsaOptions) => invoke<MultipleAlignmentView>('align_multiple', { ids, options }),
+  msaText: (msa: Msa, clustal: boolean) => invoke<string>('msa_text', { msa, clustal }),
+  extractMsaConsensus: (msa: Msa) => invoke<DocumentView>('extract_msa_consensus', { msa }),
+  exportMsa: (msa: Msa, clustal: boolean) => invoke<boolean>('export_msa', { msa, clustal }),
   webFetch: (source: 'ncbi' | 'ncbi-protein' | 'ena', accession: string) => invoke<RecordView>('web_fetch', { source, accession }),
   webCreateDocument: (text: string, name: string, protein: boolean) =>
     invoke<DocumentView>('web_create_document', { text, name, protein }),

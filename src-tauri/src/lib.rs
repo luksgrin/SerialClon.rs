@@ -15,6 +15,7 @@ mod commands;
 mod documents;
 mod io;
 mod menu;
+mod msa;
 mod protein;
 mod recent;
 mod windows;
@@ -183,6 +184,7 @@ pub(crate) fn run_menu_action(app: &AppHandle, id: &str) {
         "generate.gateway" => windows::open_reference(app, "gateway"),
         "restriction.library" => windows::open_reference(app, "enzyme-library"),
         "generate.align" | "protein.align" => windows::open_reference(app, "align"),
+        "generate.align_multiple" => windows::open_reference(app, "msa"),
         "tools.web" => protein::open_web(app, None),
         "file.new_protein" => {
             protein::new_protein(app.clone());
@@ -538,6 +540,11 @@ pub fn run() {
             protein::translate_frames,
             protein::align_documents,
             protein::align_consensus,
+            msa::msa_candidates,
+            msa::align_multiple,
+            msa::msa_text,
+            msa::extract_msa_consensus,
+            msa::export_msa,
             protein::web_fetch,
             protein::web_create_document,
             protein::blast_submit,
