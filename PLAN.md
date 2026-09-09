@@ -315,6 +315,18 @@ Align window's aligned view (features, highlight differences), consensus extract
 and Clustal. The pairwise Align window keeps Smith-Waterman: local alignment is the original's
 semantics. Decided 2026-09-08.
 
+**M6b notes (done).** `sc_align::multiple` wraps the `mafft` crate: index names go in so rows
+come back in the input order whatever `--adjustdirection` renamed (flipped rows are reported),
+MAFFT's case convention goes in (lower-case DNA, upper-case protein) and the input's case is
+re-applied when asked, `Auto` is MAFFT's `--auto` rule implemented here (L-INS-i for ≤ 200
+sequences of ≤ 2 kb, else FFT-NS-2), the iterative modes use 1000 iterations (FFT-NS-i 2), the
+input is capped at 2 M residues and the alignment runs on a worker thread. Conservation marks are
+Clustal's (`*` identical, `:` similar — IUPAC-compatible for DNA, the strong groups for protein),
+the consensus is the majority with IUPAC unions on DNA ties and `X` on protein ties, gap-majority
+columns dropped. The window's Features bars map each sequence's features to alignment columns
+through the row's residue→column table. The `cli` feature of `mafft` (its Progress trait, argv
+handling) was not used: a busy indicator suffices and the mode rule is three lines.
+
 ### M7 — Polish & ship 1.0 (2–3 weeks)
 Preferences (every knob the original had), printing on all three platforms, Aqua Classic theme,
 file-type associations for `.xdna`, code signing + notarisation (macOS) and Authenticode (Windows),

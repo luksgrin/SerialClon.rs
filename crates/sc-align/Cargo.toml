@@ -8,6 +8,7 @@ repository.workspace = true
 publish = false
 
 [dependencies]
+mafft = "0.2"
 sc-seq.workspace = true
 serde.workspace = true
 thiserror.workspace = true
