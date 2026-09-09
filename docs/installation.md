@@ -95,7 +95,9 @@ Files you may want to know about:
 | File | Content |
 |---|---|
 | `recent.json` | File ▸ Open Recent |
-| `settings.json` | the genetic code, pK table and codon-usage table chosen in the Protein menu, and the Preferences |
+| `prefs.json` | the Preferences (colours, sizes, defaults, theme, proxy…); `--reset-prefs` at launch recreates it |
+| `settings.json` | the genetic code, pK table and codon-usage table chosen in the Protein menu |
+| `update-check.json` | the day of the last update check |
 | `shrna-layouts.json` | Make shRNA layouts |
 | `user-enzymes.striderc` | enzymes you added in the Enzyme Library (REBASE itself is compiled in) |
 | `hidden-enzymes.json` | enzymes you unchecked in the Enzyme Library |
