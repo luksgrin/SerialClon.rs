@@ -19,12 +19,12 @@ like any other.
     Remove the quarantine attribute once:
 
     ```sh
-    xattr -cr /Applications/SerialClon.app
+    xattr -cr "/Applications/SerialClon.rs.app"
     ```
 
 === "Right-click ▸ Open"
 
-    In Finder, right-click (or Control-click) `SerialClon.app`, choose **Open**, then click
+    In Finder, right-click (or Control-click) `SerialClon.rs.app`, choose **Open**, then click
     **Open** in the dialog. macOS remembers the choice.
 
 === "System Settings"

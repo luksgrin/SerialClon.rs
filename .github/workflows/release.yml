@@ -94,11 +94,11 @@ jobs:
           args: ${{ matrix.args }}
           # Empty tagName = build only, no release.
           tagName: ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || '' }}
-          releaseName: SerialClon ${{ github.ref_name }}
+          releaseName: SerialClon.rs ${{ github.ref_name }}
           releaseBody: |
             SerialClon.rs ${{ github.ref_name }} — installers for macOS (`.dmg`, Apple Silicon / Intel / Universal), Windows (`.msi`, NSIS `.exe`) and Ubuntu (`.deb`, `.AppImage`).
 
-            The installers are **not code-signed**. The first launch needs one unblocking step: on macOS, right-click the app ▸ Open (or run `xattr -cr /Applications/SerialClon.app`); on Windows, choose "More info ▸ Run anyway". Step-by-step instructions with screenshots: https://luksgrin.github.io/SerialClon.rs/installation/
+            The installers are **not code-signed**. The first launch needs one unblocking step: on macOS, right-click the app ▸ Open (or run `xattr -cr "/Applications/SerialClon.rs.app"`); on Windows, choose "More info ▸ Run anyway". Step-by-step instructions with screenshots: https://luksgrin.github.io/SerialClon.rs/installation/
 
             What changed: see CHANGELOG.md.
           releaseDraft: true

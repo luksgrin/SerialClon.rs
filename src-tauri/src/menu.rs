@@ -40,7 +40,7 @@ fn item(
 /// Builds and installs the menu bar.
 pub fn build(app: &AppHandle) -> tauri::Result<MenuHandles> {
     let about = AboutMetadataBuilder::new()
-        .name(Some("SerialClon"))
+        .name(Some("SerialClon.rs"))
         .version(Some(app.package_info().version.to_string()))
         .comments(Some(
             "An independent reimplementation of Serial Cloner. Not affiliated with SerialBasics.",
@@ -408,16 +408,16 @@ pub fn build(app: &AppHandle) -> tauri::Result<MenuHandles> {
             None,
         )?)
         .item(&item(app, "window.alphabet", "DNA Alphabet", None)?)
-        .item(&item(app, "window.about", "About SerialClon…", None)?)
+        .item(&item(app, "window.about", "About SerialClon.rs…", None)?)
         .separator()
         .item(&windows)
         .build()?;
 
     let menu: Menu<Wry> = if cfg!(target_os = "macos") {
-        let app_menu = SubmenuBuilder::new(app, "SerialClon")
+        let app_menu = SubmenuBuilder::new(app, "SerialClon.rs")
             .item(&PredefinedMenuItem::about(
                 app,
-                Some("About SerialClon"),
+                Some("About SerialClon.rs"),
                 Some(about),
             )?)
             .separator()
@@ -437,7 +437,7 @@ pub fn build(app: &AppHandle) -> tauri::Result<MenuHandles> {
             .item(&item(
                 app,
                 "app.quit",
-                "Quit SerialClon",
+                "Quit SerialClon.rs",
                 Some("CmdOrCtrl+Q"),
             )?)
             .build()?;
