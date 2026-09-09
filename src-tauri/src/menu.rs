@@ -37,19 +37,6 @@ fn item(
     b.build(app)
 }
 
-fn disabled(
-    app: &AppHandle,
-    id: &str,
-    text: &str,
-    accel: Option<&str>,
-) -> tauri::Result<tauri::menu::MenuItem<Wry>> {
-    let mut b = MenuItemBuilder::with_id(id, text).enabled(false);
-    if let Some(a) = accel {
-        b = b.accelerator(a);
-    }
-    b.build(app)
-}
-
 /// Builds and installs the menu bar.
 pub fn build(app: &AppHandle) -> tauri::Result<MenuHandles> {
     let about = AboutMetadataBuilder::new()
@@ -120,7 +107,7 @@ pub fn build(app: &AppHandle) -> tauri::Result<MenuHandles> {
         )?)
         .item(&export)
         .separator()
-        .item(&disabled(app, "file.page_setup", "Page Setup…", None)?)
+        .item(&item(app, "file.page_setup", "Page Setup…", None)?)
         .item(&item(app, "file.print", "Print…", Some("CmdOrCtrl+P"))?)
         .build()?;
 
@@ -197,6 +184,7 @@ pub fn build(app: &AppHandle) -> tauri::Result<MenuHandles> {
         .separator()
         .item(&item(app, "seq.topology", "Linearize / Circularize", None)?)
         .item(&item(app, "seq.set_origin", "Set Origin", None)?)
+        .item(&item(app, "seq.read", "Read selection", None)?)
         .item(&item(
             app,
             "seq.degenerate",
@@ -433,7 +421,7 @@ pub fn build(app: &AppHandle) -> tauri::Result<MenuHandles> {
                 Some(about),
             )?)
             .separator()
-            .item(&disabled(
+            .item(&item(
                 app,
                 "app.preferences",
                 "Preferences…",
@@ -470,7 +458,7 @@ pub fn build(app: &AppHandle) -> tauri::Result<MenuHandles> {
     } else {
         // Windows / Linux: Preferences and Quit live in File, About in Window.
         file.append(&PredefinedMenuItem::separator(app)?)?;
-        file.append(&disabled(
+        file.append(&item(
             app,
             "app.preferences",
             "Preferences…",

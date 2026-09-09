@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { printPage } from '$lib/prefs';
   /**
    * Align Multiple Sequences (⌘8, M6b): pick open sequences, align them with
    * the pure-Rust MAFFT port, see the alignment with conservation colours,
@@ -220,7 +221,7 @@
       <button type="button" onclick={extract} data-help-name="Extract consensus" data-help="Opens the majority consensus (ties as IUPAC codes) in a new Sequence Window.">Extract consensus</button>
       <button type="button" onclick={() => void save(false)} data-help-name="Save as FASTA" data-help="Saves the aligned sequences as FASTA (gaps as -).">Save as FASTA…</button>
       <button type="button" onclick={() => void save(true)} data-help-name="Save as Clustal" data-help="Saves the alignment in Clustal format.">Save as Clustal…</button>
-      <button type="button" onclick={() => window.print()}>Print…</button>
+      <button type="button" onclick={() => void printPage()}>Print…</button>
     </div>
     <div class="alignment" data-help-name="Alignment" data-help="Green columns are identical, yellow similar. Coloured bars above a row are that sequence's Features. Click a column to see the coordinate of every sequence there.">
       <div class="line ruler"><span class="gutter"></span><span class="residues">{ruler}</span></div>

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { printPage } from '$lib/prefs';
   /**
    * Site Usage (User Manual §III.D): the interactive frequency table with
    * the filter against a second sequence ("unique here, absent there"), and
@@ -83,7 +84,7 @@
   {:else}
     <div class="row no-print">
       <label>Columns <select bind:value={columns}>{#each [2, 3, 4, 5, 6] as c (c)}<option value={c}>{c}</option>{/each}</select></label>
-      <button type="button" onclick={() => window.print()} data-help-name="Print" data-help="Prints the three tables. Choose the column count for landscape or portrait pages.">Print</button>
+      <button type="button" onclick={() => void printPage()} data-help-name="Print" data-help="Prints the three tables. Choose the column count for landscape or portrait pages.">Print</button>
     </div>
     <div class="scroll printable">
       <h2>All sites — {doc?.name}</h2>

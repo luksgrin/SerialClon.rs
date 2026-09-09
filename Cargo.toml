@@ -3,11 +3,11 @@ resolver = "2"
 members = ["crates/*", "src-tauri"]
 
 [workspace.package]
-version = "0.1.0"
+version = "1.0.0"
 edition = "2024"
 rust-version = "1.85"
 repository = "https://github.com/luksgrin/SerialClon.rs"
-# Licence is still an open question (PLAN.md §7.3); set it here once decided.
+license = "MIT OR Apache-2.0"
 
 [workspace.dependencies]
 # Internal crates — always referenced through the workspace so versions stay in lock-step.

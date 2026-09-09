@@ -18,6 +18,7 @@
   <p class="small">Not affiliated with, endorsed by, or derived from the source code of Serial Cloner or SerialBasics.</p>
   <p class="small">Restriction enzyme data: REBASE {info?.rebase_release ?? ''} ({info?.enzyme_count ?? ''} enzymes), © Dr. Richard J. Roberts, New England Biolabs — free for academic use, rebase.neb.com.</p>
   <p class="small">"Gateway" is a trademark of Thermo Fisher Scientific. Built with Tauri {info?.tauri_version ?? ''}.</p>
+  <p class="small">Licensed under MIT OR Apache-2.0, at your option. © 2026 SerialClon.rs contributors.</p>
 </div>
 
 <style>

@@ -30,6 +30,7 @@
     type FeatureView,
     FEATURE_KINDS,
   } from '$lib/doc';
+  import { prefs } from '$lib/prefs';
 
   const id = docIdFromUrl();
   const win = getCurrentWindow();
@@ -322,6 +323,9 @@
       case 'seq.rename':
         startRename();
         return;
+      case 'seq.read':
+        readAloud();
+        return;
       case 'restriction.sequence_map':
         await api.openSequenceMap(id, selected ? start + 1 : null, selected ? end : null);
         return;
@@ -445,6 +449,21 @@
     }
   }
 
+  // --- read selection aloud (Sequence ▸ Read selection, Esc stops) ----------
+  function readAloud() {
+    if (!doc || typeof speechSynthesis === 'undefined') return;
+    const [f, t] = selected ? [start, end] : [sel.focus, Math.min(length, sel.focus + 60)];
+    const text = doc.bases.slice(f, t).toUpperCase().split('').join(' ');
+    if (!text) return;
+    speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(text);
+    u.rate = $prefs.read_speed;
+    speechSynthesis.speak(u);
+  }
+  function stopReading() {
+    if (typeof speechSynthesis !== 'undefined') speechSynthesis.cancel();
+  }
+
   // --- features tab -------------------------------------------------------
   function pickFeature(i: number) {
     selectedFeature = i;
@@ -493,6 +512,7 @@
   }
   function onWindowKey(e: KeyboardEvent) {
     altHeld = e.altKey;
+    if (e.type === 'keydown' && e.key === 'Escape') stopReading();
     if (e.type === 'keydown' && tab === 'features' && e.key.toLowerCase() === 's' && !e.metaKey && !e.ctrlKey && !e.altKey && !activeTextField()) {
       showFeatures = !showFeatures;
       e.preventDefault();
@@ -598,6 +618,7 @@
             selection={sel}
             locked={doc.locked}
             degenerate={doc.degenerate}
+            fontSize={$prefs.seq_font_size}
             protein={doc.seq_type === 'Protein'}
             onselect={setSel}
             onedit={onEdit}

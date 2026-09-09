@@ -57,13 +57,19 @@ pub fn open_paths(app: &AppHandle, paths: &[PathBuf]) -> Vec<DocId> {
                 let native = seqs
                     .first()
                     .is_some_and(|s| matches!(s.source, Source::Strider | Source::SerialCloner));
+                let prefs = crate::prefs::get(app);
+                if !native && prefs.warn_import {
+                    warn_import(app, path, &prefs);
+                }
                 let state = app.state::<AppState>();
                 for seq in seqs {
-                    let doc = Document::new(seq, if native { Some(path.clone()) } else { None });
+                    let mut doc =
+                        Document::new(seq, if native { Some(path.clone()) } else { None });
+                    doc.locked = prefs.autolock;
                     let id = state.store.lock().unwrap().insert(doc);
                     ids.push(id);
                 }
-                state.recent.lock().unwrap().push(path);
+                state.recent.lock().unwrap().push(path, prefs.recent_files);
             }
             Err(e) => {
                 app.dialog()
@@ -82,6 +88,32 @@ pub fn open_paths(app: &AppHandle, paths: &[PathBuf]) -> Vec<DocId> {
         menu::refresh_windows(app);
     }
     ids
+}
+
+/// The original's "warning when importing non-Serial Cloner files", with a
+/// "Don't show again" that flips the preference.
+fn warn_import(app: &AppHandle, path: &Path, prefs: &crate::prefs::Prefs) {
+    let name = path
+        .file_name()
+        .map(|n| n.to_string_lossy().into_owned())
+        .unwrap_or_default();
+    let keep = app
+        .dialog()
+        .message(format!(
+            "\"{name}\" is not a Serial Cloner file: it was recognised and imported, and will be saved in Serial Cloner (.xdna) format."
+        ))
+        .title("Imported sequence")
+        .kind(MessageDialogKind::Info)
+        .buttons(MessageDialogButtons::OkCancelCustom(
+            "OK".into(),
+            "Don't show again".into(),
+        ))
+        .blocking_show();
+    if !keep {
+        let mut p = prefs.clone();
+        p.warn_import = false;
+        crate::prefs::apply(app, p);
+    }
 }
 
 /// File ▸ Save / Save As…. Returns `Ok(false)` if the user cancelled.
@@ -138,7 +170,11 @@ pub fn save(app: &AppHandle, id: DocId, save_as: bool) -> Result<bool, String> {
             }
         }
     }
-    state.recent.lock().unwrap().push(&path);
+    state
+        .recent
+        .lock()
+        .unwrap()
+        .push(&path, crate::prefs::get(app).recent_files);
     autosave::discard(app, id);
     menu::refresh_recent(app);
     menu::refresh_windows(app);

@@ -16,6 +16,7 @@ mod documents;
 mod io;
 mod menu;
 mod msa;
+mod prefs;
 mod protein;
 mod recent;
 mod windows;
@@ -176,6 +177,8 @@ pub(crate) fn run_menu_action(app: &AppHandle, id: &str) {
         "window.genetic_code" => windows::open_reference(app, "genetic-code"),
         "window.alphabet" => windows::open_reference(app, "alphabet"),
         "window.about" => windows::open_reference(app, "about"),
+        "app.preferences" => windows::open_reference(app, "prefs"),
+        "file.page_setup" => windows::open_reference(app, "page-setup"),
         "features.manage" => windows::open_reference(app, "features"),
         "generate.construct" => windows::open_reference(app, "construct"),
         "generate.adaptor" => windows::open_reference(app, "adaptor"),
@@ -335,6 +338,7 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_clipboard_manager::init())
+        .plugin(tauri_plugin_opener::init())
         .manage(AppState {
             store: Mutex::new(DocumentStore::default()),
             last_doc: Mutex::new(None),
@@ -347,8 +351,11 @@ pub fn run() {
             collections: Mutex::new(Vec::new()),
         })
         .manage(protein::ProteinState::default())
+        .manage(prefs::PrefsState::default())
         .setup(|app| {
             let handle = app.handle().clone();
+            prefs::load(&handle);
+            prefs::reset_from_argv(&handle);
             *handle.state::<AppState>().recent.lock().unwrap() = recent::Recent::load(&handle);
             *handle.state::<AppState>().collections.lock().unwrap() = collections::load(&handle);
             cloning::load_user_settings(&handle);
@@ -364,6 +371,7 @@ pub fn run() {
             }
             menu::refresh_windows(&handle);
             autosave::start(handle.clone());
+            prefs::apply_startup(&handle);
             // Files given on the command line.
             let paths: Vec<std::path::PathBuf> = std::env::args()
                 .skip(1)
@@ -447,6 +455,18 @@ pub fn run() {
                         }
                     }
                 }
+                WindowEvent::DragDrop(tauri::DragDropEvent::Drop { paths, .. }) => {
+                    let paths: Vec<std::path::PathBuf> = paths
+                        .iter()
+                        .filter(|p| p.is_file() && io::is_sequence_file(p))
+                        .cloned()
+                        .collect();
+                    if !paths.is_empty() {
+                        std::thread::spawn(move || {
+                            io::open_paths(&app, &paths);
+                        });
+                    }
+                }
                 WindowEvent::Focused(true) => {
                     if let Some((_, id)) = windows::parse_label(&label) {
                         let state = app.state::<AppState>();
@@ -463,6 +483,11 @@ pub fn run() {
             }
         })
         .invoke_handler(tauri::generate_handler![
+            prefs::get_prefs,
+            prefs::set_prefs,
+            prefs::reset_prefs,
+            prefs::check_for_updates_now,
+            commands::print_window,
             commands::app_info,
             commands::toggle_help_window,
             commands::new_sequence,
@@ -562,6 +587,20 @@ pub fn run() {
         .build(tauri::generate_context!())
         .expect("error while building SerialClon")
         .run(|app, event| {
+            #[cfg(target_os = "macos")]
+            if let RunEvent::Opened { urls } = &event {
+                let paths: Vec<std::path::PathBuf> = urls
+                    .iter()
+                    .filter_map(|u| u.to_file_path().ok())
+                    .filter(|p| p.is_file() && io::is_sequence_file(p))
+                    .collect();
+                if !paths.is_empty() {
+                    let handle = app.clone();
+                    std::thread::spawn(move || {
+                        io::open_paths(&handle, &paths);
+                    });
+                }
+            }
             if let RunEvent::ExitRequested { api, code, .. } = event
                 && code.is_none()
                 && !app

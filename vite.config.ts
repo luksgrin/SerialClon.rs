@@ -9,8 +9,7 @@ const windows = [
   'toolbar', 'help', 'sequence', 'find', 'graphic-map', 'sequence-map', 'about', 'genetic-code', 'alphabet', 'features',
   'construct', 'adaptor', 'pcr', 'shrna', 'gateway', 'site-usage', 'enzyme-library', 'virtual-cutter', 'silent-map',
   'align', 'web', 'codon-usage',
-  'msa',
-] as const;
+  'msa', 'prefs'] as const;
 
 const host = process.env.TAURI_DEV_HOST;
 

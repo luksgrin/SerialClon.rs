@@ -678,6 +678,9 @@ pub struct TextMapRequest {
     pub particular: Vec<String>,
     /// Show features.
     pub features: bool,
+    /// Amino acid under the middle base of the codon (Preferences).
+    #[serde(default)]
+    pub aa_middle: bool,
 }
 
 /// Renders the Sequence Map text.
@@ -702,6 +705,7 @@ pub fn sequence_map(app: AppHandle, id: DocId, request: TextMapRequest) -> Resul
         frames: request.frames,
         codons: request.codons,
         uppercase_only: request.uppercase_only,
+        aa_middle: request.aa_middle,
         sites: match request.sites.as_str() {
             "none" => SiteFilter::None,
             "max" => SiteFilter::MaxCuts(request.max_cuts.unwrap_or(1).max(1)),
@@ -900,7 +904,7 @@ pub fn new_feature_from_selection(
         show: true,
         protect: true,
         arrow: true,
-        color: "#84a4c0".into(),
+        color: crate::prefs::get(&app).color_feature,
     };
     edit(app, id, EditOp::AddFeature { feature }).map(|r| r.view)
 }
@@ -948,7 +952,7 @@ pub fn new_feature_from_sites(
         show: true,
         protect: true,
         arrow: true,
-        color: "#84a4c0".into(),
+        color: crate::prefs::get(&app).color_feature,
     };
     edit(app, id, EditOp::AddFeature { feature }).map(|r| r.view)
 }
@@ -1048,6 +1052,13 @@ pub async fn export_collection(app: AppHandle, name: String, table: bool) -> Res
     let path = file.into_path().map_err(|e| e.to_string())?;
     std::fs::write(&path, text).map_err(|e| format!("{}: {e}", path.display()))?;
     Ok(true)
+}
+
+/// File ▸ Print: the native print dialog of the calling window (WKWebView
+/// and WebView2 ignore `window.print()`, so the shell does it).
+#[tauri::command]
+pub fn print_window(window: tauri::WebviewWindow) -> Result<(), String> {
+    window.print().map_err(|e| e.to_string())
 }
 
 /// Sequence ▸ (map windows) bring the parent Sequence Window up.

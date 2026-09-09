@@ -9,8 +9,9 @@
   import { api, docIdFromUrl, onDocChanged, requestSelect, type DocumentView, type EnzymeEntry, type Hit, type OrfHit } from '$lib/doc';
 
   const id = docIdFromUrl();
-  /** Minimum ORF size for the "all ORFs" search (preference in M7). */
-  const MIN_ORF_CODONS = 33;
+  import { prefs } from '$lib/prefs';
+  /** Minimum ORF size for the "all ORFs" search (Preferences). */
+  const MIN_ORF_CODONS = $derived($prefs.orf_min_codons);
 
   let doc = $state<DocumentView | null>(null);
   let tab = $state<'sequence' | 'site' | 'orfs'>('sequence');

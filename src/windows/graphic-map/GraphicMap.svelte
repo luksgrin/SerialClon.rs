@@ -9,10 +9,13 @@
   import { Menu } from '@tauri-apps/api/menu';
   import { emitTo } from '@tauri-apps/api/event';
   import { message } from '@tauri-apps/plugin-dialog';
+  import { prefs, printPage } from '$lib/prefs';
   import { api, docIdFromUrl, onDocChanged, onMenu, requestSelect, type ConstructSelection, type DocumentView, type EnzymeEntry, type MapSite, type SiteRefView } from '$lib/doc';
 
   const id = docIdFromUrl();
-  const COLORS = { unique: '#f2e14c', double: '#f0a53a', particular: '#7cb3e8', begin: '#2ea043', end: '#d1242f' } as const;
+  const COLORS = $derived({ unique: $prefs.color_unique, double: $prefs.color_double, particular: $prefs.color_particular, begin: $prefs.color_begin, end: $prefs.color_end });
+  const RE_FONT = $derived($prefs.gmap_re_font_size);
+  const FEATURE_FONT = $derived($prefs.gmap_feature_font_size);
   type Category = 'unique' | 'double' | 'particular';
   const PREVIOUS_KEY = 'gmap.previousParticular';
 
@@ -342,7 +345,7 @@
       items: [
         { id: 'topo', text: doc.circular ? 'Linearize' : 'Circularize', action: () => void toggleTopology() },
         { id: 'png', text: 'Save Graphic Map As…', action: () => void savePng() },
-        { id: 'print', text: 'Print…', action: () => window.print() },
+        { id: 'print', text: 'Print…', action: () => void printPage() },
         { item: 'Separator' },
         { id: 'extract', text: 'Extract Fragment', enabled: hasSelection, action: () => void extract() },
         { id: 'feature', text: 'Make New Feature', enabled: !!begin, action: () => void makeFeature() },
@@ -374,7 +377,7 @@
         void savePng();
         break;
       case 'file.print':
-        window.print();
+        void printPage();
         break;
       case 'generate.extract':
         void extract();
@@ -517,18 +520,22 @@
           {#if f.head}<path d={f.head} fill={f.color} />{/if}
           <g role="button" tabindex="-1" style="cursor: default" ondblclick={() => void requestSelect(id, f.lo, f.hi)} onclick={(e) => e.stopPropagation()} onkeydown={(e) => { if (e.key === 'Enter') void requestSelect(id, f.lo, f.hi); }}>
             <rect x={f.label.x - (f.name.length * CHAR) / 2 - 4} y={f.label.y - 9} width={f.name.length * CHAR + 8} height="14" fill="#ffffff" stroke={f.color} rx="2" />
-            <text x={f.label.x} y={f.label.y + 2} text-anchor="middle" font-size="10" fill="#222">{f.name}</text>
+            <text x={f.label.x} y={f.label.y + 2} text-anchor="middle" font-size={FEATURE_FONT} fill="#222">{f.name}</text>
           </g>
         {/each}
 
         {#each placed as p (p.key)}
+          {@const selectedBox = p.key === begin || p.key === end}
+          {@const boxed = selectedBox || ($prefs.gmap_box_re_names && (p.category !== 'unique' || $prefs.gmap_box_unique))}
           {@const fill = p.key === begin ? COLORS.begin : p.key === end ? COLORS.end : COLORS[p.category]}
-          {@const dark = p.key === begin || p.key === end}
+          {@const dark = selectedBox}
           <line x1={p.tick.x1} y1={p.tick.y1} x2={p.tick.x2} y2={p.tick.y2} stroke="#222" stroke-width="1.5" />
           <line x1={p.tick.x2} y1={p.tick.y2} x2={p.leader.x} y2={p.leader.y} stroke="#777" stroke-width="0.8" />
           <g class="label" onpointerdown={(e) => onLabelDown(e, p.key)} ondblclick={() => onLabelDblClick(p.key)} role="button" tabindex="-1" style="cursor: grab">
-            <rect x={p.box.x} y={p.box.y} width={p.box.w} height={p.box.h} {fill} stroke={dark ? fill : '#555'} rx="2" />
-            <text x={p.box.x + 5} y={p.box.y + 12} font-size="11" fill={dark ? '#fff' : '#111'} font-family="ui-monospace, Menlo, monospace">{p.text}</text>
+            {#if boxed}
+              <rect x={p.box.x} y={p.box.y} width={p.box.w} height={p.box.h} {fill} stroke={dark ? fill : '#555'} rx="2" />
+            {/if}
+            <text x={p.box.x + 5} y={p.box.y + 12} font-size={RE_FONT} fill={dark ? '#fff' : '#111'} font-family="ui-monospace, Menlo, monospace">{p.text}</text>
           </g>
         {/each}
       </svg>

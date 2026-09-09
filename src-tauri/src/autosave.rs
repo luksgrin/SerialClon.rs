@@ -1,5 +1,5 @@
 //! Crash recovery: unsaved documents are written to the app data directory
-//! every [`INTERVAL`] and offered back at the next start (changelog 2.0:
+//! every autosave interval (Preferences) and offered back at the next start (changelog 2.0:
 //! "Automatic recovery of unsaved sequences in (hopefully rare) case of
 //! crashing").
 
@@ -11,9 +11,6 @@ use tauri::{AppHandle, Manager};
 
 use crate::AppState;
 use crate::documents::{DocId, Document};
-
-/// How often dirty documents are snapshotted.
-pub const INTERVAL: Duration = Duration::from_secs(30);
 
 #[derive(Serialize, Deserialize)]
 struct Meta {
@@ -107,7 +104,8 @@ pub fn recover(app: &AppHandle) -> Vec<DocId> {
 pub fn start(app: AppHandle) {
     std::thread::spawn(move || {
         loop {
-            std::thread::sleep(INTERVAL);
+            let secs = crate::prefs::get(&app).autosave_secs.max(5);
+            std::thread::sleep(Duration::from_secs(secs));
             snapshot(&app);
         }
     });

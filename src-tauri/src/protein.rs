@@ -4,7 +4,7 @@
 //! `settings.json`; user codon tables in `{app data}/codon-usage/`.
 
 use std::path::PathBuf;
-use std::sync::{Arc, Mutex, OnceLock};
+use std::sync::{Arc, Mutex};
 
 use sc_seq::codon::{CodonTable, CodonUsage, builtin_tables};
 use sc_seq::pi::{PK_TABLES, isoelectric_point, pk_table};
@@ -45,8 +45,9 @@ pub struct ProteinState {
     pub settings: Mutex<Settings>,
     /// Built-in plus user codon tables.
     pub codon_tables: Mutex<Vec<CodonTable>>,
-    /// The HTTP client, created on first use.
-    pub net: OnceLock<Result<Arc<sc_net::Client>, String>>,
+    /// The HTTP client, created on first use (dropped when the proxy
+    /// preference changes).
+    pub net: Mutex<Option<Arc<sc_net::Client>>>,
 }
 
 impl Default for ProteinState {
@@ -54,7 +55,7 @@ impl Default for ProteinState {
         ProteinState {
             settings: Mutex::new(Settings::default()),
             codon_tables: Mutex::new(builtin_tables()),
-            net: OnceLock::new(),
+            net: Mutex::new(None),
         }
     }
 }
@@ -109,20 +110,50 @@ fn save_settings(app: &AppHandle) {
 }
 
 /// The shared HTTP client (built on first use, so an offline start costs
-/// nothing).
-fn client(app: &AppHandle) -> Result<Arc<sc_net::Client>, String> {
-    app.state::<ProteinState>()
-        .net
-        .get_or_init(|| {
-            sc_net::Client::new("SerialClon", "serialclon@users.noreply.github.com")
-                .map(Arc::new)
-                .map_err(|e| e.to_string())
-        })
-        .clone()
+/// nothing), honouring the proxy preference.
+pub fn client(app: &AppHandle) -> Result<Arc<sc_net::Client>, String> {
+    let state = app.state::<ProteinState>();
+    let mut slot = state.net.lock().unwrap();
+    if let Some(c) = slot.as_ref() {
+        return Ok(c.clone());
+    }
+    let proxy = crate::prefs::get(app).proxy;
+    let c = sc_net::Client::with_proxy(
+        "SerialClon",
+        "serialclon@users.noreply.github.com",
+        if proxy.trim().is_empty() {
+            None
+        } else {
+            Some(proxy.as_str())
+        },
+    )
+    .map(Arc::new)
+    .map_err(|e| e.to_string())?;
+    *slot = Some(c.clone());
+    Ok(c)
 }
 
-/// The genetic code chosen in the Protein menu.
+/// Forgets the HTTP client so the next request uses the new proxy setting.
+pub fn reset_net(app: &AppHandle) {
+    *app.state::<ProteinState>().net.lock().unwrap() = None;
+}
+
+/// The genetic code chosen in Preferences — or, with "use the codon usage
+/// table as the genetic code" on, the code implied by the selected table.
 pub fn current_code(app: &AppHandle) -> &'static GeneticCode {
+    if crate::prefs::get(app).codon_as_code
+        && let Some(table) = current_codon_table(app)
+    {
+        // Codes derived from tables are leaked once per table and cached.
+        static CACHE: Mutex<Vec<(String, &'static GeneticCode)>> = Mutex::new(Vec::new());
+        let mut cache = CACHE.lock().unwrap();
+        if let Some((_, code)) = cache.iter().find(|(slug, _)| *slug == table.slug) {
+            return code;
+        }
+        let code: &'static GeneticCode = Box::leak(Box::new(table.genetic_code()));
+        cache.push((table.slug.clone(), code));
+        return code;
+    }
     let id = app
         .state::<ProteinState>()
         .settings

@@ -17,6 +17,9 @@
   --site-particular: #7cb3e8; /* particular sites (blue) */
   --select-begin: #2ea043;  /* BEGIN site: green */
   --select-end: #d1242f;    /* END site: red */
+  --feature-default: #84a4c0;
+  --seq-font-size: 13px;
+  --smap-print-size: 8px;
   --radius: 5px;
 }
 
@@ -46,4 +49,95 @@ body {
 button {
   font: inherit;
   color: inherit;
+}
+
+/* ---------------------------------------------------------------------------
+   Aqua Classic: the look of Serial Cloner 2.6 on Mac OS X (reference/ui).
+   Only tokens and generic controls change; layout is untouched.
+   --------------------------------------------------------------------------- */
+:root[data-theme='aqua'] {
+  color-scheme: light;
+  --bg: #e8e8e8;
+  --bg-raised: #f4f4f4;
+  --fg: #000;
+  --fg-muted: #555;
+  --border: #9a9a9a;
+  --accent: #3a7cd5;
+  --radius: 4px;
+  --font-ui: 'Lucida Grande', 'Lucida Sans Unicode', -apple-system, 'Segoe UI', sans-serif;
+  --aqua-blue-top: #b5d3f5;
+  --aqua-blue-bottom: #4f8fe0;
+}
+:root[data-theme='aqua'] body {
+  background: repeating-linear-gradient(180deg, #e9e9e9 0px, #e9e9e9 2px, #e3e3e3 2px, #e3e3e3 4px);
+}
+:root[data-theme='aqua'] button {
+  background: linear-gradient(#fdfdfd, #e2e2e2);
+  border: 1px solid #8e8e8e;
+  border-radius: 11px;
+  padding: 2px 12px;
+  box-shadow: 0 1px 1px rgba(0, 0, 0, 0.15);
+}
+:root[data-theme='aqua'] button:active:not(:disabled) {
+  background: linear-gradient(var(--aqua-blue-top), var(--aqua-blue-bottom));
+  color: #fff;
+}
+:root[data-theme='aqua'] button.primary,
+:root[data-theme='aqua'] button.active {
+  background: linear-gradient(var(--aqua-blue-top), var(--aqua-blue-bottom));
+  color: #fff;
+  border-color: #3b6fb6;
+}
+:root[data-theme='aqua'] input[type='checkbox'],
+:root[data-theme='aqua'] input[type='radio'] {
+  accent-color: #4f8fe0;
+}
+:root[data-theme='aqua'] input[type='text'],
+:root[data-theme='aqua'] input[type='number'],
+:root[data-theme='aqua'] input[type='search'],
+:root[data-theme='aqua'] select,
+:root[data-theme='aqua'] textarea {
+  background: #fff;
+  border: 1px solid #8e8e8e;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.15);
+}
+:root[data-theme='aqua'] [role='tablist'] button {
+  border-radius: 0;
+  background: linear-gradient(#fafafa, #dcdcdc);
+  border: 1px solid #8e8e8e;
+  padding: 2px 14px;
+  box-shadow: none;
+}
+:root[data-theme='aqua'] [role='tablist'] button[aria-selected='true'] {
+  background: linear-gradient(var(--aqua-blue-top), var(--aqua-blue-bottom));
+  color: #fff;
+}
+:root[data-theme='aqua'] th {
+  background: linear-gradient(#fafafa, #e4e4e4);
+}
+:root[data-theme='aqua'] tr.selected,
+:root[data-theme='aqua'] tr.selected td {
+  background: #3875d7;
+  color: #fff;
+}
+
+/* ---------------------------------------------------------------------------
+   Printing: controls vanish, the content flows onto the pages (File ▸ Page
+   Setup sets @page from the preferences).
+   --------------------------------------------------------------------------- */
+@media print {
+  html,
+  body {
+    height: auto;
+    overflow: visible;
+    background: #fff;
+    color: #000;
+  }
+  button,
+  input,
+  select,
+  textarea,
+  .no-print {
+    display: none !important;
+  }
 }

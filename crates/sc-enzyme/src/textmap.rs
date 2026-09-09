@@ -61,6 +61,9 @@ pub struct TextMapOptions {
     pub codons: bool,
     /// Only translate upper-case bases (2.6 option).
     pub uppercase_only: bool,
+    /// Put the amino acid under the middle base of its codon instead of the
+    /// first (Preferences, changelog 2.5).
+    pub aa_middle: bool,
     /// Restriction sites panel.
     pub sites: SiteFilter,
     /// Features checkbox.
@@ -77,6 +80,7 @@ impl Default for TextMapOptions {
             frames: [true, true, true],
             codons: false,
             uppercase_only: false,
+            aa_middle: false,
             sites: SiteFilter::MaxCuts(1),
             features: true,
         }
@@ -328,12 +332,18 @@ pub fn render_with_code(
                     g += 1;
                 }
                 while g < end {
-                    if g >= start && g + 3 <= n && g >= tr_from && g + 3 <= tr_to {
+                    if g >= start
+                        && g + 3 <= n
+                        && g >= tr_from
+                        && g + 3 <= tr_to
+                        && (!opts.aa_middle || g + 1 < end)
+                    {
                         let codon = &seq.bases[g..g + 3];
                         let skip =
                             opts.uppercase_only && codon.iter().any(|b| b.is_ascii_lowercase());
                         if !skip {
-                            tl[INDENT + cols.col(g)] = code.amino_acid(codon);
+                            let at = if opts.aa_middle { g + 1 } else { g };
+                            tl[INDENT + cols.col(at)] = code.amino_acid(codon);
                             any = true;
                         }
                     }
@@ -488,6 +498,24 @@ mod tests {
         };
         let text = render(&seq, &lib(), &opts, None);
         assert_eq!(text, "  ATG GAA TTC   < 9\n  M   E   F\n\n");
+    }
+
+    #[test]
+    fn amino_acid_under_the_middle_base() {
+        let seq = Sequence::new("t", b"ATGGAATTC".to_vec());
+        let opts = TextMapOptions {
+            frames: [true, false, false],
+            aa_middle: true,
+            show_reverse: false,
+            show_coords: false,
+            sites: SiteFilter::None,
+            features: false,
+            ..Default::default()
+        };
+        assert_eq!(
+            render(&seq, &lib(), &opts, None),
+            "  ATGGAATTC   < 9\n   M  E  F\n\n"
+        );
     }
 
     #[test]

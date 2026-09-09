@@ -4,8 +4,8 @@ use std::path::{Path, PathBuf};
 
 use tauri::{AppHandle, Manager};
 
-/// Number of entries kept (the original's default; Preferences allow up to 25).
-pub const MAX_RECENT: usize = 10;
+/// Upper bound of the Preferences setting.
+pub const MAX_RECENT: usize = 25;
 
 /// The recent-files list.
 #[derive(Default)]
@@ -31,11 +31,17 @@ impl Recent {
         Recent { paths, file }
     }
 
-    /// Moves `path` to the front.
-    pub fn push(&mut self, path: &Path) {
+    /// Moves `path` to the front, keeping `cap` entries.
+    pub fn push(&mut self, path: &Path, cap: usize) {
         self.paths.retain(|p| p != path);
         self.paths.insert(0, path.to_path_buf());
-        self.paths.truncate(MAX_RECENT);
+        self.paths.truncate(cap.clamp(1, MAX_RECENT));
+        self.save();
+    }
+
+    /// Preferences changed the number of entries.
+    pub fn set_cap(&mut self, cap: usize) {
+        self.paths.truncate(cap.clamp(1, MAX_RECENT));
         self.save();
     }
 
