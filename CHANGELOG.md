@@ -10,9 +10,9 @@ All notable changes to SerialClon.rs. The project reimplements Serial Cloner 2.6
   the original's Edit menu did. Before, in every window other than the Sequence Window (the PCR
   primers, the Find drawer, the Build a Construct slots…) ⌘V pasted the clipboard into the
   sequence field of the last Sequence Window instead of the field you were typing in.
-- Run a PCR: a primer that anneals to the other strand is no longer just "does not anneal"; the
-  window says where it anneals, that it is a reverse (or forward) primer, and offers to move it to
-  the other box.
+- Run a PCR: a primer that matches the other strand as written is no longer just "does not
+  anneal"; the window says where it matches, reminds that a reverse primer is given 5'→3' on the
+  bottom strand, and offers **Reverse-complement** and **Use as forward/reverse primer** buttons.
 
 ## 1.0.0 — 2026-09-09
 
