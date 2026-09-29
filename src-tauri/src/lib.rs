@@ -389,6 +389,10 @@ pub fn run() {
             menu::refresh_recent(&handle);
             menu::refresh_protein(&handle);
             windows::ensure_help(&handle)?;
+            // The Toolbar is the window the session starts in.
+            if let Some(toolbar) = handle.get_webview_window(windows::TOOLBAR) {
+                let _ = toolbar.set_focus();
+            }
             for id in autosave::recover(&handle) {
                 windows::open_sequence(&handle, id);
                 commands::broadcast(&handle, id);

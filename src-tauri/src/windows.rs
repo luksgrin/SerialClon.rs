@@ -120,6 +120,8 @@ pub fn ensure_help(app: &AppHandle) -> tauri::Result<WebviewWindow> {
     .inner_size(HELP_SIZE.0, HELP_SIZE.1)
     .min_inner_size(240.0, 120.0)
     .always_on_top(true)
+    // It narrates the front-most window; it must not become that window.
+    .focused(false)
     .minimizable(false)
     .maximizable(false)
     .build()?;
