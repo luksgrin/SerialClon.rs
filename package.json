@@ -9,7 +9,8 @@
     "build": "vite build",
     "preview": "vite preview",
     "check": "svelte-check --tsconfig ./tsconfig.json",
-    "tauri": "tauri"
+    "tauri": "tauri",
+    "test:layout": "node --experimental-strip-types src/windows/graphic-map/layout.test.ts"
   },
   "dependencies": {
     "@tauri-apps/api": "^2.11.1",
