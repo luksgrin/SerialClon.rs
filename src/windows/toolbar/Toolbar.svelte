@@ -52,21 +52,30 @@
   let strip = $state<HTMLDivElement | undefined>();
 
   /**
-   * Sizes the window to the strip: the configured height is a guess that the
-   * platform's title bar or a larger font can invalidate, which left the
-   * buttons' hover boxes cut at the window edges.
+   * Sizes the window so the page's viewport is exactly as tall as the strip.
+   * The window's reported size and the viewport the page gets differ on
+   * macOS (the title bar), so the request is corrected by the observed
+   * shortfall until the viewport matches, whichever size the platform means.
    */
+  let fitting = false;
   async function fitWindow() {
-    if (!strip) return;
+    if (!strip || fitting) return;
+    fitting = true;
     try {
       const win = getCurrentWindow();
-      const scale = await win.scaleFactor();
-      const inner = await win.innerSize();
-      const needed = Math.ceil(strip.scrollHeight);
-      const current = Math.round(inner.height / scale);
-      if (Math.abs(needed - current) > 1) await win.setSize(new LogicalSize(inner.width / scale, needed));
+      for (let i = 0; i < 4; i++) {
+        const needed = Math.ceil(strip.offsetHeight);
+        const viewport = window.innerHeight;
+        if (Math.abs(viewport - needed) <= 1) break;
+        const scale = await win.scaleFactor();
+        const inner = await win.innerSize();
+        await win.setSize(new LogicalSize(inner.width / scale, inner.height / scale + (needed - viewport)));
+        await new Promise((r) => setTimeout(r, 80));
+      }
     } catch {
       /* plain browser */
+    } finally {
+      fitting = false;
     }
   }
 
@@ -125,7 +134,6 @@
     display: flex;
     align-items: center;
     gap: 2px;
-    min-height: 100vh;
     padding: 6px 8px;
     box-sizing: border-box;
     background: var(--bg);
