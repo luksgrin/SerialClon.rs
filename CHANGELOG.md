@@ -6,6 +6,12 @@ All notable changes to SerialClon.rs. The project reimplements Serial Cloner 2.6
 
 ## Unreleased
 
+- Graphic Map: the drawing always fits the window and scales with it, in Auto and in Show all
+  (the map has its own coordinate space and the window shows all of it); no more clipped labels,
+  off-centre circles or scrolling. Pinning a label adds it to the automatically shown ones
+  instead of replacing them; the Labels panel shows what is on the map (blue check = pinned,
+  grey check = shown automatically, empty = hidden for room, struck = hidden by you).
+
 - Graphic Map: labels are no longer clipped at the window edge and the circle stays centred at
   every window size. Only the labels that fit without overlapping are shown (chosen sites first,
   then the longest Features); the status line counts the rest, with Show all / Auto. Hover a
