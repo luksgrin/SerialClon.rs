@@ -169,3 +169,161 @@ export function tickStep(length: number, maxMajor = 12): { major: number; minor:
 export function formatCoord(n: number): string {
   return n.toLocaleString('en-US');
 }
+
+// ---------------------------------------------------------------------------
+// Label budget, band reservation and isoschizomer grouping
+// ---------------------------------------------------------------------------
+
+/** A label competing for room around the ring. */
+export interface BudgetCand {
+  key: string;
+  /** Wanted angle (radians). */
+  angle: number;
+  /** Extent along the circumference (radians) at the label radius. */
+  size: number;
+  /** Lower is more important (sites before features, long features before short). */
+  priority: number;
+  /** Always shown (user pinned). */
+  pinned?: boolean;
+  /** Never shown (user hidden). */
+  hidden?: boolean;
+}
+
+/** Result of [`budgetLabels`]: which candidates are shown, and where. */
+export interface Budget {
+  /** Shown candidates, by key, mapped to their packed angle. */
+  angles: Map<string, number>;
+  /** Keys not shown for lack of room (user-hidden ones are not counted). */
+  crowdedOut: string[];
+}
+
+/**
+ * Decides which labels fit around the ring without overlapping: pinned ones
+ * first, then by priority; each is accepted only if the whole accepted set
+ * still packs without overlap (and the ring is not full). With `showAll`
+ * every non-hidden label is placed (the caller must give a ring big enough).
+ */
+export function budgetLabels(cands: BudgetCand[], gap: number, showAll = false): Budget {
+  const usable = cands.filter((c) => !c.hidden);
+  const order = usable
+    .map((c, i) => ({ c, i }))
+    .sort((a, b) => Number(!!b.c.pinned) - Number(!!a.c.pinned) || a.c.priority - b.c.priority || a.i - b.i)
+    .map((o) => o.c);
+  const fits = (set: BudgetCand[]): number[] | null => {
+    const need = set.reduce((a, c) => a + c.size, 0) + set.length * gap;
+    if (need >= TAU) return null;
+    const pos = packAngular(set.map((c) => c.angle), set.map((c) => c.size), gap);
+    return angularOverlap(pos, set.map((c) => c.size), gap) ? null : pos;
+  };
+  if (showAll) {
+    const pos = fits(usable) ?? packAngular(usable.map((c) => c.angle), usable.map((c) => c.size), gap);
+    return { angles: new Map(usable.map((c, k) => [c.key, pos[k]!])), crowdedOut: [] };
+  }
+  const accepted: BudgetCand[] = [];
+  const crowdedOut: string[] = [];
+  let positions: number[] = [];
+  for (const c of order) {
+    const trial = [...accepted, c];
+    const pos = fits(trial);
+    if (pos) {
+      accepted.push(c);
+      positions = pos;
+    } else if (c.pinned) {
+      // A pinned label is shown even when crowded: accept it and let the
+      // packer spread the set as best it can.
+      accepted.push(c);
+      positions = packAngular(accepted.map((x) => x.angle), accepted.map((x) => x.size), gap);
+    } else {
+      crowdedOut.push(c.key);
+    }
+  }
+  return { angles: new Map(accepted.map((c, k) => [c.key, positions[k]!])), crowdedOut };
+}
+
+/**
+ * Radius of the backbone ring that leaves a band for the widest label
+ * (`labelW × labelH`) plus the leader `ring` and a `margin` outside it,
+ * inside a `width × height` drawing. Never below `minRadius`.
+ */
+export function reserveBand(width: number, height: number, labelW: number, labelH: number, ring: number, margin: number, minRadius = 40): number {
+  const band = Math.max(labelW, labelH) + ring + margin;
+  return Math.max(minRadius, Math.min(width, height) / 2 - band);
+}
+
+/**
+ * Placement of a horizontal `w × h` box around the point at `labelR` from the
+ * centre at `angle`: to the right on the right half, to the left on the left
+ * half, above/below at the top and bottom. Pure so the band reservation can
+ * be tested: every box returned here fits inside the drawing when `labelR`
+ * came from [`reserveBand`] plus the ring.
+ */
+export function boxAround(cx: number, cy: number, labelR: number, angle: number, w: number, h: number): { x: number; y: number } {
+  const ax = cx + labelR * Math.cos(angle);
+  const ay = cy + labelR * Math.sin(angle);
+  const cos = Math.cos(angle);
+  const sin = Math.sin(angle);
+  if (cos > 0.25) return { x: ax, y: ay - h / 2 };
+  if (cos < -0.25) return { x: ax - w, y: ay - h / 2 };
+  return { x: ax - w / 2, y: sin < 0 ? ay - h : ay };
+}
+
+/**
+ * Row packing with a budget: boxes are taken pinned first, then by
+ * `priority`, and placed in the first of at most `maxRows` rows where they
+ * fit; the rest are crowded out. Returns the row of each box, or -1 when it
+ * is not shown.
+ */
+export function budgetRows(boxes: { x: number; w: number; priority: number; pinned?: boolean; hidden?: boolean }[], gap: number, maxRows: number): number[] {
+  const order = boxes
+    .map((b, i) => ({ b, i }))
+    .filter(({ b }) => !b.hidden)
+    .sort((p, q) => Number(!!q.b.pinned) - Number(!!p.b.pinned) || p.b.priority - q.b.priority || p.i - q.i);
+  const rows: { x: number; w: number }[][] = [];
+  const out = new Array<number>(boxes.length).fill(-1);
+  for (const { b, i } of order) {
+    let r = rows.findIndex((row) => row.every((o) => b.x + b.w + gap <= o.x || o.x + o.w + gap <= b.x));
+    if (r < 0) {
+      if (rows.length >= maxRows && !b.pinned) continue;
+      rows.push([]);
+      r = rows.length - 1;
+    }
+    rows[r]!.push(b);
+    out[i] = r;
+  }
+  return out;
+}
+
+/** What identifies a site for isoschizomer grouping. */
+export interface SiteLike {
+  name: string;
+  cut_top: number;
+  cut_bottom: number;
+  forward: boolean | null;
+}
+
+/** Sites of different enzymes cutting at the same place on the same strand. */
+export interface SiteGroup<S extends SiteLike> {
+  /** The one whose name is shown. */
+  lead: S;
+  /** The others, in input order. */
+  others: S[];
+}
+
+/**
+ * Groups sites by cut position and strand, in first-seen order. `preferred`
+ * names a member that should lead its group (the user picked it in the
+ * Labels panel); otherwise the first seen leads.
+ */
+export function groupIsoschizomers<S extends SiteLike>(sites: S[], preferred: (s: S) => boolean = () => false): SiteGroup<S>[] {
+  const groups = new Map<string, S[]>();
+  for (const s of sites) {
+    const k = `${s.cut_top}:${s.cut_bottom}:${s.forward === null ? 'p' : s.forward ? 'f' : 'r'}`;
+    const g = groups.get(k);
+    if (g) g.push(s);
+    else groups.set(k, [s]);
+  }
+  return [...groups.values()].map((members) => {
+    const lead = members.find(preferred) ?? members[0]!;
+    return { lead, others: members.filter((m) => m !== lead) };
+  });
+}

@@ -4,14 +4,19 @@
    * linear map with Features and unique / double / particular sites, labels
    * you can drag, two-click fragment selection (green BEGIN, red END,
    * spacebar CW/CCW), Extract Fragment, save as PNG, print.
+   *
+   * Labels are budgeted the way SnapGene does it: only as many as fit without
+   * overlapping are shown (sites first, then the longest features), the rest
+   * are counted as hidden and reachable by hovering, by pinning them from the
+   * Labels panel, or with Show all, which lets the drawing grow.
    */
-  import { onMount } from 'svelte';
+  import { onMount, tick } from 'svelte';
   import { Menu } from '@tauri-apps/api/menu';
   import { emitTo } from '@tauri-apps/api/event';
   import { message } from '@tauri-apps/plugin-dialog';
   import { prefs, printPage } from '$lib/prefs';
   import { api, docIdFromUrl, onDocChanged, onMenu, requestSelect, type ConstructSelection, type DocumentView, type EnzymeEntry, type MapSite, type SiteRefView } from '$lib/doc';
-  import { assignTracks, formatCoord, packAngular, packRows, tickStep, type Span } from './layout';
+  import { assignTracks, boxAround, budgetLabels, budgetRows, formatCoord, groupIsoschizomers, reserveBand, tickStep, type BudgetCand, type Span } from './layout';
 
   const id = docIdFromUrl();
   const COLORS = $derived({ unique: $prefs.color_unique, double: $prefs.color_double, particular: $prefs.color_particular, begin: $prefs.color_begin, end: $prefs.color_end });
@@ -19,6 +24,8 @@
   const FEATURE_FONT = $derived($prefs.gmap_feature_font_size);
   type Category = 'unique' | 'double' | 'particular';
   const PREVIOUS_KEY = 'gmap.previousParticular';
+  const PANEL_KEY = 'gmap.labelsPanel';
+  const GROUP_KEY = 'gmap.groupIsoschizomers';
 
   let doc = $state<DocumentView | null>(null);
   let sites = $state<MapSite[]>([]);
@@ -40,23 +47,90 @@
   let svgEl = $state<SVGSVGElement | undefined>();
   let container = $state<HTMLDivElement | undefined>();
 
+  // Label visibility: display-only state of this map window.
+  let labelMode = $state<'auto' | 'all'>('auto');
+  /** Per label key: pinned always visible, or hidden. Absent = automatic. */
+  let labelState = $state<Record<string, 'pin' | 'hide'>>({});
+  let panelOpen = $state(readSession(PANEL_KEY) === '1');
+  let panelFilter = $state('');
+  let groupIso = $state(readLocal(GROUP_KEY) !== '0');
+  let hover = $state<{ key: string; text: string; x: number; y: number } | null>(null);
+
+  function readSession(k: string): string | null {
+    try {
+      return sessionStorage.getItem(k);
+    } catch {
+      return null;
+    }
+  }
+  function readLocal(k: string): string | null {
+    try {
+      return localStorage.getItem(k);
+    } catch {
+      return null;
+    }
+  }
+  $effect(() => {
+    try {
+      sessionStorage.setItem(PANEL_KEY, panelOpen ? '1' : '0');
+    } catch {
+      /* private mode */
+    }
+  });
+  $effect(() => {
+    try {
+      localStorage.setItem(GROUP_KEY, groupIso ? '1' : '0');
+    } catch {
+      /* private mode */
+    }
+  });
+
   const keyOf = (s: MapSite) => `${s.name}@${s.position}${s.forward === false ? 'r' : ''}`;
   const length = $derived(doc?.bases.length ?? 0);
   const circular = $derived(doc?.circular ?? false);
 
+  /** Sites the checkboxes display, with their category. */
   const shown = $derived.by(() => {
-    const out: { site: MapSite; category: Category }[] = [];
+    const out: (MapSite & { category: Category })[] = [];
     const isParticular = (n: string) => particular.includes(n);
     for (const s of sites) {
-      if (showParticular && isParticular(s.name)) out.push({ site: s, category: 'particular' });
-      else if (showUnique && s.count === 1) out.push({ site: s, category: 'unique' });
-      else if (showDouble && s.count === 2) out.push({ site: s, category: 'double' });
+      if (showParticular && isParticular(s.name)) out.push({ ...s, category: 'particular' });
+      else if (showUnique && s.count === 1) out.push({ ...s, category: 'unique' });
+      else if (showDouble && s.count === 2) out.push({ ...s, category: 'double' });
     }
     return out;
   });
 
+  /** One box per cut when isoschizomers are grouped; a pinned member leads. */
+  interface Group {
+    key: string;
+    lead: MapSite & { category: Category };
+    others: (MapSite & { category: Category })[];
+    text: string;
+    tooltip: string;
+    pinned: boolean;
+    hidden: boolean;
+  }
+  const siteGroups = $derived.by((): Group[] => {
+    const groups = groupIso ? groupIsoschizomers(shown, (s) => labelState[keyOf(s)] === 'pin') : shown.map((s) => ({ lead: s, others: [] as typeof shown }));
+    return groups.map(({ lead, others }) => {
+      const members = [lead, ...others];
+      const key = keyOf(lead);
+      const base = labelText(lead);
+      return {
+        key,
+        lead,
+        others,
+        text: others.length ? `${base} +${others.length}` : base,
+        tooltip: others.length ? `${base}, ${others.map((o) => o.name).join(', ')}` : base,
+        pinned: members.some((m) => labelState[keyOf(m)] === 'pin'),
+        hidden: members.every((m) => labelState[keyOf(m)] === 'hide'),
+      };
+    });
+  });
+  const siteByKey = $derived(new Map(siteGroups.map((g) => [g.key, g.lead])));
+
   // --- geometry -----------------------------------------------------------
-  const TOP = 8;
   const LABEL_H = 16;
   const TAU = Math.PI * 2;
   /** Monospace label width per character at the RE font size. */
@@ -71,10 +145,10 @@
     return `${s.position} ${arrow}${s.name}`;
   }
 
-  /** Features to draw, with their spans (0-based, half-open). */
+  /** Features to draw, with their spans (0-based, half-open) and a length rank. */
   const visibleFeatures = $derived.by(() => {
-    if (!doc || !showFeatures || length === 0) return [] as { f: DocumentView['features'][number]; i: number; span: Span; len: number }[];
-    return doc.features
+    if (!doc || !showFeatures || length === 0) return [] as { f: DocumentView['features'][number]; i: number; span: Span; len: number; rank: number }[];
+    const list = doc.features
       .map((f, i) => ({ f, i }))
       .filter(({ f }) => f.show)
       .map(({ f, i }) => {
@@ -83,25 +157,71 @@
         const lo = a - 1;
         const wraps = a > b;
         const len = wraps ? length - a + 1 + b : b - a + 1;
-        return { f, i, span: { lo, hi: wraps ? b : lo + len, wraps }, len };
+        return { f, i, span: { lo, hi: wraps ? b : lo + len, wraps }, len, rank: 0 };
       });
+    const byLen = list.map((v, k) => ({ k, len: v.len })).sort((p, q) => q.len - p.len || p.k - q.k);
+    byLen.forEach(({ k }, rank) => (list[k]!.rank = rank));
+    return list;
   });
   const tracks = $derived(assignTracks(visibleFeatures.map((v) => v.span), Math.max(1, length)));
   const trackCount = $derived(tracks.reduce((m, t) => Math.max(m, t + 1), 0));
 
-  /** The widest site label decides how much room the ring leaves outside. */
-  const maxSiteW = $derived(shown.reduce((m, { site }) => Math.max(m, siteLabelW(labelText(site))), 0));
-
-  const center = $derived({ x: width / 2, y: TOP + (height - TOP) / 2 });
-  const radius = $derived(Math.max(60, Math.min(width / 2 - 44 - maxSiteW, (height - TOP) / 2 - 34 - 2 * LABEL_H - 8)));
-  /** Ring geometry: ticks inside the backbone, feature tracks further in. */
+  const LABEL_RING = 34;
   const TRACK_GAP = 30;
+  const MARGIN = 6;
+
+  /** Widest label that may appear outside the ring: the band it needs. */
+  const maxLabelW = $derived.by(() => {
+    let m = 0;
+    for (const g of siteGroups) if (!g.hidden) m = Math.max(m, siteLabelW(g.text));
+    for (const v of visibleFeatures) m = Math.max(m, featLabelW(v.f.name));
+    return m;
+  });
+
+  function angleAt(pos: number): number {
+    return (pos / Math.max(1, length)) * TAU - Math.PI / 2;
+  }
+  /** Extent of a horizontal box along the circle at its angle, in pixels. */
+  const extentPx = (angle: number, w: number) => LABEL_H * Math.abs(Math.cos(angle)) + w * Math.abs(Math.sin(angle)) + 4;
+
+  /**
+   * Drawing size and ring radius. Automatic mode: the drawing is the
+   * container, the ring leaves a band for the widest label. Show all: the
+   * ring grows until every label fits, and the container scrolls.
+   */
+  const geom = $derived.by(() => {
+    if (!circular) return { svgW: width, svgH: height, cx: width / 2, cy: height / 2, radius: 0, labelR: 0 };
+    let radius = reserveBand(width, height, maxLabelW, LABEL_H, LABEL_RING, MARGIN, 48 + Math.max(1, trackCount) * 6 + TRACK_GAP);
+    let svgW = width;
+    let svgH = height;
+    if (labelMode === 'all') {
+      let need = 0;
+      for (const g of siteGroups) {
+        if (g.hidden) continue;
+        need += extentPx(angleAt(g.lead.cut_top), siteLabelW(g.text)) + 3;
+      }
+      for (const v of visibleFeatures) {
+        if (labelState[`f:${v.i}`] === 'hide') continue;
+        const mid = angleAt(v.span.lo) + (v.len / Math.max(1, length)) * Math.PI;
+        need += extentPx(mid, featLabelW(v.f.name)) + 3;
+      }
+      const labelR = need / (TAU * 0.92);
+      if (labelR - LABEL_RING > radius) {
+        radius = labelR - LABEL_RING;
+        const size = Math.ceil(2 * (radius + LABEL_RING + maxLabelW + MARGIN + 8));
+        svgW = Math.max(width, size);
+        svgH = Math.max(height, size);
+      }
+    }
+    return { svgW, svgH, cx: svgW / 2, cy: svgH / 2, radius, labelR: radius + LABEL_RING };
+  });
+  const center = $derived({ x: geom.cx, y: geom.cy });
+  const radius = $derived(geom.radius);
   const trackWidth = $derived(trackCount === 0 ? 12 : Math.max(6, Math.min(12, (radius - 48) / trackCount)));
   const trackRadius = (t: number) => radius - TRACK_GAP - t * trackWidth - trackWidth / 2;
-  const LABEL_RING = 34;
 
   function angleOf(pos: number): number {
-    return (pos / Math.max(1, length)) * TAU - Math.PI / 2;
+    return angleAt(pos);
   }
   function polar(r: number, a: number) {
     return { x: center.x + r * Math.cos(a), y: center.y + r * Math.sin(a) };
@@ -140,10 +260,9 @@
     category?: Category;
     feature?: { lo: number; hi: number; color: string };
     text: string;
+    tooltip: string;
     /** Leader from the anchor on the map to the box. */
     leader: { x1: number; y1: number; x2: number; y2: number };
-    /** A short mark on the ring / bar at the site. */
-    tick?: { x1: number; y1: number; x2: number; y2: number };
     box: { x: number; y: number; w: number; h: number };
   }
 
@@ -162,9 +281,19 @@
     track: number;
     /** Linear: the box, for the inside label. */
     box?: { x: number; y: number; w: number; h: number };
-    /** Name drawn inside/along the feature (else it is in `placed`). */
+    /** Name drawn inside/along the feature (else it is in `placed` or hidden). */
     inside: boolean;
     strokeWidth: number;
+  }
+
+  /** A short mark on the ring / bar for every displayed site, shown or not. */
+  interface SiteTick {
+    key: string;
+    tooltip: string;
+    x1: number;
+    y1: number;
+    x2: number;
+    y2: number;
   }
 
   function darker(hex: string): string {
@@ -175,14 +304,26 @@
     return `#${f(n >> 16)}${f((n >> 8) & 255)}${f(n & 255)}`;
   }
 
-  type Cand = { key: string; kind: 'site' | 'feature'; text: string; w: number; angle: number; anchorR: number; site?: MapSite; category?: Category; feature?: { lo: number; hi: number; color: string } };
+  const sitePriority = (c: Category) => (c === 'particular' ? 0 : c === 'unique' ? 1 : 2);
 
-  /** Circular layout: features as arcs on tracks, labels packed around the ring. */
-  const circularLayout = $derived.by((): { features: FeatureShape[]; labels: Placed[] } => {
-    if (!circular) return { features: [], labels: [] };
+  type Cand = BudgetCand & { kind: 'site' | 'feature'; text: string; tooltip: string; w: number; anchorR: number; site?: MapSite; category?: Category; feature?: { lo: number; hi: number; color: string } };
+
+  /** Circular layout: features as arcs on tracks, labels budgeted and packed around the ring. */
+  const circularLayout = $derived.by((): { features: FeatureShape[]; labels: Placed[]; ticks: SiteTick[]; crowded: number } => {
+    if (!circular) return { features: [], labels: [], ticks: [], crowded: 0 };
+    const labelR = geom.labelR;
     const features: FeatureShape[] = [];
-    const cands: Cand[] = shown.map(({ site, category }) => ({ key: keyOf(site), kind: 'site' as const, text: labelText(site), w: siteLabelW(labelText(site)), angle: angleOf(site.cut_top), anchorR: radius, site, category }));
-    visibleFeatures.forEach(({ f, i, span, len }, k) => {
+    const siteTicks: SiteTick[] = [];
+    const cands: Cand[] = [];
+    for (const g of siteGroups) {
+      const a = angleOf(g.lead.cut_top);
+      const t0 = polar(radius, a);
+      const t1 = polar(radius + 10, a);
+      siteTicks.push({ key: g.key, tooltip: g.tooltip, x1: t0.x, y1: t0.y, x2: t1.x, y2: t1.y });
+      const w = siteLabelW(g.text);
+      cands.push({ key: g.key, kind: 'site', text: g.text, tooltip: g.tooltip, w, angle: a, size: extentPx(a, w) / labelR, priority: sitePriority(g.lead.category), pinned: g.pinned, hidden: g.hidden, anchorR: radius, site: g.lead, category: g.lead.category });
+    }
+    visibleFeatures.forEach(({ f, i, span, len, rank }, k) => {
       const t = tracks[k]!;
       const r = trackRadius(t);
       const a0 = angleOf(span.lo);
@@ -191,7 +332,7 @@
       const key = `f:${i}`;
       const mid = (a0 + a1) / 2;
       const nameW = f.name.length * featChar;
-      const inside = arcPx >= nameW + 8 && trackWidth >= 9;
+      const inside = arcPx >= nameW + 8 && trackWidth >= 9 && labelState[key] !== 'hide';
       const small = arcPx < 4;
       let path: string;
       let head = '';
@@ -216,87 +357,76 @@
       // Upright text: the path runs the other way on the lower half.
       const textPath = inside ? arcPath(r, a0, a1, Math.sin(mid) > 0) : '';
       features.push({ key, name: f.name, color: f.color, forward: f.forward, path, head, textPath, lo: span.lo, hi: span.hi, track: t, inside, strokeWidth: small ? 1.5 : Math.max(4, trackWidth - 3) });
-      if (!inside) cands.push({ key, kind: 'feature', text: f.name, w: featLabelW(f.name), angle: mid, anchorR: r + trackWidth / 2, feature: { lo: span.lo, hi: span.hi, color: f.color } });
+      if (!inside) {
+        const w = featLabelW(f.name);
+        cands.push({ key, kind: 'feature', text: f.name, tooltip: f.name, w, angle: mid, size: extentPx(mid, w) / labelR, priority: 10 + rank, pinned: labelState[key] === 'pin', hidden: labelState[key] === 'hide', anchorR: r + trackWidth / 2, feature: { lo: span.lo, hi: span.hi, color: f.color } });
+      }
     });
 
-    const labelR = radius + LABEL_RING;
-    // A horizontal box's extent along the circle depends on where it sits:
-    // stacked at the sides, side by side at the top and bottom.
-    const sizes = cands.map((c) => (LABEL_H * Math.abs(Math.cos(c.angle)) + c.w * Math.abs(Math.sin(c.angle)) + 4) / labelR);
-    const angles = packAngular(cands.map((c) => c.angle), sizes, 3 / labelR);
-    const labels: Placed[] = cands.map((c, k) => {
-      const a = angles[k]!;
+    const budget = budgetLabels(cands, 3 / labelR, labelMode === 'all');
+    const labels: Placed[] = [];
+    for (const c of cands) {
+      const a = budget.angles.get(c.key);
+      if (a === undefined) continue;
       const anchor = polar(labelR, a);
-      const cos = Math.cos(a);
-      const sin = Math.sin(a);
-      let x: number;
-      let y: number;
-      if (cos > 0.25) {
-        x = anchor.x;
-        y = anchor.y - LABEL_H / 2;
-      } else if (cos < -0.25) {
-        x = anchor.x - c.w;
-        y = anchor.y - LABEL_H / 2;
-      } else {
-        x = anchor.x - c.w / 2;
-        y = sin < 0 ? anchor.y - LABEL_H : anchor.y;
-      }
+      const { x, y } = boxAround(center.x, center.y, labelR, a, c.w, LABEL_H);
       const o = offsets[c.key] ?? { dx: 0, dy: 0 };
       const box = { x: x + o.dx, y: y + o.dy, w: c.w, h: LABEL_H };
       const bx = Math.max(box.x, Math.min(box.x + box.w, anchor.x + o.dx));
       const by = Math.max(box.y, Math.min(box.y + box.h, anchor.y + o.dy));
-      const t0 = polar(c.anchorR, c.angle);
       const from = polar(c.anchorR + (c.kind === 'site' ? 10 : 2), c.angle);
-      return {
-        key: c.key,
-        kind: c.kind,
-        site: c.site,
-        category: c.category,
-        feature: c.feature,
-        text: c.text,
-        leader: { x1: from.x, y1: from.y, x2: bx, y2: by },
-        tick: c.kind === 'site' ? { x1: t0.x, y1: t0.y, x2: from.x, y2: from.y } : undefined,
-        box,
-      };
-    });
-    return { features, labels };
+      labels.push({ key: c.key, kind: c.kind, site: c.site, category: c.category, feature: c.feature, text: c.text, tooltip: c.tooltip, leader: { x1: from.x, y1: from.y, x2: bx, y2: by }, box });
+    }
+    return { features, labels, ticks: siteTicks, crowded: budget.crowdedOut.length };
   });
 
-  /** Linear layout: site rows above the bar, feature rows below, both packed. */
-  const linearLayout = $derived.by((): { features: FeatureShape[]; labels: Placed[]; barY: number; total: number } => {
-    if (circular) return { features: [], labels: [], barY: 0, total: height };
-    const items = shown.map(({ site, category }) => {
-      const text = labelText(site);
-      const w = siteLabelW(text);
-      const x = xOf(site.cut_top);
-      const left = Math.min(Math.max(bar.x0 - 20, x - w / 2), bar.x1 + 20 - w);
-      return { site, category, key: keyOf(site), text, w, x, left };
-    });
-    const rows = packRows(items.map((it) => ({ x: it.left, w: it.w })), 4);
-    const rowCount = rows.reduce((m, r) => Math.max(m, r + 1), 0);
-    const endsRoom = doc && (doc.ends.left_length !== 0 || doc.ends.right_length !== 0) ? 22 : 0;
-    const barY = TOP + 10 + rowCount * (LABEL_H + 4) + 24 + endsRoom;
-    const labels: Placed[] = items.map((it, k) => {
-      const o = offsets[it.key] ?? { dx: 0, dy: 0 };
-      const y = barY - 30 - endsRoom - rows[k]! * (LABEL_H + 4);
-      const box = { x: it.left + o.dx, y: y + o.dy, w: it.w, h: LABEL_H };
-      return {
-        key: it.key,
-        kind: 'site' as const,
-        site: it.site,
-        category: it.category,
-        text: it.text,
-        tick: { x1: it.x, y1: barY - 6, x2: it.x, y2: barY - 16 },
-        leader: { x1: it.x, y1: barY - 16, x2: Math.max(box.x, Math.min(box.x + box.w, it.x + o.dx)), y2: box.y + box.h },
-        box,
-      };
-    });
+  /** Linear layout: site rows above the bar, feature rows below, both budgeted. */
+  const linearLayout = $derived.by((): { features: FeatureShape[]; labels: Placed[]; ticks: SiteTick[]; barY: number; total: number; crowded: number } => {
+    if (circular) return { features: [], labels: [], ticks: [], barY: 0, total: height, crowded: 0 };
     const ROW_H = 18;
     const BOX_H = 12;
+    const rowH = LABEL_H + 4;
+    const endsRoom = doc && (doc.ends.left_length !== 0 || doc.ends.right_length !== 0) ? 22 : 0;
+    // Room for label rows in automatic mode: what the container leaves once
+    // the bar, ticks and feature rows are drawn, split above / below.
+    const fixed = 10 + 24 + endsRoom + 34 + trackCount * ROW_H + 8 + 40;
+    const spare = Math.max(rowH, height - fixed);
+    const maxSiteRows = labelMode === 'all' ? Infinity : Math.max(1, Math.floor((spare * 0.55) / rowH));
+    const maxFeatRows = labelMode === 'all' ? Infinity : Math.max(1, Math.floor((spare * 0.45) / rowH));
+    const clampX = (x: number, w: number) => Math.min(Math.max(4, x), width - 4 - w);
+
+    const items = siteGroups.map((g) => {
+      const w = siteLabelW(g.text);
+      const x = xOf(g.lead.cut_top);
+      return { g, w, x, left: clampX(x - w / 2, w) };
+    });
+    const rows = budgetRows(items.map((it) => ({ x: it.left, w: it.w, priority: sitePriority(it.g.lead.category), pinned: it.g.pinned, hidden: it.g.hidden })), 4, maxSiteRows);
+    const rowCount = rows.reduce((m, r) => Math.max(m, r + 1), 0);
+    const barY = 10 + rowCount * rowH + 24 + endsRoom;
+    let crowded = items.filter((it, k) => rows[k]! < 0 && !it.g.hidden).length;
+    const labels: Placed[] = [];
+    const siteTicks: SiteTick[] = [];
+    items.forEach((it, k) => {
+      siteTicks.push({ key: it.g.key, tooltip: it.g.tooltip, x1: it.x, y1: barY - 6, x2: it.x, y2: barY - 16 });
+      if (rows[k]! < 0) return;
+      const o = offsets[it.g.key] ?? { dx: 0, dy: 0 };
+      const y = barY - 30 - endsRoom - rows[k]! * rowH;
+      const box = { x: it.left + o.dx, y: y + o.dy, w: it.w, h: LABEL_H };
+      labels.push({
+        key: it.g.key,
+        kind: 'site',
+        site: it.g.lead,
+        category: it.g.lead.category,
+        text: it.g.text,
+        tooltip: it.g.tooltip,
+        leader: { x1: it.x, y1: barY - 16, x2: Math.max(box.x, Math.min(box.x + box.w, it.x + o.dx)), y2: box.y + box.h },
+        box,
+      });
+    });
     const top = barY + 34;
     const features: FeatureShape[] = [];
-    const outside: { key: string; text: string; x: number; y: number; color: string; lo: number; hi: number }[] = [];
-    visibleFeatures.forEach(({ f, i, span }, k) => {
+    const outside: { key: string; text: string; x: number; y: number; color: string; lo: number; hi: number; rank: number }[] = [];
+    visibleFeatures.forEach(({ f, i, span, rank }, k) => {
       const t = tracks[k]!;
       const y = top + t * ROW_H;
       const segs: [number, number][] = span.wraps ? [[span.lo, length], [0, span.hi]] : [[span.lo, span.hi]];
@@ -319,57 +449,68 @@
       const [lo0, hi0] = segs[0]!;
       const x0 = xOf(lo0);
       const x1 = xOf(hi0);
-      const inside = x1 - x0 >= f.name.length * featChar + 8;
+      const inside = x1 - x0 >= f.name.length * featChar + 8 && labelState[key] !== 'hide';
       features.push({ key, name: f.name, color: f.color, forward: f.forward, path: d.trim(), head: '', textPath: '', lo: span.lo, hi: span.hi, track: t, box: { x: x0, y, w: x1 - x0, h: BOX_H }, inside, strokeWidth: 1 });
-      if (!inside) outside.push({ key, text: f.name, x: (x0 + x1) / 2, y: y + BOX_H, color: f.color, lo: span.lo, hi: span.hi });
+      if (!inside) outside.push({ key, text: f.name, x: (x0 + x1) / 2, y: y + BOX_H, color: f.color, lo: span.lo, hi: span.hi, rank });
     });
     const labelTop = top + trackCount * ROW_H + 8;
     const boxes = outside.map((o) => {
       const w = featLabelW(o.text);
-      return { w, x: Math.min(Math.max(bar.x0 - 20, o.x - w / 2), bar.x1 + 20 - w) };
+      return { w, x: clampX(o.x - w / 2, w), priority: 10 + o.rank, pinned: labelState[o.key] === 'pin', hidden: labelState[o.key] === 'hide' };
     });
-    const lrows = packRows(boxes, 4);
+    const lrows = budgetRows(boxes, 4, maxFeatRows);
+    crowded += outside.filter((o, k) => lrows[k]! < 0 && labelState[o.key] !== 'hide').length;
     outside.forEach((o, k) => {
+      if (lrows[k]! < 0) return;
       const oo = offsets[o.key] ?? { dx: 0, dy: 0 };
       const bx = boxes[k]!;
-      const y = labelTop + lrows[k]! * (LABEL_H + 4);
+      const y = labelTop + lrows[k]! * rowH;
       const box = { x: bx.x + oo.dx, y: y + oo.dy, w: bx.w, h: LABEL_H };
       labels.push({
         key: o.key,
         kind: 'feature',
         feature: { lo: o.lo, hi: o.hi, color: o.color },
         text: o.text,
+        tooltip: o.text,
         leader: { x1: o.x, y1: o.y, x2: Math.max(box.x, Math.min(box.x + box.w, o.x + oo.dx)), y2: box.y },
         box,
       });
     });
     const lrowCount = lrows.reduce((m, r) => Math.max(m, r + 1), 0);
-    const total = Math.max(height, labelTop + lrowCount * (LABEL_H + 4) + 40);
-    return { features, labels, barY, total };
+    const total = labelMode === 'all' ? Math.max(height, labelTop + lrowCount * rowH + 40) : height;
+    return { features, labels, ticks: siteTicks, barY, total, crowded };
   });
 
   const featureShapes = $derived(circular ? circularLayout.features : linearLayout.features);
   const placed = $derived(circular ? circularLayout.labels : linearLayout.labels);
+  const siteTicks = $derived(circular ? circularLayout.ticks : linearLayout.ticks);
   const barY = $derived(linearLayout.barY);
-  const svgHeight = $derived(circular ? height : linearLayout.total);
+  const svgW = $derived(geom.svgW);
+  const svgHeight = $derived(circular ? geom.svgH : linearLayout.total);
+  const crowdedCount = $derived(circular ? circularLayout.crowded : linearLayout.crowded);
+  const userHiddenCount = $derived.by(() => {
+    let n = siteGroups.filter((g) => g.hidden).length;
+    for (const v of visibleFeatures) if (labelState[`f:${v.i}`] === 'hide') n++;
+    return n;
+  });
 
   const selectionPath = $derived.by(() => {
     if (!doc) return '';
-    const b = placed.find((p) => p.key === begin);
-    const e = placed.find((p) => p.key === end);
+    const b = begin ? siteByKey.get(begin) : undefined;
+    const e = end ? siteByKey.get(end) : undefined;
     if (circular) {
-      if (!b?.site) return '';
-      const from = b.site.cut_top;
-      const to = e?.site ? e.site.cut_top : b.site.cut_top;
+      if (!b) return '';
+      const from = b.cut_top;
+      const to = e ? e.cut_top : b.cut_top;
       const [s, t] = clockwise ? [from, to] : [to, from];
       let span = (t - s + length) % length;
       if (span === 0) span = length;
       return arcPath(radius, angleOf(s), angleOf(s) + (span / length) * TAU);
     }
     if (selectAll) return `M ${bar.x0} ${barY - 5} H ${bar.x1} V ${barY + 5} H ${bar.x0} Z`;
-    if (!b?.site || !e?.site) return '';
-    const x0 = xOf(Math.min(b.site.cut_top, e.site.cut_top));
-    const x1 = xOf(Math.max(b.site.cut_top, e.site.cut_top));
+    if (!b || !e) return '';
+    const x0 = xOf(Math.min(b.cut_top, e.cut_top));
+    const x1 = xOf(Math.max(b.cut_top, e.cut_top));
     return `M ${x0} ${barY - 5} H ${x1} V ${barY + 5} H ${x0} Z`;
   });
 
@@ -426,9 +567,67 @@
     }
   }
 
+  // Hover tooltips (SVG coordinates), pinning by click.
+  function svgPoint(e: MouseEvent): { x: number; y: number } {
+    if (!svgEl) return { x: 0, y: 0 };
+    const r = svgEl.getBoundingClientRect();
+    return { x: ((e.clientX - r.left) * svgW) / Math.max(1, r.width), y: ((e.clientY - r.top) * svgHeight) / Math.max(1, r.height) };
+  }
+  function showHover(e: MouseEvent, key: string, text: string) {
+    const p = svgPoint(e);
+    hover = { key, text, x: p.x, y: p.y };
+  }
+  function clearHover() {
+    hover = null;
+  }
+  const tooltipW = $derived(hover ? hover.text.length * featChar + 12 : 0);
+  const tooltipX = $derived(hover ? Math.max(2, Math.min(svgW - tooltipW - 2, hover.x + 12)) : 0);
+  const tooltipY = $derived(hover ? Math.max(2, Math.min(svgHeight - LABEL_H - 2, hover.y - LABEL_H - 6)) : 0);
+
+  function cycleLabel(key: string) {
+    const s = labelState[key];
+    const next: 'pin' | 'hide' | undefined = s === undefined ? 'pin' : s === 'pin' ? 'hide' : undefined;
+    const copy = { ...labelState };
+    if (next) copy[key] = next;
+    else delete copy[key];
+    labelState = copy;
+  }
+  function togglePin(key: string) {
+    const copy = { ...labelState };
+    if (copy[key] === 'pin') delete copy[key];
+    else copy[key] = 'pin';
+    labelState = copy;
+  }
+  function onFeatureClick(e: MouseEvent, key: string) {
+    e.stopPropagation();
+    if (e.altKey) void api.showParent(id);
+    else togglePin(key);
+  }
+
+  // Labels panel.
+  interface PanelItem {
+    key: string;
+    text: string;
+    pos: number;
+  }
+  const panelFeatures = $derived.by((): PanelItem[] =>
+    visibleFeatures.map((v) => ({ key: `f:${v.i}`, text: v.f.name, pos: v.span.lo })).sort((a, b) => a.pos - b.pos),
+  );
+  const panelSites = $derived.by((): PanelItem[] => shown.map((s) => ({ key: keyOf(s), text: labelText(s), pos: s.cut_top })).sort((a, b) => a.pos - b.pos));
+  const filterItems = (items: PanelItem[]) => {
+    const q = panelFilter.trim().toLowerCase();
+    return q ? items.filter((it) => it.text.toLowerCase().includes(q)) : items;
+  };
+  function setAll(state: 'pin' | 'hide' | undefined) {
+    const copy: Record<string, 'pin' | 'hide'> = {};
+    if (state) for (const it of [...panelFeatures, ...panelSites]) copy[it.key] = state;
+    labelState = copy;
+    if (state === 'pin') labelMode = 'all';
+  }
+
   function siteRef(key: string | null): SiteRefView | null {
-    const p = placed.find((x) => x.key === key);
-    return p?.site ? { enzyme: p.site.name, position: p.site.position, cut_top: p.site.cut_top, cut_bottom: p.site.cut_bottom } : null;
+    const s = key ? siteByKey.get(key) : undefined;
+    return s ? { enzyme: s.name, position: s.position, cut_top: s.cut_top, cut_bottom: s.cut_bottom } : null;
   }
   async function extract() {
     if (!doc) return;
@@ -454,13 +653,13 @@
   }
 
   async function makeFeature() {
-    const b = placed.find((x) => x.key === begin);
-    const e = placed.find((x) => x.key === end) ?? b;
-    if (!b?.site || !e?.site) {
+    const b = begin ? siteByKey.get(begin) : undefined;
+    const e = (end ? siteByKey.get(end) : undefined) ?? b;
+    if (!b || !e) {
       await message('Choose a BEGIN site (click) and an END site (double-click or shift-click) first.', { title: 'Make New Feature' });
       return;
     }
-    await api.newFeatureFromSites(id, siteRef(b.key)!, siteRef(e.key)!, b.site.length, e.site.length, clockwise);
+    await api.newFeatureFromSites(id, siteRef(begin)!, siteRef(end ?? begin)!, b.length, e.length, clockwise);
   }
 
   async function toggleTopology() {
@@ -470,6 +669,8 @@
 
   async function savePng() {
     if (!svgEl || !doc) return;
+    hover = null;
+    await tick();
     const clone = svgEl.cloneNode(true) as SVGSVGElement;
     clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
     const xml = new XMLSerializer().serializeToString(clone);
@@ -482,7 +683,7 @@
     });
     const scale = 2;
     const canvas = document.createElement('canvas');
-    canvas.width = width * scale;
+    canvas.width = svgW * scale;
     canvas.height = svgHeight * scale;
     const ctx = canvas.getContext('2d')!;
     ctx.fillStyle = '#ffffff';
@@ -493,13 +694,29 @@
     await api.savePng(`Graphic Map of ${doc.name}`, data);
   }
 
+  /** Print = the Show-all layout, so nothing is missing on paper. */
+  async function printMap() {
+    const prev = labelMode;
+    labelMode = 'all';
+    hover = null;
+    await tick();
+    try {
+      await printPage();
+    } finally {
+      labelMode = prev;
+    }
+  }
+
   async function contextMenu() {
     if (!doc) return;
     const menu = await Menu.new({
       items: [
         { id: 'topo', text: doc.circular ? 'Linearize' : 'Circularize', action: () => void toggleTopology() },
         { id: 'png', text: 'Save Graphic Map As…', action: () => void savePng() },
-        { id: 'print', text: 'Print…', action: () => void printPage() },
+        { id: 'print', text: 'Print…', action: () => void printMap() },
+        { item: 'Separator' },
+        { id: 'labels', text: labelMode === 'all' ? 'Automatic labels' : 'Show all labels', action: () => (labelMode = labelMode === 'all' ? 'auto' : 'all') },
+        { id: 'panel', text: panelOpen ? 'Hide Labels panel' : 'Show Labels panel', action: () => (panelOpen = !panelOpen) },
         { item: 'Separator' },
         { id: 'extract', text: 'Extract Fragment', enabled: hasSelection, action: () => void extract() },
         { id: 'feature', text: 'Make New Feature', enabled: !!begin, action: () => void makeFeature() },
@@ -531,7 +748,7 @@
         void savePng();
         break;
       case 'file.print':
-        void printPage();
+        void printMap();
         break;
       case 'generate.extract':
         void extract();
@@ -616,9 +833,20 @@
         <label data-help-name="Double Site" data-help="Display the restriction sites found twice (orange)."><input type="checkbox" bind:checked={showDouble} /> Double Site</label>
         <label data-help-name="Particular sites" data-help="Display the set of sites chosen with the Choose site button (blue)."><input type="checkbox" bind:checked={showParticular} /> Particular sites</label>
         <button type="button" class="choose" onclick={() => (chooser = !chooser)} data-help-name="Choose site" data-help="Pops up a window where the particular restriction sites to display can be selected. Unique sites are in bold, absent sites in italic.">Choose site</button>
+        <label data-help-name="Group isoschizomers" data-help="Enzymes cutting at exactly the same place on the same strand share one box, named after the first with '+N' (the others are in the box's tooltip and in the Labels panel, where checking one of them shows its name instead)."><input type="checkbox" bind:checked={groupIso} /> Group isoschizomers</label>
         <button type="button" class="topo" onclick={toggleTopology} data-help-name="Topology" data-help="Draws the map as a circle or as a bar. Sequences opened from FASTA or text arrive linear; this is the same as Linearize / Circularize in the contextual menu.">{circular ? 'Circular' : 'Linear'} ▸ {circular ? 'linear' : 'circular'}</button>
+        <button type="button" class="topo" class:active={panelOpen} onclick={() => (panelOpen = !panelOpen)} data-help-name="Labels" data-help="Opens the Labels panel: search, pin or hide the label of any Feature or displayed site on this map. This only affects the display of this map; the Features tab's Show checkbox is what hides a Feature from every map.">Labels</button>
         <span class="orientation" data-help-name="Direction" data-help="Direction of the selection between the BEGIN (green) and END (red) sites. Press the spacebar to toggle.">{hasSelection ? orientationLabel : ''}</span>
         <button type="button" class="house" title="Show Sequence Window" onclick={() => void api.showParent(id)} data-help-name="Sequence Window" data-help="Brings the parent Sequence Window to the front (Alt-click on the map does the same).">⌂</button>
+      </div>
+      <div class="status no-print" data-help-name="Hidden labels" data-help="Only the labels that fit without overlapping are shown (chosen sites first, then the longest Features). Hover a Feature or a site mark to read its name, click a Feature to pin its label, or use Show all to lay every label out — the drawing then grows and scrolls.">
+        {#if crowdedCount > 0 || userHiddenCount > 0}
+          <span>{crowdedCount} label{crowdedCount === 1 ? '' : 's'} hidden for room{userHiddenCount ? `, ${userHiddenCount} hidden in the Labels panel` : ''}.</span>
+        {:else}
+          <span>All labels shown.</span>
+        {/if}
+        <button type="button" class:active={labelMode === 'all'} onclick={() => (labelMode = 'all')} data-help-name="Show all" data-help="Lays out every label; the drawing grows to make room and scrolls. Print uses this layout.">Show all</button>
+        <button type="button" class:active={labelMode === 'auto'} onclick={() => (labelMode = 'auto')} data-help-name="Auto" data-help="Shows only the labels that fit in the window without overlapping.">Auto</button>
       </div>
     </header>
 
@@ -641,111 +869,174 @@
       </div>
     {/if}
 
-    <div class="map" bind:this={container} oncontextmenu={(e) => { e.preventDefault(); void contextMenu(); }} onclick={(e) => { if (e.altKey) void api.showParent(id); }} role="presentation" data-help-name="Map" data-help="Click a site name box to select the BEGIN site (green), double-click or shift-click another for the END site (red); spacebar toggles CW/CCW (or Sense/Antisense); A selects the whole linear insert; Delete cancels. Drag name boxes to arrange the map before printing. Right-click for the contextual menu.">
-      <svg bind:this={svgEl} {width} height={svgHeight} viewBox="0 0 {width} {svgHeight}" font-family="-apple-system, Segoe UI, system-ui, sans-serif" font-size="11">
-        <rect x="0" y="0" {width} height={svgHeight} fill="#ffffff" />
-        <defs>
+    <div class="body">
+      <div class="map" bind:this={container} oncontextmenu={(e) => { e.preventDefault(); void contextMenu(); }} onclick={(e) => { if (e.altKey) void api.showParent(id); }} role="presentation" data-help-name="Map" data-help="Click a site name box to select the BEGIN site (green), double-click or shift-click another for the END site (red); spacebar toggles CW/CCW (or Sense/Antisense); A selects the whole linear insert; Delete cancels. Hover a Feature or a site mark for its name; click a Feature to pin its label. Drag name boxes to arrange the map before printing. Right-click for the contextual menu.">
+        <svg bind:this={svgEl} width={svgW} height={svgHeight} viewBox="0 0 {svgW} {svgHeight}" font-family="-apple-system, Segoe UI, system-ui, sans-serif" font-size="11">
+          <rect x="0" y="0" width={svgW} height={svgHeight} fill="#ffffff" />
+          <defs>
+            {#each featureShapes as f (f.key)}
+              {#if f.textPath}<path id="tp-{f.key}" d={f.textPath} />{/if}
+            {/each}
+          </defs>
+
+          {#if circular}
+            <!-- backbone ring, ticks and coordinates -->
+            <circle cx={center.x} cy={center.y} r={radius} fill="none" stroke="#dfe8f3" stroke-width="10" />
+            <circle cx={center.x} cy={center.y} r={radius} fill="none" stroke="#5a8fd0" stroke-width="2" />
+            {#each ticks as t (t.pos)}
+              {@const a = angleOf(t.pos)}
+              {@const p0 = polar(radius - 1, a)}
+              {@const p1 = polar(radius - (t.major ? 9 : 5), a)}
+              <line x1={p0.x} y1={p0.y} x2={p1.x} y2={p1.y} stroke="#5a8fd0" stroke-width={t.major ? 1.5 : 0.8} />
+              {#if t.major}
+                {@const p = polar(radius - 19, a)}
+                <text x={p.x} y={p.y} text-anchor="middle" dominant-baseline="middle" font-size="9" fill="#555">{formatCoord(t.pos)}</text>
+              {/if}
+            {/each}
+            {@const origin0 = polar(radius + 6, -Math.PI / 2)}
+            {@const origin1 = polar(radius - 10, -Math.PI / 2)}
+            <line x1={origin0.x} y1={origin0.y} x2={origin1.x} y2={origin1.y} stroke="#222" stroke-width="2" />
+            <text x={center.x} y={center.y - 4} text-anchor="middle" font-size="13" font-weight="600" fill="#222">{doc.name}</text>
+            <text x={center.x} y={center.y + 12} text-anchor="middle" font-size="11" fill="#555">{formatCoord(length)} bp</text>
+          {:else}
+            <!-- bar, ticks and coordinates -->
+            <line x1={bar.x0} y1={barY} x2={bar.x1} y2={barY} stroke="#dfe8f3" stroke-width="12" stroke-linecap="round" />
+            <line x1={bar.x0} y1={barY} x2={bar.x1} y2={barY} stroke="#5a8fd0" stroke-width="2" />
+            {#each ticks as t (t.pos)}
+              {@const x = xOf(t.pos)}
+              <line x1={x} y1={barY + 6} x2={x} y2={barY + (t.major ? 14 : 10)} stroke="#5a8fd0" stroke-width={t.major ? 1.5 : 0.8} />
+              {#if t.major}<text {x} y={barY + 25} text-anchor="middle" font-size="9" fill="#555">{formatCoord(t.pos)}</text>{/if}
+            {/each}
+            <text x={bar.x0} y={barY + 25} text-anchor="middle" font-size="9" fill="#555">1</text>
+            <text x={bar.x1} y={barY + 25} text-anchor="middle" font-size="9" fill="#555">{formatCoord(length)}</text>
+            {#if doc.ends.left_length !== 0}
+              <line x1={bar.x0} y1={barY} x2={bar.x0 + 18} y2={barY} stroke="#d1242f" stroke-width="12" stroke-linecap="round" />
+              <rect x={bar.x0 - 44} y={barY - 32} width={doc.ends.left_bases.length * reChar + 44} height="14" fill="#e6e6e6" stroke="#999" />
+              <text x={bar.x0 - 40} y={barY - 21} font-size="10">{doc.ends.left_length > 0 ? "5'" : "3'"} : ({Math.abs(doc.ends.left_length)}){doc.ends.left_bases}</text>
+            {/if}
+            {#if doc.ends.right_length !== 0}
+              <line x1={bar.x1 - 18} y1={barY} x2={bar.x1} y2={barY} stroke="#d1242f" stroke-width="12" stroke-linecap="round" />
+              <rect x={bar.x1 - doc.ends.right_bases.length * reChar - 4} y={barY - 32} width={doc.ends.right_bases.length * reChar + 48} height="14" fill="#e6e6e6" stroke="#999" />
+              <text x={bar.x1 - doc.ends.right_bases.length * reChar} y={barY - 21} font-size="10">{doc.ends.right_length > 0 ? "5'" : "3'"} : ({Math.abs(doc.ends.right_length)}){doc.ends.right_bases}</text>
+            {/if}
+            <text x={bar.x0} y={svgHeight - 14} font-size="12" fill="#222">{doc.name} - {formatCoord(length)} nt</text>
+          {/if}
+
+          {#if selectionPath}
+            <path d={selectionPath} fill={circular ? 'none' : 'rgba(46,160,67,0.35)'} stroke={circular ? COLORS.begin : 'none'} stroke-width="14" stroke-opacity="0.55" />
+          {/if}
+
+          <!-- features on their tracks: hover for the name, click to pin its label -->
           {#each featureShapes as f (f.key)}
-            {#if f.textPath}<path id="tp-{f.key}" d={f.textPath} />{/if}
-          {/each}
-        </defs>
-
-        {#if circular}
-          <!-- backbone ring, ticks and coordinates -->
-          <circle cx={center.x} cy={center.y} r={radius} fill="none" stroke="#dfe8f3" stroke-width="10" />
-          <circle cx={center.x} cy={center.y} r={radius} fill="none" stroke="#5a8fd0" stroke-width="2" />
-          {#each ticks as t (t.pos)}
-            {@const a = angleOf(t.pos)}
-            {@const p0 = polar(radius - 1, a)}
-            {@const p1 = polar(radius - (t.major ? 9 : 5), a)}
-            <line x1={p0.x} y1={p0.y} x2={p1.x} y2={p1.y} stroke="#5a8fd0" stroke-width={t.major ? 1.5 : 0.8} />
-            {#if t.major}
-              {@const p = polar(radius - 19, a)}
-              <text x={p.x} y={p.y} text-anchor="middle" dominant-baseline="middle" font-size="9" fill="#555">{formatCoord(t.pos)}</text>
-            {/if}
-          {/each}
-          {@const origin0 = polar(radius + 6, -Math.PI / 2)}
-          {@const origin1 = polar(radius - 10, -Math.PI / 2)}
-          <line x1={origin0.x} y1={origin0.y} x2={origin1.x} y2={origin1.y} stroke="#222" stroke-width="2" />
-          <text x={center.x} y={center.y - 4} text-anchor="middle" font-size="13" font-weight="600" fill="#222">{doc.name}</text>
-          <text x={center.x} y={center.y + 12} text-anchor="middle" font-size="11" fill="#555">{formatCoord(length)} bp</text>
-        {:else}
-          <!-- bar, ticks and coordinates -->
-          <line x1={bar.x0} y1={barY} x2={bar.x1} y2={barY} stroke="#dfe8f3" stroke-width="12" stroke-linecap="round" />
-          <line x1={bar.x0} y1={barY} x2={bar.x1} y2={barY} stroke="#5a8fd0" stroke-width="2" />
-          {#each ticks as t (t.pos)}
-            {@const x = xOf(t.pos)}
-            <line x1={x} y1={barY + 6} x2={x} y2={barY + (t.major ? 14 : 10)} stroke="#5a8fd0" stroke-width={t.major ? 1.5 : 0.8} />
-            {#if t.major}<text {x} y={barY + 25} text-anchor="middle" font-size="9" fill="#555">{formatCoord(t.pos)}</text>{/if}
-          {/each}
-          <text x={bar.x0} y={barY + 25} text-anchor="middle" font-size="9" fill="#555">1</text>
-          <text x={bar.x1} y={barY + 25} text-anchor="middle" font-size="9" fill="#555">{formatCoord(length)}</text>
-          {#if doc.ends.left_length !== 0}
-            <line x1={bar.x0} y1={barY} x2={bar.x0 + 18} y2={barY} stroke="#d1242f" stroke-width="12" stroke-linecap="round" />
-            <rect x={bar.x0 - 44} y={barY - 32} width={doc.ends.left_bases.length * reChar + 44} height="14" fill="#e6e6e6" stroke="#999" />
-            <text x={bar.x0 - 40} y={barY - 21} font-size="10">{doc.ends.left_length > 0 ? "5'" : "3'"} : ({Math.abs(doc.ends.left_length)}){doc.ends.left_bases}</text>
-          {/if}
-          {#if doc.ends.right_length !== 0}
-            <line x1={bar.x1 - 18} y1={barY} x2={bar.x1} y2={barY} stroke="#d1242f" stroke-width="12" stroke-linecap="round" />
-            <rect x={bar.x1 - doc.ends.right_bases.length * reChar - 4} y={barY - 32} width={doc.ends.right_bases.length * reChar + 48} height="14" fill="#e6e6e6" stroke="#999" />
-            <text x={bar.x1 - doc.ends.right_bases.length * reChar} y={barY - 21} font-size="10">{doc.ends.right_length > 0 ? "5'" : "3'"} : ({Math.abs(doc.ends.right_length)}){doc.ends.right_bases}</text>
-          {/if}
-          <text x={bar.x0} y={svgHeight - 14} font-size="12" fill="#222">{doc.name} - {formatCoord(length)} nt</text>
-        {/if}
-
-        {#if selectionPath}
-          <path d={selectionPath} fill={circular ? 'none' : 'rgba(46,160,67,0.35)'} stroke={circular ? COLORS.begin : 'none'} stroke-width="14" stroke-opacity="0.55" />
-        {/if}
-
-        <!-- features on their tracks -->
-        {#each featureShapes as f (f.key)}
-          <g role="button" tabindex="-1" style="cursor: default" ondblclick={() => void requestSelect(id, f.lo, f.hi)} onclick={(e) => e.stopPropagation()} onkeydown={(e) => { if (e.key === 'Enter') void requestSelect(id, f.lo, f.hi); }}>
-            <title>{f.name}</title>
-            {#if circular}
-              <path d={f.path} fill="none" stroke={f.color} stroke-width={f.strokeWidth} stroke-opacity="0.9" />
-              {#if f.head}<path d={f.head} fill={f.color} stroke={darker(f.color)} stroke-width="0.6" />{/if}
-              {#if f.textPath}
-                <text font-size={FEATURE_FONT} fill="#111" dominant-baseline="middle" style="paint-order: stroke" stroke="#fff" stroke-width="2.5" stroke-opacity="0.85">
-                  <textPath href="#tp-{f.key}" startOffset="50%" text-anchor="middle">{f.name}</textPath>
-                </text>
+            {@const hot = hover?.key === f.key}
+            {@const pinned = labelState[f.key] === 'pin'}
+            <g
+              role="button"
+              tabindex="-1"
+              style="cursor: default"
+              onpointerenter={(e) => showHover(e, f.key, f.name)}
+              onpointermove={(e) => showHover(e, f.key, f.name)}
+              onpointerleave={clearHover}
+              onclick={(e) => onFeatureClick(e, f.key)}
+              ondblclick={() => void requestSelect(id, f.lo, f.hi)}
+              onkeydown={(e) => { if (e.key === 'Enter') void requestSelect(id, f.lo, f.hi); }}
+            >
+              {#if circular}
+                <path d={f.path} fill="none" stroke={hot || pinned ? darker(f.color) : f.color} stroke-width={hot ? f.strokeWidth + 2 : f.strokeWidth} stroke-opacity={hot ? 1 : 0.9} />
+                {#if f.head}<path d={f.head} fill={f.color} stroke={darker(f.color)} stroke-width={hot ? 1.4 : 0.6} />{/if}
+                {#if f.textPath}
+                  <text font-size={FEATURE_FONT} fill="#111" dominant-baseline="middle" style="paint-order: stroke" stroke="#fff" stroke-width="2.5" stroke-opacity="0.85">
+                    <textPath href="#tp-{f.key}" startOffset="50%" text-anchor="middle">{f.name}</textPath>
+                  </text>
+                {/if}
+              {:else}
+                <path d={f.path} fill={f.color} fill-opacity={hot ? 1 : 0.85} stroke={darker(f.color)} stroke-width={hot ? 1.6 : 0.8} />
+                {#if f.inside && f.box}
+                  <text x={f.box.x + f.box.w / 2} y={f.box.y + f.box.h / 2} text-anchor="middle" dominant-baseline="middle" font-size={FEATURE_FONT} fill="#111" style="paint-order: stroke" stroke="#fff" stroke-width="2" stroke-opacity="0.8">{f.name}</text>
+                {/if}
               {/if}
-            {:else}
-              <path d={f.path} fill={f.color} fill-opacity="0.85" stroke={darker(f.color)} stroke-width="0.8" />
-              {#if f.inside && f.box}
-                <text x={f.box.x + f.box.w / 2} y={f.box.y + f.box.h / 2} text-anchor="middle" dominant-baseline="middle" font-size={FEATURE_FONT} fill="#111" style="paint-order: stroke" stroke="#fff" stroke-width="2" stroke-opacity="0.8">{f.name}</text>
-              {/if}
-            {/if}
-          </g>
-        {/each}
+            </g>
+          {/each}
 
-        <!-- site labels and outside feature labels -->
-        {#each placed as p (p.key)}
-          {@const selectedBox = p.kind === 'site' && (p.key === begin || p.key === end)}
-          {@const isSite = p.kind === 'site'}
-          {@const boxed = !isSite || selectedBox || ($prefs.gmap_box_re_names && (p.category !== 'unique' || $prefs.gmap_box_unique))}
-          {@const fill = !isSite ? '#ffffff' : p.key === begin ? COLORS.begin : p.key === end ? COLORS.end : COLORS[p.category ?? 'unique']}
-          {@const stroke = !isSite ? (p.feature?.color ?? '#555') : selectedBox ? fill : '#555'}
-          {#if p.tick}<line x1={p.tick.x1} y1={p.tick.y1} x2={p.tick.x2} y2={p.tick.y2} stroke="#222" stroke-width="1.5" />{/if}
-          <line x1={p.leader.x1} y1={p.leader.y1} x2={p.leader.x2} y2={p.leader.y2} stroke={isSite ? '#777' : (p.feature?.color ?? '#777')} stroke-width="0.8" />
-          <g
-            class="label"
-            onpointerdown={(e) => onLabelDown(e, p.key)}
-            ondblclick={() => (isSite ? onLabelDblClick(p.key) : p.feature && void requestSelect(id, p.feature.lo, p.feature.hi))}
-            role="button"
-            tabindex="-1"
-            style="cursor: grab"
-          >
-            {#if boxed}
-              <rect x={p.box.x} y={p.box.y} width={p.box.w} height={p.box.h} {fill} {stroke} rx="2" />
-            {/if}
-            {#if isSite}
-              <text x={p.box.x + 5} y={p.box.y + 12} font-size={RE_FONT} fill={selectedBox ? '#fff' : '#111'} font-family="ui-monospace, Menlo, monospace">{p.text}</text>
+          <!-- site marks on the ring / bar, for every displayed site (labelled or not) -->
+          {#each siteTicks as t (t.key)}
+            <g role="presentation" onpointerenter={(e) => showHover(e, t.key, t.tooltip)} onpointermove={(e) => showHover(e, t.key, t.tooltip)} onpointerleave={clearHover}>
+              <line x1={t.x1} y1={t.y1} x2={t.x2} y2={t.y2} stroke="transparent" stroke-width="9" />
+              <line x1={t.x1} y1={t.y1} x2={t.x2} y2={t.y2} stroke={hover?.key === t.key ? '#000' : '#222'} stroke-width={hover?.key === t.key ? 3 : 1.5} />
+            </g>
+          {/each}
+
+          <!-- site labels and outside feature labels that made the budget -->
+          {#each placed as p (p.key)}
+            {@const selectedBox = p.kind === 'site' && (p.key === begin || p.key === end)}
+            {@const isSite = p.kind === 'site'}
+            {@const boxed = !isSite || selectedBox || ($prefs.gmap_box_re_names && (p.category !== 'unique' || $prefs.gmap_box_unique))}
+            {@const fill = !isSite ? '#ffffff' : p.key === begin ? COLORS.begin : p.key === end ? COLORS.end : COLORS[p.category ?? 'unique']}
+            {@const stroke = !isSite ? (p.feature?.color ?? '#555') : selectedBox ? fill : '#555'}
+            <line x1={p.leader.x1} y1={p.leader.y1} x2={p.leader.x2} y2={p.leader.y2} stroke={isSite ? '#777' : (p.feature?.color ?? '#777')} stroke-width="0.8" />
+            <g
+              class="label"
+              onpointerdown={(e) => onLabelDown(e, p.key)}
+              ondblclick={() => (isSite ? onLabelDblClick(p.key) : p.feature && void requestSelect(id, p.feature.lo, p.feature.hi))}
+              onpointerenter={(e) => { if (p.tooltip !== p.text) showHover(e, p.key, p.tooltip); }}
+              onpointerleave={clearHover}
+              role="button"
+              tabindex="-1"
+              style="cursor: grab"
+            >
+              {#if boxed}
+                <rect x={p.box.x} y={p.box.y} width={p.box.w} height={p.box.h} {fill} {stroke} rx="2" />
+              {/if}
+              {#if isSite}
+                <text x={p.box.x + 5} y={p.box.y + 12} font-size={RE_FONT} fill={selectedBox ? '#fff' : '#111'} font-family="ui-monospace, Menlo, monospace">{p.text}</text>
+              {:else}
+                <text x={p.box.x + p.box.w / 2} y={p.box.y + 12} text-anchor="middle" font-size={FEATURE_FONT} fill="#111">{p.text}</text>
+              {/if}
+            </g>
+          {/each}
+
+          {#if hover}
+            <g class="tooltip" pointer-events="none">
+              <rect x={tooltipX} y={tooltipY} width={tooltipW} height={LABEL_H} fill="#222" fill-opacity="0.92" rx="3" />
+              <text x={tooltipX + 6} y={tooltipY + 12} font-size={FEATURE_FONT} fill="#fff">{hover.text}</text>
+            </g>
+          {/if}
+        </svg>
+      </div>
+
+      {#if panelOpen}
+        <aside class="labels no-print" data-help-name="Labels panel" data-help="Every Feature and displayed site of this map. Click a checkbox to cycle: checked = always shown, unchecked = hidden, dash = automatic. This is only the display of this map window and is not saved with the sequence; use the Features tab's Show checkbox to hide a Feature from every map.">
+          <div class="labels-head">
+            <input type="search" placeholder="search" bind:value={panelFilter} />
+            <button type="button" onclick={() => setAll('pin')} data-help-name="Show all" data-help="Pins every label and lays them all out.">Show all</button>
+            <button type="button" onclick={() => setAll('hide')} data-help-name="Hide all" data-help="Hides every label; the Features and site marks stay on the map.">Hide all</button>
+            <button type="button" onclick={() => setAll(undefined)} data-help-name="Auto" data-help="Back to the automatic budget: what fits is shown.">Auto</button>
+          </div>
+          <div class="labels-list">
+            <h2>Features</h2>
+            {#each filterItems(panelFeatures) as it (it.key)}
+              {@const s = labelState[it.key]}
+              <label class:pinned={s === 'pin'} class:hidden-label={s === 'hide'}>
+                <input type="checkbox" checked={s === 'pin'} indeterminate={s === undefined} onclick={(e) => { e.preventDefault(); cycleLabel(it.key); }} />
+                <span class="text">{it.text}</span>
+                <span class="pos">{formatCoord(it.pos + 1)}</span>
+              </label>
             {:else}
-              <text x={p.box.x + p.box.w / 2} y={p.box.y + 12} text-anchor="middle" font-size={FEATURE_FONT} fill="#111">{p.text}</text>
-            {/if}
-          </g>
-        {/each}
-      </svg>
+              <p class="hint">No Features shown.</p>
+            {/each}
+            <h2>Sites</h2>
+            {#each filterItems(panelSites) as it (it.key)}
+              {@const s = labelState[it.key]}
+              <label class:pinned={s === 'pin'} class:hidden-label={s === 'hide'}>
+                <input type="checkbox" checked={s === 'pin'} indeterminate={s === undefined} onclick={(e) => { e.preventDefault(); cycleLabel(it.key); }} />
+                <span class="text mono">{it.text}</span>
+              </label>
+            {:else}
+              <p class="hint">No sites displayed: tick Unique, Double or Particular sites.</p>
+            {/each}
+          </div>
+        </aside>
+      {/if}
     </div>
   {/if}
 </div>
@@ -776,9 +1067,26 @@
     align-items: center;
     gap: 4px;
   }
+  .status {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 4px;
+    color: var(--fg-muted);
+    font-size: var(--fs-small);
+  }
+  .status button,
+  .topo {
+    padding: 1px 10px;
+    border-radius: 12px;
+  }
   .choose {
     padding: 2px 16px;
     border-radius: 12px;
+  }
+  .active {
+    background: var(--accent);
+    color: #fff;
   }
   .orientation {
     margin-left: auto;
@@ -840,28 +1148,102 @@
     color: var(--fg-muted);
     font-family: var(--font-mono);
   }
-  .map {
+  .body {
     flex: 1;
     min-height: 0;
+    display: flex;
+  }
+  .map {
+    flex: 1;
+    min-width: 0;
+    min-height: 0;
+    display: flex;
     overflow: auto;
     background: #fff;
   }
-  .topo {
-    padding: 2px 10px;
-    border-radius: 12px;
-  }
   svg {
     display: block;
+    flex: none;
+    margin: auto;
     -webkit-user-select: none;
     user-select: none;
   }
+  .labels {
+    width: 260px;
+    flex: none;
+    display: flex;
+    flex-direction: column;
+    border-left: 1px solid var(--border);
+    background: var(--bg-raised);
+  }
+  .labels-head {
+    display: flex;
+    gap: 4px;
+    padding: 6px;
+    border-bottom: 1px solid var(--border);
+    flex-wrap: wrap;
+  }
+  .labels-head input {
+    flex: 1 1 100%;
+    font: inherit;
+  }
+  .labels-head button {
+    padding: 1px 8px;
+  }
+  .labels-list {
+    overflow: auto;
+    padding: 4px 6px;
+  }
+  .labels-list h2 {
+    margin: 6px 0 2px;
+    font-size: var(--fs-small);
+    color: var(--fg-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  .labels-list label {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+    padding: 1px 0;
+  }
+  .labels-list .text {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .labels-list .pinned .text {
+    font-weight: 700;
+  }
+  .labels-list .hidden-label .text {
+    color: var(--fg-muted);
+    text-decoration: line-through;
+  }
+  .labels-list .pos {
+    color: var(--fg-muted);
+    font-family: var(--font-mono);
+    font-size: var(--fs-small);
+  }
+  .mono {
+    font-family: var(--font-mono);
+  }
+  .hint {
+    margin: 2px 0;
+    color: var(--fg-muted);
+    font-size: var(--fs-small);
+  }
   @media print {
     .no-print,
-    .chooser {
+    .chooser,
+    .labels {
       display: none !important;
     }
     .gmap {
       height: auto;
+    }
+    .map {
+      overflow: visible;
     }
   }
 </style>
