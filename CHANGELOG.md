@@ -6,6 +6,12 @@ All notable changes to SerialClon.rs. The project reimplements Serial Cloner 2.6
 
 ## Unreleased
 
+- Graphic Map: labels are no longer clipped at the window edge and the circle stays centred at
+  every window size. Only the labels that fit without overlapping are shown (chosen sites first,
+  then the longest Features); the status line counts the rest, with Show all / Auto. Hover a
+  Feature or a site mark for its name, click a Feature to pin its label, or open the new Labels
+  panel to search, pin or hide any label of the map. Isoschizomers cutting at the same place share
+  one box ("7763 AsiSI +3"). Print uses the Show-all layout.
 - Maps, Site Usage, the Virtual Cutter and the Silent Map follow their document again after an
   edit or a Linearize / Circularize (a regression of the event-scoping fix: the change
   notification only reached the Sequence Window and its Find drawer).
