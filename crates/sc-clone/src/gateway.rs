@@ -262,6 +262,7 @@ pub fn recombine(
         ends: ins.ends.clone(),
         source: Source::New,
         strider_header: None,
+        snapgene_extras: None,
     })
 }
 
@@ -352,6 +353,7 @@ pub fn homologous_recombination(
         ends: Default::default(),
         source: Source::New,
         strider_header: None,
+        snapgene_extras: None,
     })
 }
 

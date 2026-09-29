@@ -56,6 +56,12 @@ pub fn build(app: &AppHandle) -> tauri::Result<MenuHandles> {
             "Export to GenBank (with Features)…",
             None,
         )?)
+        .item(&item(
+            app,
+            "file.export_snapgene",
+            "Export to SnapGene (.dna)…",
+            None,
+        )?)
         .separator()
         .item(&item(
             app,

@@ -195,6 +195,7 @@ pub fn read(bytes: &[u8], name: &str) -> Result<Sequence> {
         ends: Ends::default(),
         source: Source::Strider,
         strider_header: Some(header.to_vec()),
+        snapgene_extras: None,
     };
 
     let rest = &bytes[XDNA_HEADER_LEN + n + c..];

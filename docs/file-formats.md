@@ -91,6 +91,46 @@ degenerate DNA; a record that is mostly non-nucleotide letters opens as a protei
 Everything that is not one of the above: the IUPAC letters are kept, whitespace and digits
 dropped, and the count of excluded characters reported, as the manual describes.
 
+## SnapGene `.dna` (read + write)
+
+The format collaborators actually send. It is undocumented; SerialClon.rs follows what
+Biopython's `SnapGeneIO` and the `sgffp` project reverse-engineered, verified against 24 real
+files under `reference/sequences/snapgene/` (see its README for their sources) and
+cross-checked with Biopython's parser (`scripts/check-snapgene.py`: 63 comparisons, 0
+mismatches).
+
+A file is a sequence of packets, each `u8 type, u32 big-endian length, payload`:
+
+| type | content | SerialClon.rs |
+|---|---|---|
+| 9 | header: `SnapGene`, molecule (1 DNA, 2 protein, 7 RNA), export version, import version | read, kept |
+| 0 / 21 / 32 | DNA / protein / RNA: a flags byte (bit 0 circular, bit 1 double-stranded, bits 2–4 methylation) then the letters, case preserved | read, written |
+| 1 | compressed DNA (2-bit, IUPAC-nibble and N-run sections, lower-case ranges) | decoded when a file has no plain sequence packet |
+| 10 | features, XML: name, type, `directionality` (0 none, 1 forward, 2 reverse, 3 both), coloured `Segment`s with 1-based ranges (`a > b` wraps the origin), `gap` segments, `Q`/`V` qualifiers | read, written |
+| 5 | primers, XML, with 0-based binding sites and hybridization thresholds | read as `primer_bind` features, kept as is |
+| 6 | notes, XML (`Description`, `Comments`, `CustomMapLabel`, dates); texts carry `<html>` markup | description ↔ comment, custom map label → name; kept |
+| 8 | end stickiness and modifications | kept |
+| 2, 3, 13, 35 | enzyme caches; 7, 11, 29, 30 history; 16–18, 27 traces; 14, 20, 23, 28 preferences and attachments | kept verbatim |
+
+**What you get on Open.** The sequence with its case and topology, the features with their
+colours and strands (a multi-segment feature becomes one feature spanning its outermost
+segments, the segments listed in its comments), the primers' binding sites as `primer_bind`
+features, the description as the comment, the custom map label as the name. The window shows
+the format as *SnapGene*.
+
+**What happens on Save.** Every packet of the file you opened is kept. Saving back to `.dna`
+reproduces the original file byte for byte when nothing was edited; otherwise only the packets
+that carry what changed are rewritten — the sequence, the features, the description — and
+primers, history, sequencing traces and everything else survive, so SnapGene opens the file
+with its history intact. A sequence that did not come from SnapGene (File ▸ Export ▸ SnapGene, or
+Save As with a `.dna` name) is written as a minimal file: header, sequence, properties,
+features, an empty primer list, notes.
+
+**Not modelled.** SnapGene's primers are kept but not editable here (use the PCR window); the
+cloning history, traces and enzyme sets pass through untouched; multi-segment features are
+flattened when rewritten; features with directionality "both" become forward features
+without an arrow.
+
 ## REBASE `striderc` (enzymes)
 
 The exact format Serial Cloner's `RELibrary` used, refreshed from REBASE:
@@ -127,5 +167,5 @@ JSON with `name`, `taxid`, `source`, `retrieved`, `cds`, `codons_total` and 64 `
 ## Not yet
 
 ApE `.ape` sequence files (its GenBank dialect opens already), Vector NTI `.ma4`, MacVector
-`.nucl`, DNAStar EditSeq `.seq`, pDRAW32 `.pdw` and SnapGene `.dna` are on the list; the
-sample files for the first three are in the repository as fixtures.
+`.nucl`, DNAStar EditSeq `.seq` and pDRAW32 `.pdw` are on the list; the sample files for the
+first three are in the repository as fixtures.

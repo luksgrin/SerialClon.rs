@@ -152,6 +152,7 @@ pub fn shrna(name: &str, layout: &Layout, core: &str, mutations: &[usize]) -> Sh
         },
         source: Source::New,
         strider_header: None,
+        snapgene_extras: None,
     };
     Shrna {
         top_oligo: top,

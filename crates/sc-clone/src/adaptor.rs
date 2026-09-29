@@ -69,6 +69,7 @@ pub fn adaptor(name: &str, core: &str, left: Overhang, right: Overhang) -> Adapt
         ends: Ends { left, right },
         source: Source::New,
         strider_header: None,
+        snapgene_extras: None,
     };
     Adaptor {
         top_oligo: top,

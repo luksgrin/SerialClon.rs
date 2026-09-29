@@ -83,6 +83,7 @@ fn product(
         },
         source: Source::New,
         strider_header: None,
+        snapgene_extras: None,
     }
 }
 

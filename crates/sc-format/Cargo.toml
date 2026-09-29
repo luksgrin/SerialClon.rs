@@ -9,9 +9,13 @@ license.workspace = true
 publish = false
 
 [dependencies]
+roxmltree = "0.20"
 sc-seq.workspace = true
 serde.workspace = true
 thiserror.workspace = true
 
 [lints]
 workspace = true
+
+[dev-dependencies]
+serde_json.workspace = true

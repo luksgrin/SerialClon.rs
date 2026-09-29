@@ -171,7 +171,9 @@ Cloner's colour qualifiers) — both done in M1 — then ApE, Vector NTI `.ma4` 
 multi-sequence), MacVector `.nucl`, DNAStar EditSeq `.seq`, pDRAW32 `.pdw`, raw text.
 **Export:** `.xdna`, FASTA, GenBank (with features + colours) — done in M1 — PNG maps, printable
 text maps.
-*Stretch:* SnapGene `.dna` import — the format most collaborators send today.
+SnapGene `.dna` — the format most collaborators send today — reads **and writes** (done after
+1.0: `crates/sc-format/src/snapgene.rs`, 24 public fixtures, byte-exact round trip, Biopython
+cross-check).
 
 **Enzymes:** REBASE `striderc.NNN`, format `Name,site_with_/[,cut5,cut3],` where a leading `#`
 marks type IIs and the two integers are the downstream cut offsets:
@@ -392,6 +394,6 @@ builds — users just get the Gatekeeper/SmartScreen warning the original had.
 2. **Look** — modern-neutral by default with Aqua Classic as an option, or pixel-faithful 2.6 from
    day one?
 3. **Licence and visibility** — MIT/Apache-2.0 public repo, like `flow-cytometry-analyzer`?
-4. **SnapGene `.dna` import** — worth pulling into M1, or a post-1.0 stretch?
+4. ~~**SnapGene `.dna` import**~~ — done (read and write), see §1.4.
 5. Do you have **your own `.xdna` corpus** (lab plasmids) we can use as private round-trip
    fixtures? That is the strongest correctness signal available.
