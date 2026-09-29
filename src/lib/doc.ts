@@ -3,7 +3,23 @@
  * and the events the shell sends to document windows.
  */
 import { invoke } from '@tauri-apps/api/core';
-import { emitTo, listen, type UnlistenFn } from '@tauri-apps/api/event';
+import { emitTo, listen, type Event, type UnlistenFn } from '@tauri-apps/api/event';
+import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow';
+
+/**
+ * `listen()` with the default target receives events emitted to *any*
+ * window (Tauri's `EventTarget::Any` matches every `emit_to`), so a `menu`
+ * event sent to the PCR window also reached every Sequence Window. This
+ * registers the listener for the current window only; `emit` broadcasts
+ * still arrive.
+ */
+export function listenHere<T>(event: string, handler: (e: Event<T>) => void): Promise<UnlistenFn> {
+  try {
+    return getCurrentWebviewWindow().listen<T>(event, handler);
+  } catch {
+    return listen<T>(event, handler); // plain browser
+  }
+}
 
 export interface FeatureView {
   name: string;
@@ -512,14 +528,14 @@ export const FEATURE_KINDS = [
 
 /** Fires whenever the shell changes a document (edits, saves, undo…). */
 export function onDocChanged(id: number, handler: (doc: DocumentView) => void): Promise<UnlistenFn> {
-  return listen<DocumentView>('doc:changed', (e) => {
+  return listenHere<DocumentView>('doc:changed', (e) => {
     if (e.payload.id === id) handler(e.payload);
   });
 }
 
 /** Menu-bar and Toolbar commands forwarded to the front-most Sequence Window. */
 export function onMenu(handler: (id: string) => void): Promise<UnlistenFn> {
-  return listen<string>('menu', (e) => handler(e.payload));
+  return listenHere<string>('menu', (e) => handler(e.payload));
 }
 
 /** A selection request from a drawer (Find hit, Info back-selection). */
@@ -533,7 +549,7 @@ export function requestSelect(id: number, from: number, to: number): Promise<voi
 }
 
 export function onSelectRequest(handler: (r: SelectRequest) => void): Promise<UnlistenFn> {
-  return listen<SelectRequest>('doc:select', (e) => handler(e.payload));
+  return listenHere<SelectRequest>('doc:select', (e) => handler(e.payload));
 }
 
 /** Formats bases as 80-column lines (Edit ▸ Copy from a sequence window). */

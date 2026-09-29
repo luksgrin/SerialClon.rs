@@ -6,10 +6,9 @@
    * the forward or reverse primer.
    */
   import { onMount } from 'svelte';
-  import { listen } from '@tauri-apps/api/event';
-  import { message } from '@tauri-apps/plugin-dialog';
+    import { message } from '@tauri-apps/plugin-dialog';
   import ToolWindow from '$lib/components/ToolWindow.svelte';
-  import { api, type PrimerCheck } from '$lib/doc';
+  import { api, type PrimerCheck, listenHere } from '$lib/doc';
 
   let docs = $state<[number, string][]>([]);
   let matrix = $state<number | null>(null);
@@ -42,17 +41,22 @@
       await message(String(e), { title: 'Run a PCR', kind: 'error' });
     }
   }
-  const describe = (c: PrimerCheck | string | null, which: 'forward' | 'reverse') =>
-    c === null
-      ? ''
-      : typeof c === 'string'
-        ? c
-        : c.other_strand
-          ? which === 'reverse'
-            ? `as written this matches the top strand at ${c.start}–${c.end}. A reverse primer is given 5'→3' on the bottom strand: use its reverse complement (or, if it is your forward primer, move it).`
-            : `as written this matches the bottom strand at ${c.start}–${c.end}. A forward primer is given 5'→3' on the top strand: use its reverse complement (or, if it is your reverse primer, move it).`
-          : `anneals at ${c.start}–${c.end}${c.tail ? `, ${c.tail} nt tail` : ''}, Tm ${c.tm.toFixed(1)} °C`;
-  const wrongBox = (c: PrimerCheck | string | null) => c !== null && typeof c !== 'string' && c.other_strand;
+  const isOther = (c: PrimerCheck | string | null) => c !== null && typeof c !== 'string' && c.other_strand;
+  const isOk = (c: PrimerCheck | string | null) => c !== null && typeof c !== 'string' && !c.other_strand;
+  /** The pair is inverted relative to the file's top strand: forward on the bottom, reverse on the top. Valid. */
+  const inverted = $derived(isOther(fwdCheck) && isOther(revCheck));
+  const describe = (c: PrimerCheck | string | null, which: 'forward' | 'reverse') => {
+    if (c === null) return '';
+    if (typeof c === 'string') return c;
+    const strand = which === 'forward' ? 'bottom' : 'top';
+    const partner = which === 'forward' ? 'reverse' : 'forward';
+    if (!c.other_strand) return `anneals at ${c.start}–${c.end}${c.tail ? `, ${c.tail} nt tail` : ''}, Tm ${c.tm.toFixed(1)} °C`;
+    if (inverted) return `anneals to the ${strand} strand at ${c.start}–${c.end}. The pair is inverted relative to this file's top strand — fine: the product is given from the forward primer.`;
+    if (isOk(which === 'forward' ? revCheck : fwdCheck))
+      return `as written this matches the ${strand} strand at ${c.start}–${c.end}, the same strand as the ${partner} primer: no product. Use its reverse complement, or move it if it is your ${partner} primer.`;
+    return `as written this matches the ${strand} strand at ${c.start}–${c.end}. Fine if the ${partner} primer is on the ${which === 'forward' ? 'top' : 'bottom'} strand (an inverted pair); otherwise use its reverse complement.`;
+  };
+  const wrongBox = (c: PrimerCheck | string | null) => isOther(c) && !inverted;
   /** A primer entered in the wrong box: exchange the two boxes. */
   function swap() {
     [forward, reverse] = [reverse, forward];
@@ -79,7 +83,7 @@
     void refreshDocs();
     const t = setInterval(() => void refreshDocs(), 3000);
     let unlisten: (() => void) | undefined;
-    void listen<{ which: 'forward' | 'reverse'; text: string }>('pcr:primer', (e) => {
+    void listenHere<{ which: 'forward' | 'reverse'; text: string }>('pcr:primer', (e) => {
       if (e.payload.which === 'forward') forward = e.payload.text;
       else reverse = e.payload.text;
       scheduleCheck();

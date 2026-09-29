@@ -6,9 +6,8 @@
    * nothing is fetched on its own.
    */
   import { onMount } from 'svelte';
-  import { listen } from '@tauri-apps/api/event';
-  import { message } from '@tauri-apps/plugin-dialog';
-  import { api, type RecordView } from '$lib/doc';
+    import { message } from '@tauri-apps/plugin-dialog';
+  import { api, type RecordView, listenHere } from '$lib/doc';
 
   let tab = $state<'fetch' | 'blast'>('fetch');
   let source = $state<'ncbi' | 'ncbi-protein' | 'ena'>('ncbi');
@@ -79,7 +78,7 @@
     });
     const t = setInterval(() => void api.listDocuments().then((d) => (docs = d)), 3000);
     let unlisten: (() => void) | undefined;
-    void listen<{ id: number; from: number; to: number; program: string }>('web:preset', (e) => {
+    void listenHere<{ id: number; from: number; to: number; program: string }>('web:preset', (e) => {
       tab = 'blast';
       queryId = e.payload.id;
       program = e.payload.program;

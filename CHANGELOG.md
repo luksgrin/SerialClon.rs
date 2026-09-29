@@ -6,6 +6,15 @@ All notable changes to SerialClon.rs. The project reimplements Serial Cloner 2.6
 
 ## Unreleased
 
+- Events sent to one window no longer reach every window. Tauri delivers a targeted event to
+  every listener registered without a target, so Edit ▸ Paste in the PCR window (or the Find
+  drawer, or any tool window) was *also* pasted into the sequence of every open Sequence Window.
+  Every listener is now scoped to its own window.
+- Run a PCR accepts a primer pair that is inverted relative to the file's top strand (forward
+  primer on the bottom strand, reverse on the top): the product is given from the forward primer
+  and its comment says so. Two primers on the same strand are refused with the reverse-complement
+  hint.
+
 - Edit ▸ Undo / Redo / Select All / Cut / Copy / Paste now act on the window that has focus, as
   the original's Edit menu did. Before, in every window other than the Sequence Window (the PCR
   primers, the Find drawer, the Build a Construct slots…) ⌘V pasted the clipboard into the
