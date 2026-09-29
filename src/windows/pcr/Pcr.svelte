@@ -42,8 +42,20 @@
       await message(String(e), { title: 'Run a PCR', kind: 'error' });
     }
   }
-  const describe = (c: PrimerCheck | string | null) =>
-    c === null ? '' : typeof c === 'string' ? c : `anneals at ${c.start}–${c.end}${c.tail ? `, ${c.tail} nt tail` : ''}, Tm ${c.tm.toFixed(1)} °C`;
+  const describe = (c: PrimerCheck | string | null, which: 'forward' | 'reverse') =>
+    c === null
+      ? ''
+      : typeof c === 'string'
+        ? c
+        : c.other_strand
+          ? `anneals to the ${which === 'forward' ? 'bottom' : 'top'} strand at ${c.start}–${c.end}: this is a ${which === 'forward' ? 'reverse' : 'forward'} primer`
+          : `anneals at ${c.start}–${c.end}${c.tail ? `, ${c.tail} nt tail` : ''}, Tm ${c.tm.toFixed(1)} °C`;
+  const wrongBox = (c: PrimerCheck | string | null) => c !== null && typeof c !== 'string' && c.other_strand;
+  /** A primer entered in the wrong box: exchange the two boxes. */
+  function swap() {
+    [forward, reverse] = [reverse, forward];
+    scheduleCheck();
+  }
 
   onMount(() => {
     void refreshDocs();
@@ -72,12 +84,14 @@
   <fieldset data-help-name="Forward primer" data-help="The forward primer, 5'→3'. Its 3' end must match the top strand; a 5' portion that does not anneal becomes an un-annealed tail added to the product. From a Sequence Window, right-click a selection ▸ Use selection as forward primer.">
     <legend>Forward primer</legend>
     <textarea rows="2" class="mono wide" bind:value={forward} oninput={scheduleCheck} spellcheck="false"></textarea>
-    <span class="hint" class:error={typeof fwdCheck === 'string'}>{describe(fwdCheck)}</span>
+    <span class="hint" class:error={typeof fwdCheck === 'string'} class:warn={wrongBox(fwdCheck)}>{describe(fwdCheck, 'forward')}</span>
+    {#if wrongBox(fwdCheck)}<button type="button" onclick={swap} data-help-name="Use as reverse primer" data-help="Moves this oligo to the Reverse primer box (and the reverse primer, if any, to this one).">Use as reverse primer</button>{/if}
   </fieldset>
   <fieldset data-help-name="Reverse primer" data-help="The reverse primer, 5'→3' (it anneals to the bottom strand). From a Sequence Window, right-click a selection ▸ Use selection as reverse primer (it is antiparalleled for you).">
     <legend>Reverse primer</legend>
     <textarea rows="2" class="mono wide" bind:value={reverse} oninput={scheduleCheck} spellcheck="false"></textarea>
-    <span class="hint" class:error={typeof revCheck === 'string'}>{describe(revCheck)}</span>
+    <span class="hint" class:error={typeof revCheck === 'string'} class:warn={wrongBox(revCheck)}>{describe(revCheck, 'reverse')}</span>
+    {#if wrongBox(revCheck)}<button type="button" onclick={swap} data-help-name="Use as forward primer" data-help="Moves this oligo to the Forward primer box (and the forward primer, if any, to this one).">Use as forward primer</button>{/if}
   </fieldset>
   <div class="row">
     <label data-help-name="3' A overhang" data-help="Adds the single 3' A that Taq polymerase leaves, for TA cloning."><input type="checkbox" bind:checked={ta} /> 3' A overhang (TA cloning)</label>
@@ -86,6 +100,10 @@
 </ToolWindow>
 
 <style>
+  .warn {
+    color: var(--site-double);
+    font-weight: 600;
+  }
   .wide {
     width: 100%;
     box-sizing: border-box;

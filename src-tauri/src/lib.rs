@@ -132,9 +132,33 @@ fn request_quit(app: &AppHandle) {
 }
 
 /// Runs a menu-bar or Toolbar action by id.
+/// The label of the window that has keyboard focus, else the last document
+/// window used (the menu bar and the Toolbar take focus when clicked).
+fn focused_window_label(app: &AppHandle) -> Option<String> {
+    app.webview_windows()
+        .iter()
+        .find(|(_, w)| w.is_focused().unwrap_or(false))
+        .map(|(label, _)| label.clone())
+        .or_else(|| app.state::<AppState>().last_window.lock().unwrap().clone())
+}
+
 pub(crate) fn run_menu_action(app: &AppHandle, id: &str) {
     let doc = current_doc(app);
     let handle = app.clone();
+    // Edit ▸ Undo / Redo / Select All / Cut / Copy / Paste act on the window
+    // that has focus, as the original's standard Edit menu did: a Sequence
+    // Window handles them itself, every other window applies them to its
+    // focused text field (`src/lib/edit-menu.ts`).
+    if matches!(
+        id,
+        "edit.undo" | "edit.redo" | "edit.select_all" | "edit.cut" | "edit.copy" | "edit.paste"
+    ) && let Some(label) = focused_window_label(app)
+        && !matches!(windows::parse_label(&label), Some((DocWindow::Sequence, _)))
+        && label != windows::TOOLBAR
+    {
+        let _ = app.emit_to(label.as_str(), "menu", id);
+        return;
+    }
     match id {
         "file.new" => {
             commands::new_sequence(app.clone(), false);

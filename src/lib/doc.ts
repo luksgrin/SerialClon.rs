@@ -444,6 +444,8 @@ export interface PrimerCheck {
   end: number;
   tail: number;
   tm: number;
+  /** The primer anneals only to the other strand: it belongs in the other box. */
+  other_strand: boolean;
 }
 
 export interface Oligos {

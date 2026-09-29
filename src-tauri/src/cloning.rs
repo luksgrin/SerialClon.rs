@@ -159,6 +159,9 @@ pub struct PrimerCheck {
     pub tail: usize,
     /// Tm of the annealed core (°C).
     pub tm: f64,
+    /// Set when the primer anneals only to the other strand: it belongs in
+    /// the other box. `start`/`end` then give that site and `tm` is 0.
+    pub other_strand: bool,
 }
 
 /// Checks one primer against the matrix.
@@ -177,20 +180,32 @@ pub fn check_primer(
         .filter(|b| b.is_ascii_alphabetic())
         .map(|b| b.to_ascii_uppercase())
         .collect();
-    let a = sc_clone::pcr::anneal(
+    let a = match sc_clone::pcr::anneal(
         &doc.seq.bases,
         doc.seq.topology.is_circular(),
         &clean,
         reverse,
         if reverse { "reverse" } else { "forward" },
-    )
-    .map_err(|e| e.to_string())?;
+    ) {
+        Ok(a) => a,
+        Err(sc_clone::pcr::PcrError::WrongStrand { start, end, .. }) => {
+            return Ok(PrimerCheck {
+                start,
+                end,
+                tail: 0,
+                tm: 0.0,
+                other_strand: true,
+            });
+        }
+        Err(e) => return Err(e.to_string()),
+    };
     let counts = sc_seq::stats::BaseCounts::of(&a.core);
     Ok(PrimerCheck {
         start: a.start + 1,
         end: a.end,
         tail: a.tail.len(),
         tm: sc_seq::stats::melting_temperature(&counts, sc_seq::stats::DEFAULT_NA_MOLAR),
+        other_strand: false,
     })
 }
 
