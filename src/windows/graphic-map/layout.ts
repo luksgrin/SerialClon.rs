@@ -198,10 +198,30 @@ export interface Budget {
 }
 
 /**
+ * True if two adjacent packed labels overlap, ignoring pairs where both are
+ * `exempt` (pinned labels forced into a full ring may overlap each other;
+ * that must not block the automatic ones).
+ */
+export function overlapExcept(pos: number[], size: number[], gap: number, exempt: boolean[]): boolean {
+  const n = pos.length;
+  if (n < 2) return false;
+  const idx = pos.map((_, i) => i).sort((a, b) => pos[a]! - pos[b]!);
+  for (let k = 0; k < n; k++) {
+    const a = idx[k]!;
+    const b = idx[(k + 1) % n]!;
+    if (exempt[a] && exempt[b]) continue;
+    const d = k + 1 < n ? pos[b]! - pos[a]! : pos[b]! + TAU - pos[a]!;
+    if (d + 1e-9 < (size[a]! + size[b]!) / 2 + gap) return true;
+  }
+  return false;
+}
+
+/**
  * Decides which labels fit around the ring without overlapping: pinned ones
- * first, then by priority; each is accepted only if the whole accepted set
- * still packs without overlap (and the ring is not full). With `showAll`
- * every non-hidden label is placed (the caller must give a ring big enough).
+ * first (always shown, even if they have to overlap each other), then by
+ * priority; an automatic label is accepted only if the whole set still packs
+ * without it overlapping anything. With `showAll` every non-hidden label is
+ * placed (the caller must give a ring big enough).
  */
 export function budgetLabels(cands: BudgetCand[], gap: number, showAll = false): Budget {
   const usable = cands.filter((c) => !c.hidden);
@@ -209,35 +229,72 @@ export function budgetLabels(cands: BudgetCand[], gap: number, showAll = false):
     .map((c, i) => ({ c, i }))
     .sort((a, b) => Number(!!b.c.pinned) - Number(!!a.c.pinned) || a.c.priority - b.c.priority || a.i - b.i)
     .map((o) => o.c);
-  const fits = (set: BudgetCand[]): number[] | null => {
-    const need = set.reduce((a, c) => a + c.size, 0) + set.length * gap;
-    if (need >= TAU) return null;
-    const pos = packAngular(set.map((c) => c.angle), set.map((c) => c.size), gap);
-    return angularOverlap(pos, set.map((c) => c.size), gap) ? null : pos;
-  };
+  const pack = (set: BudgetCand[]) => packAngular(set.map((c) => c.angle), set.map((c) => c.size), gap);
   if (showAll) {
-    const pos = fits(usable) ?? packAngular(usable.map((c) => c.angle), usable.map((c) => c.size), gap);
+    const pos = pack(usable);
     return { angles: new Map(usable.map((c, k) => [c.key, pos[k]!])), crowdedOut: [] };
   }
-  const accepted: BudgetCand[] = [];
+  const accepted: BudgetCand[] = order.filter((c) => c.pinned);
+  let positions = pack(accepted);
   const crowdedOut: string[] = [];
-  let positions: number[] = [];
   for (const c of order) {
+    if (c.pinned) continue;
     const trial = [...accepted, c];
-    const pos = fits(trial);
-    if (pos) {
+    const need = trial.reduce((a, x) => a + x.size, 0) + trial.length * gap;
+    const pos = need < TAU ? pack(trial) : null;
+    if (pos && !overlapExcept(pos, trial.map((x) => x.size), gap, trial.map((x) => !!x.pinned))) {
       accepted.push(c);
       positions = pos;
-    } else if (c.pinned) {
-      // A pinned label is shown even when crowded: accept it and let the
-      // packer spread the set as best it can.
-      accepted.push(c);
-      positions = packAngular(accepted.map((x) => x.angle), accepted.map((x) => x.size), gap);
     } else {
       crowdedOut.push(c.key);
     }
   }
   return { angles: new Map(accepted.map((c, k) => [c.key, positions[k]!])), crowdedOut };
+}
+
+/** Geometry of a circular drawing that fits every label it may show. */
+export interface CircleFit {
+  /** Layout space (the SVG viewBox); the window scales it to fit. */
+  lw: number;
+  lh: number;
+  /** Centre. */
+  cx: number;
+  cy: number;
+  /** Backbone radius and label anchor radius. */
+  radius: number;
+  labelR: number;
+  /** Widest label the band allows. */
+  band: number;
+  /** Labels too wide for the band at this window size (not shown). */
+  dropped: string[];
+}
+
+/**
+ * Sizes a circular drawing for a `cw × ch` window: the ring leaves a band for
+ * the widest label plus the leader `ring` and a `margin`, and is never below
+ * `floor`. When the band would push the ring under the floor, the widest
+ * labels are dropped first (fewer labels rather than overflow); if even an
+ * empty band does not fit, the layout space grows past the window and the
+ * caller scales the drawing down. With `minLabelR` (Show all) the label
+ * radius is at least that, growing the layout space as needed. Everything
+ * placed with [`boxAround`] at `labelR` then lies inside `lw × lh`.
+ */
+export function fitCircle(cw: number, ch: number, labels: { key: string; w: number }[], labelH: number, ring: number, margin: number, floor: number, minLabelR = 0): CircleFit {
+  const half = Math.min(cw, ch) / 2;
+  const widths = [...labels].sort((a, b) => b.w - a.w);
+  const dropped: string[] = [];
+  const bandFor = (w: number) => Math.max(w, labelH) + ring + margin;
+  while (widths.length && half - bandFor(widths[0]!.w) < floor && minLabelR === 0) {
+    dropped.push(widths.shift()!.key);
+  }
+  const maxW = widths.length ? widths[0]!.w : 0;
+  const band = bandFor(maxW);
+  let radius = Math.max(floor, half - band);
+  if (minLabelR > radius + ring) radius = minLabelR - ring;
+  const size = 2 * (radius + band);
+  const lw = Math.max(cw, size);
+  const lh = Math.max(ch, size);
+  return { lw, lh, cx: lw / 2, cy: lh / 2, radius, labelR: radius + ring, band: maxW, dropped };
 }
 
 /**

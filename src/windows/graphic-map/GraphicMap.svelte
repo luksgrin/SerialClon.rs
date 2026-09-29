@@ -8,7 +8,13 @@
    * Labels are budgeted the way SnapGene does it: only as many as fit without
    * overlapping are shown (sites first, then the longest features), the rest
    * are counted as hidden and reachable by hovering, by pinning them from the
-   * Labels panel, or with Show all, which lets the drawing grow.
+   * Labels panel, or with Show all, which lays every label out.
+   *
+   * The drawing has its own coordinate space (the SVG viewBox) and the SVG
+   * fills the window with `preserveAspectRatio="meet"`, so the whole map is
+   * always visible and centred and grows with the window: in automatic mode
+   * the layout space is the window itself; in Show all it is as large as the
+   * labels need and is scaled down to fit.
    */
   import { onMount, tick } from 'svelte';
   import { Menu } from '@tauri-apps/api/menu';
@@ -16,7 +22,7 @@
   import { message } from '@tauri-apps/plugin-dialog';
   import { prefs, printPage } from '$lib/prefs';
   import { api, docIdFromUrl, onDocChanged, onMenu, requestSelect, type ConstructSelection, type DocumentView, type EnzymeEntry, type MapSite, type SiteRefView } from '$lib/doc';
-  import { assignTracks, boxAround, budgetLabels, budgetRows, formatCoord, groupIsoschizomers, reserveBand, tickStep, type BudgetCand, type Span } from './layout';
+  import { assignTracks, boxAround, budgetLabels, budgetRows, fitCircle, formatCoord, groupIsoschizomers, tickStep, type BudgetCand, type Span } from './layout';
 
   const id = docIdFromUrl();
   const COLORS = $derived({ unique: $prefs.color_unique, double: $prefs.color_double, particular: $prefs.color_particular, begin: $prefs.color_begin, end: $prefs.color_end });
@@ -170,30 +176,29 @@
   const TRACK_GAP = 30;
   const MARGIN = 6;
 
-  /** Widest label that may appear outside the ring: the band it needs. */
-  const maxLabelW = $derived.by(() => {
-    let m = 0;
-    for (const g of siteGroups) if (!g.hidden) m = Math.max(m, siteLabelW(g.text));
-    for (const v of visibleFeatures) m = Math.max(m, featLabelW(v.f.name));
-    return m;
-  });
-
   function angleAt(pos: number): number {
     return (pos / Math.max(1, length)) * TAU - Math.PI / 2;
   }
   /** Extent of a horizontal box along the circle at its angle, in pixels. */
   const extentPx = (angle: number, w: number) => LABEL_H * Math.abs(Math.cos(angle)) + w * Math.abs(Math.sin(angle)) + 4;
 
+  /** Every label that may appear outside the ring, with its width. */
+  const outsideLabels = $derived.by(() => {
+    const out: { key: string; w: number }[] = [];
+    for (const g of siteGroups) if (!g.hidden) out.push({ key: g.key, w: siteLabelW(g.text) });
+    for (const v of visibleFeatures) if (labelState[`f:${v.i}`] !== 'hide') out.push({ key: `f:${v.i}`, w: featLabelW(v.f.name) });
+    return out;
+  });
+
   /**
-   * Drawing size and ring radius. Automatic mode: the drawing is the
-   * container, the ring leaves a band for the widest label. Show all: the
-   * ring grows until every label fits, and the container scrolls.
+   * Drawing size and ring radius (see the module comment). The ring floor
+   * leaves room for the feature tracks; labels wider than the band a small
+   * window allows are dropped (counted as hidden for room).
    */
   const geom = $derived.by(() => {
-    if (!circular) return { svgW: width, svgH: height, cx: width / 2, cy: height / 2, radius: 0, labelR: 0 };
-    let radius = reserveBand(width, height, maxLabelW, LABEL_H, LABEL_RING, MARGIN, 48 + Math.max(1, trackCount) * 6 + TRACK_GAP);
-    let svgW = width;
-    let svgH = height;
+    if (!circular) return { svgW: width, svgH: height, cx: width / 2, cy: height / 2, radius: 0, labelR: 0, dropped: [] as string[] };
+    const floor = 48 + Math.max(1, trackCount) * 6 + TRACK_GAP;
+    let minLabelR = 0;
     if (labelMode === 'all') {
       let need = 0;
       for (const g of siteGroups) {
@@ -205,15 +210,10 @@
         const mid = angleAt(v.span.lo) + (v.len / Math.max(1, length)) * Math.PI;
         need += extentPx(mid, featLabelW(v.f.name)) + 3;
       }
-      const labelR = need / (TAU * 0.92);
-      if (labelR - LABEL_RING > radius) {
-        radius = labelR - LABEL_RING;
-        const size = Math.ceil(2 * (radius + LABEL_RING + maxLabelW + MARGIN + 8));
-        svgW = Math.max(width, size);
-        svgH = Math.max(height, size);
-      }
+      minLabelR = need / (TAU * 0.92);
     }
-    return { svgW, svgH, cx: svgW / 2, cy: svgH / 2, radius, labelR: radius + LABEL_RING };
+    const fit = fitCircle(width, height, outsideLabels, LABEL_H, LABEL_RING, MARGIN, floor, minLabelR);
+    return { svgW: fit.lw, svgH: fit.lh, cx: fit.cx, cy: fit.cy, radius: fit.radius, labelR: fit.labelR, dropped: fit.dropped };
   });
   const center = $derived({ x: geom.cx, y: geom.cy });
   const radius = $derived(geom.radius);
@@ -363,6 +363,8 @@
       }
     });
 
+    const droppedSet = new Set(geom.dropped);
+    for (const c of cands) if (droppedSet.has(c.key) && !c.pinned) c.hidden = true;
     const budget = budgetLabels(cands, 3 / labelR, labelMode === 'all');
     const labels: Placed[] = [];
     for (const c of cands) {
@@ -377,7 +379,8 @@
       const from = polar(c.anchorR + (c.kind === 'site' ? 10 : 2), c.angle);
       labels.push({ key: c.key, kind: c.kind, site: c.site, category: c.category, feature: c.feature, text: c.text, tooltip: c.tooltip, leader: { x1: from.x, y1: from.y, x2: bx, y2: by }, box });
     }
-    return { features, labels, ticks: siteTicks, crowded: budget.crowdedOut.length };
+    const crowded = budget.crowdedOut.length + cands.filter((c) => droppedSet.has(c.key) && !c.pinned).length;
+    return { features, labels, ticks: siteTicks, crowded };
   });
 
   /** Linear layout: site rows above the bar, feature rows below, both budgeted. */
@@ -477,7 +480,9 @@
       });
     });
     const lrowCount = lrows.reduce((m, r) => Math.max(m, r + 1), 0);
-    const total = labelMode === 'all' ? Math.max(height, labelTop + lrowCount * rowH + 40) : height;
+    // The layout space is at least the window; when the rows need more, the
+    // viewBox scales the drawing down instead of scrolling.
+    const total = Math.max(height, labelTop + lrowCount * rowH + 40);
     return { features, labels, ticks: siteTicks, barY, total, crowded };
   });
 
@@ -488,6 +493,22 @@
   const svgW = $derived(geom.svgW);
   const svgHeight = $derived(circular ? geom.svgH : linearLayout.total);
   const crowdedCount = $derived(circular ? circularLayout.crowded : linearLayout.crowded);
+  /** Keys whose label is on the map right now (outside box or name along the feature). */
+  const shownKeys = $derived.by(() => {
+    const set = new Set<string>();
+    for (const p of placed) set.add(p.key);
+    for (const f of featureShapes) if (f.inside) set.add(f.key);
+    return set;
+  });
+  /** A site's group lead key, so grouped members know whether their box is shown. */
+  const leadOf = $derived.by(() => {
+    const m = new Map<string, string>();
+    for (const g of siteGroups) {
+      m.set(g.key, g.key);
+      for (const o of g.others) m.set(keyOf(o), g.key);
+    }
+    return m;
+  });
   const userHiddenCount = $derived.by(() => {
     let n = siteGroups.filter((g) => g.hidden).length;
     for (const v of visibleFeatures) if (labelState[`f:${v.i}`] === 'hide') n++;
@@ -528,9 +549,10 @@
   }
   function onPointerMove(e: PointerEvent) {
     if (!drag) return;
-    const dx = e.clientX - drag.x;
-    const dy = e.clientY - drag.y;
-    if (Math.abs(dx) > 3 || Math.abs(dy) > 3) drag.moved = true;
+    const k = svgScale();
+    const dx = (e.clientX - drag.x) / k;
+    const dy = (e.clientY - drag.y) / k;
+    if (Math.abs(dx) * k > 3 || Math.abs(dy) * k > 3) drag.moved = true;
     if (drag.moved) offsets = { ...offsets, [drag.key]: { dx: drag.dx + dx, dy: drag.dy + dy } };
   }
   function onPointerUp(e: PointerEvent) {
@@ -568,10 +590,17 @@
   }
 
   // Hover tooltips (SVG coordinates), pinning by click.
+  /** Client → layout coordinates, through the SVG's own transform (the viewBox may scale). */
   function svgPoint(e: MouseEvent): { x: number; y: number } {
-    if (!svgEl) return { x: 0, y: 0 };
-    const r = svgEl.getBoundingClientRect();
-    return { x: ((e.clientX - r.left) * svgW) / Math.max(1, r.width), y: ((e.clientY - r.top) * svgHeight) / Math.max(1, r.height) };
+    const ctm = svgEl?.getScreenCTM();
+    if (!svgEl || !ctm) return { x: 0, y: 0 };
+    const p = new DOMPoint(e.clientX, e.clientY).matrixTransform(ctm.inverse());
+    return { x: p.x, y: p.y };
+  }
+  /** Screen pixels per layout unit. */
+  function svgScale(): number {
+    const ctm = svgEl?.getScreenCTM();
+    return ctm ? Math.max(1e-6, ctm.a) : 1;
   }
   function showHover(e: MouseEvent, key: string, text: string) {
     const p = svgPoint(e);
@@ -584,12 +613,22 @@
   const tooltipX = $derived(hover ? Math.max(2, Math.min(svgW - tooltipW - 2, hover.x + 12)) : 0);
   const tooltipY = $derived(hover ? Math.max(2, Math.min(svgHeight - LABEL_H - 2, hover.y - LABEL_H - 6)) : 0);
 
-  function cycleLabel(key: string) {
+  /** What the panel shows for a label. */
+  type PanelState = 'pinned' | 'hidden' | 'auto-shown' | 'auto-hidden';
+  function panelState(key: string): PanelState {
     const s = labelState[key];
-    const next: 'pin' | 'hide' | undefined = s === undefined ? 'pin' : s === 'pin' ? 'hide' : undefined;
+    if (s === 'pin') return 'pinned';
+    if (s === 'hide') return 'hidden';
+    const lead = leadOf.get(key) ?? key;
+    return shownKeys.has(lead) || shownKeys.has(key) ? 'auto-shown' : 'auto-hidden';
+  }
+  /** Click: auto-shown → pinned, pinned → hidden, hidden → auto, auto-hidden → pinned. */
+  function cycleLabel(key: string) {
+    const st = panelState(key);
     const copy = { ...labelState };
-    if (next) copy[key] = next;
-    else delete copy[key];
+    if (st === 'pinned') copy[key] = 'hide';
+    else if (st === 'hidden') delete copy[key];
+    else copy[key] = 'pin';
     labelState = copy;
   }
   function togglePin(key: string) {
@@ -618,11 +657,16 @@
     const q = panelFilter.trim().toLowerCase();
     return q ? items.filter((it) => it.text.toLowerCase().includes(q)) : items;
   };
-  function setAll(state: 'pin' | 'hide' | undefined) {
-    const copy: Record<string, 'pin' | 'hide'> = {};
-    if (state) for (const it of [...panelFeatures, ...panelSites]) copy[it.key] = state;
-    labelState = copy;
-    if (state === 'pin') labelMode = 'all';
+  /** Panel buttons: Show all lays every label out, Hide all hides them, Auto is the budget. */
+  function setAll(state: 'all' | 'hide' | 'auto') {
+    if (state === 'hide') {
+      const copy: Record<string, 'pin' | 'hide'> = {};
+      for (const it of [...panelFeatures, ...panelSites]) copy[it.key] = 'hide';
+      labelState = copy;
+      return;
+    }
+    labelState = {};
+    labelMode = state === 'all' ? 'all' : 'auto';
   }
 
   function siteRef(key: string | null): SiteRefView | null {
@@ -673,6 +717,8 @@
     await tick();
     const clone = svgEl.cloneNode(true) as SVGSVGElement;
     clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+    clone.setAttribute('width', String(svgW));
+    clone.setAttribute('height', String(svgHeight));
     const xml = new XMLSerializer().serializeToString(clone);
     const url = URL.createObjectURL(new Blob([xml], { type: 'image/svg+xml;charset=utf-8' }));
     const img = new Image();
@@ -793,6 +839,26 @@
     if (begin && !sites.some((s) => keyOf(s) === begin)) clearSelection();
   }
 
+  // Development self-check: nothing may be drawn outside the viewBox.
+  $effect(() => {
+    if (!import.meta.env.DEV || !svgEl) return;
+    void placed;
+    void featureShapes;
+    const el = svgEl;
+    const w = svgW;
+    const h = svgHeight;
+    queueMicrotask(() => {
+      try {
+        const b = el.getBBox();
+        if (b.x < -1 || b.y < -1 || b.x + b.width > w + 1 || b.y + b.height > h + 1) {
+          console.warn(`Graphic Map: drawing ${b.x.toFixed(0)},${b.y.toFixed(0)} ${b.width.toFixed(0)}×${b.height.toFixed(0)} exceeds the viewBox ${w}×${h}`);
+        }
+      } catch {
+        /* detached */
+      }
+    });
+  });
+
   onMount(() => {
     const unlisteners: (() => void)[] = [];
     (async () => {
@@ -839,13 +905,13 @@
         <span class="orientation" data-help-name="Direction" data-help="Direction of the selection between the BEGIN (green) and END (red) sites. Press the spacebar to toggle.">{hasSelection ? orientationLabel : ''}</span>
         <button type="button" class="house" title="Show Sequence Window" onclick={() => void api.showParent(id)} data-help-name="Sequence Window" data-help="Brings the parent Sequence Window to the front (Alt-click on the map does the same).">⌂</button>
       </div>
-      <div class="status no-print" data-help-name="Hidden labels" data-help="Only the labels that fit without overlapping are shown (chosen sites first, then the longest Features). Hover a Feature or a site mark to read its name, click a Feature to pin its label, or use Show all to lay every label out — the drawing then grows and scrolls.">
+      <div class="status no-print" data-help-name="Hidden labels" data-help="Only the labels that fit without overlapping are shown (chosen sites first, then the longest Features). Hover a Feature or a site mark to read its name, click a Feature to pin its label, or use Show all to lay every label out — the drawing is then scaled to the window. Enlarge the window to enlarge the map.">
         {#if crowdedCount > 0 || userHiddenCount > 0}
           <span>{crowdedCount} label{crowdedCount === 1 ? '' : 's'} hidden for room{userHiddenCount ? `, ${userHiddenCount} hidden in the Labels panel` : ''}.</span>
         {:else}
           <span>All labels shown.</span>
         {/if}
-        <button type="button" class:active={labelMode === 'all'} onclick={() => (labelMode = 'all')} data-help-name="Show all" data-help="Lays out every label; the drawing grows to make room and scrolls. Print uses this layout.">Show all</button>
+        <button type="button" class:active={labelMode === 'all'} onclick={() => (labelMode = 'all')} data-help-name="Show all" data-help="Lays out every label; the whole drawing is scaled to fit the window (enlarge the window to read it). Print uses this layout.">Show all</button>
         <button type="button" class:active={labelMode === 'auto'} onclick={() => (labelMode = 'auto')} data-help-name="Auto" data-help="Shows only the labels that fit in the window without overlapping.">Auto</button>
       </div>
     </header>
@@ -871,7 +937,7 @@
 
     <div class="body">
       <div class="map" bind:this={container} oncontextmenu={(e) => { e.preventDefault(); void contextMenu(); }} onclick={(e) => { if (e.altKey) void api.showParent(id); }} role="presentation" data-help-name="Map" data-help="Click a site name box to select the BEGIN site (green), double-click or shift-click another for the END site (red); spacebar toggles CW/CCW (or Sense/Antisense); A selects the whole linear insert; Delete cancels. Hover a Feature or a site mark for its name; click a Feature to pin its label. Drag name boxes to arrange the map before printing. Right-click for the contextual menu.">
-        <svg bind:this={svgEl} width={svgW} height={svgHeight} viewBox="0 0 {svgW} {svgHeight}" font-family="-apple-system, Segoe UI, system-ui, sans-serif" font-size="11">
+        <svg bind:this={svgEl} width="100%" height="100%" viewBox="0 0 {svgW} {svgHeight}" preserveAspectRatio="xMidYMid meet" font-family="-apple-system, Segoe UI, system-ui, sans-serif" font-size="11">
           <rect x="0" y="0" width={svgW} height={svgHeight} fill="#ffffff" />
           <defs>
             {#each featureShapes as f (f.key)}
@@ -1008,16 +1074,19 @@
         <aside class="labels no-print" data-help-name="Labels panel" data-help="Every Feature and displayed site of this map. Click a checkbox to cycle: checked = always shown, unchecked = hidden, dash = automatic. This is only the display of this map window and is not saved with the sequence; use the Features tab's Show checkbox to hide a Feature from every map.">
           <div class="labels-head">
             <input type="search" placeholder="search" bind:value={panelFilter} />
-            <button type="button" onclick={() => setAll('pin')} data-help-name="Show all" data-help="Pins every label and lays them all out.">Show all</button>
+            <button type="button" onclick={() => setAll('all')} data-help-name="Show all" data-help="Lays every label out (the drawing is scaled to the window).">Show all</button>
             <button type="button" onclick={() => setAll('hide')} data-help-name="Hide all" data-help="Hides every label; the Features and site marks stay on the map.">Hide all</button>
-            <button type="button" onclick={() => setAll(undefined)} data-help-name="Auto" data-help="Back to the automatic budget: what fits is shown.">Auto</button>
+            <button type="button" onclick={() => setAll('auto')} data-help-name="Auto" data-help="Back to the automatic budget: what fits is shown, nothing pinned or hidden.">Auto</button>
+            <p class="legend" data-help-name="Legend" data-help="Blue check: pinned by you, always shown. Grey check: shown automatically because it fits. Empty: hidden for room. Struck through: hidden by you. Click to cycle: shown → pinned → hidden → automatic.">
+              <span class="sw pin"></span> pinned <span class="sw auto"></span> shown automatically <span class="sw off"></span> hidden for room <span class="sw user"></span> hidden by you
+            </p>
           </div>
           <div class="labels-list">
             <h2>Features</h2>
             {#each filterItems(panelFeatures) as it (it.key)}
-              {@const s = labelState[it.key]}
-              <label class:pinned={s === 'pin'} class:hidden-label={s === 'hide'}>
-                <input type="checkbox" checked={s === 'pin'} indeterminate={s === undefined} onclick={(e) => { e.preventDefault(); cycleLabel(it.key); }} />
+              {@const st = panelState(it.key)}
+              <label class:pinned={st === 'pinned'} class:hidden-label={st === 'hidden'} class:auto-shown={st === 'auto-shown'} title={st === 'auto-shown' ? 'shown automatically' : st === 'auto-hidden' ? 'hidden for room' : st}>
+                <input type="checkbox" checked={st === 'pinned' || st === 'auto-shown'} onclick={(e) => { e.preventDefault(); cycleLabel(it.key); }} />
                 <span class="text">{it.text}</span>
                 <span class="pos">{formatCoord(it.pos + 1)}</span>
               </label>
@@ -1026,9 +1095,9 @@
             {/each}
             <h2>Sites</h2>
             {#each filterItems(panelSites) as it (it.key)}
-              {@const s = labelState[it.key]}
-              <label class:pinned={s === 'pin'} class:hidden-label={s === 'hide'}>
-                <input type="checkbox" checked={s === 'pin'} indeterminate={s === undefined} onclick={(e) => { e.preventDefault(); cycleLabel(it.key); }} />
+              {@const st = panelState(it.key)}
+              <label class:pinned={st === 'pinned'} class:hidden-label={st === 'hidden'} class:auto-shown={st === 'auto-shown'} title={st === 'auto-shown' ? 'shown automatically' : st === 'auto-hidden' ? 'hidden for room' : st}>
+                <input type="checkbox" checked={st === 'pinned' || st === 'auto-shown'} onclick={(e) => { e.preventDefault(); cycleLabel(it.key); }} />
                 <span class="text mono">{it.text}</span>
               </label>
             {:else}
@@ -1157,14 +1226,13 @@
     flex: 1;
     min-width: 0;
     min-height: 0;
-    display: flex;
-    overflow: auto;
+    overflow: hidden;
     background: #fff;
   }
   svg {
     display: block;
-    flex: none;
-    margin: auto;
+    width: 100%;
+    height: 100%;
     -webkit-user-select: none;
     user-select: none;
   }
@@ -1216,6 +1284,41 @@
   .labels-list .pinned .text {
     font-weight: 700;
   }
+  .labels-list .pinned input {
+    accent-color: var(--accent);
+  }
+  .labels-list .auto-shown input {
+    accent-color: #9a9a9a;
+  }
+  .legend {
+    flex: 1 1 100%;
+    margin: 4px 0 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 2px 6px;
+    align-items: center;
+    color: var(--fg-muted);
+    font-size: var(--fs-small);
+  }
+  .sw {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border: 1px solid var(--border);
+    border-radius: 2px;
+  }
+  .sw.pin {
+    background: var(--accent);
+  }
+  .sw.auto {
+    background: #9a9a9a;
+  }
+  .sw.off {
+    background: transparent;
+  }
+  .sw.user {
+    background: repeating-linear-gradient(45deg, transparent, transparent 2px, var(--fg-muted) 2px, var(--fg-muted) 3px);
+  }
   .labels-list .hidden-label .text {
     color: var(--fg-muted);
     text-decoration: line-through;
@@ -1244,6 +1347,11 @@
     }
     .map {
       overflow: visible;
+      height: auto;
+    }
+    .map svg {
+      width: 100%;
+      height: auto;
     }
   }
 </style>
