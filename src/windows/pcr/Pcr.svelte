@@ -48,12 +48,30 @@
       : typeof c === 'string'
         ? c
         : c.other_strand
-          ? `anneals to the ${which === 'forward' ? 'bottom' : 'top'} strand at ${c.start}–${c.end}: this is a ${which === 'forward' ? 'reverse' : 'forward'} primer`
+          ? which === 'reverse'
+            ? `as written this matches the top strand at ${c.start}–${c.end}. A reverse primer is given 5'→3' on the bottom strand: use its reverse complement (or, if it is your forward primer, move it).`
+            : `as written this matches the bottom strand at ${c.start}–${c.end}. A forward primer is given 5'→3' on the top strand: use its reverse complement (or, if it is your reverse primer, move it).`
           : `anneals at ${c.start}–${c.end}${c.tail ? `, ${c.tail} nt tail` : ''}, Tm ${c.tm.toFixed(1)} °C`;
   const wrongBox = (c: PrimerCheck | string | null) => c !== null && typeof c !== 'string' && c.other_strand;
   /** A primer entered in the wrong box: exchange the two boxes. */
   function swap() {
     [forward, reverse] = [reverse, forward];
+    scheduleCheck();
+  }
+  const COMP: Record<string, string> = { A: 'T', T: 'A', U: 'A', C: 'G', G: 'C', R: 'Y', Y: 'R', S: 'S', W: 'W', K: 'M', M: 'K', B: 'V', V: 'B', D: 'H', H: 'D', N: 'N' };
+  /** Reverse complement, case preserved, non-letters dropped. */
+  function reverseComplement(text: string): string {
+    return [...text.replace(/[^A-Za-z]/g, '')]
+      .reverse()
+      .map((ch) => {
+        const c = COMP[ch.toUpperCase()] ?? ch.toUpperCase();
+        return ch === ch.toLowerCase() ? c.toLowerCase() : c;
+      })
+      .join('');
+  }
+  function flip(which: 'forward' | 'reverse') {
+    if (which === 'forward') forward = reverseComplement(forward);
+    else reverse = reverseComplement(reverse);
     scheduleCheck();
   }
 
@@ -85,13 +103,23 @@
     <legend>Forward primer</legend>
     <textarea rows="2" class="mono wide" bind:value={forward} oninput={scheduleCheck} spellcheck="false"></textarea>
     <span class="hint" class:error={typeof fwdCheck === 'string'} class:warn={wrongBox(fwdCheck)}>{describe(fwdCheck, 'forward')}</span>
-    {#if wrongBox(fwdCheck)}<button type="button" onclick={swap} data-help-name="Use as reverse primer" data-help="Moves this oligo to the Reverse primer box (and the reverse primer, if any, to this one).">Use as reverse primer</button>{/if}
+    {#if wrongBox(fwdCheck)}
+      <span class="fixes">
+        <button type="button" onclick={() => flip('forward')} data-help-name="Reverse-complement" data-help="Replaces this oligo by its reverse complement, i.e. the same site written 5'→3' on the top strand.">Reverse-complement</button>
+        <button type="button" onclick={swap} data-help-name="Use as reverse primer" data-help="Moves this oligo to the Reverse primer box (and the reverse primer, if any, to this one).">Use as reverse primer</button>
+      </span>
+    {/if}
   </fieldset>
   <fieldset data-help-name="Reverse primer" data-help="The reverse primer, 5'→3' (it anneals to the bottom strand). From a Sequence Window, right-click a selection ▸ Use selection as reverse primer (it is antiparalleled for you).">
     <legend>Reverse primer</legend>
     <textarea rows="2" class="mono wide" bind:value={reverse} oninput={scheduleCheck} spellcheck="false"></textarea>
     <span class="hint" class:error={typeof revCheck === 'string'} class:warn={wrongBox(revCheck)}>{describe(revCheck, 'reverse')}</span>
-    {#if wrongBox(revCheck)}<button type="button" onclick={swap} data-help-name="Use as forward primer" data-help="Moves this oligo to the Forward primer box (and the forward primer, if any, to this one).">Use as forward primer</button>{/if}
+    {#if wrongBox(revCheck)}
+      <span class="fixes">
+        <button type="button" onclick={() => flip('reverse')} data-help-name="Reverse-complement" data-help="Replaces this oligo by its reverse complement, i.e. the same site written 5'→3' on the bottom strand — what you order as a reverse primer.">Reverse-complement</button>
+        <button type="button" onclick={swap} data-help-name="Use as forward primer" data-help="Moves this oligo to the Forward primer box (and the forward primer, if any, to this one).">Use as forward primer</button>
+      </span>
+    {/if}
   </fieldset>
   <div class="row">
     <label data-help-name="3' A overhang" data-help="Adds the single 3' A that Taq polymerase leaves, for TA cloning."><input type="checkbox" bind:checked={ta} /> 3' A overhang (TA cloning)</label>
@@ -103,6 +131,11 @@
   .warn {
     color: var(--site-double);
     font-weight: 600;
+  }
+  .fixes {
+    display: flex;
+    gap: 6px;
+    margin-top: 4px;
   }
   .wide {
     width: 100%;
