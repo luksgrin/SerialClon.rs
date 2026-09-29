@@ -30,6 +30,7 @@ The example sequences shipped inside the application, used as round-trip tests f
 | `pEGFP-N1.xdna` / `.fasta` | Xdna / FASTA | feature-scan test material (EGFP, KanR, SV40 polyA…) |
 | `*.fasta` | FASTA | the same plasmids, to check import/export agreement |
 | `pBluescript-II-SK+.gb` | GenBank (Serial Cloner export) | transcribed from the Features ReadMe §VII.A "Copy as GenBank" example — the only sample of the original's own GenBank dialect (`SerialCloner_*` comments and qualifiers) |
+| `snapgene/*.dna` | SnapGene | 24 real files from the Biopython, sgffp, seqparse and dotDNA projects (sources and licences in `snapgene/README.md`): the byte-exact round-trip fixtures of the SnapGene reader/writer |
 
 Lower case in a sequence is meaningful (Serial Cloner can restrict translation to uppercase) and
 must survive a round trip. Unknown header bytes must be preserved verbatim rather than zeroed.

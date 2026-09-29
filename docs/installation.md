@@ -71,8 +71,9 @@ SerialClon….
 
 ## File associations
 
-The installers register `.xdna` (DNA Strider / Serial Cloner) so that double-clicking a file
-opens it in SerialClon. Files given on the command line are opened at startup as well.
+The installers register `.xdna` (DNA Strider / Serial Cloner) and `.dna` (SnapGene) so that
+double-clicking a file opens it in SerialClon, and FASTA and GenBank files as viewable. Files
+given on the command line are opened at startup as well.
 
 ## Updates
 

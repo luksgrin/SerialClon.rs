@@ -326,11 +326,11 @@ pub(crate) fn run_menu_action(app: &AppHandle, id: &str) {
                         }
                     });
                 }
-                "file.export_fasta" | "file.export_genbank" => {
-                    let format = if id == "file.export_fasta" {
-                        io::ExportFormat::Fasta
-                    } else {
-                        io::ExportFormat::GenBank
+                "file.export_fasta" | "file.export_genbank" | "file.export_snapgene" => {
+                    let format = match id {
+                        "file.export_fasta" => io::ExportFormat::Fasta,
+                        "file.export_genbank" => io::ExportFormat::GenBank,
+                        _ => io::ExportFormat::SnapGene,
                     };
                     std::thread::spawn(move || {
                         let _ = io::export(&handle, doc_id, format);

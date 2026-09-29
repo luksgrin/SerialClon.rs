@@ -264,6 +264,8 @@ pub enum Source {
     Fasta,
     /// GenBank / EMBL / DDBJ.
     GenBank,
+    /// SnapGene `.dna`.
+    SnapGene,
     /// Raw text.
     RawText,
 }
@@ -277,6 +279,7 @@ impl Source {
             Self::SerialCloner => "Serial Cloner",
             Self::Fasta => "FASTA",
             Self::GenBank => "GenBank",
+            Self::SnapGene => "SnapGene",
             Self::RawText => "Text",
         }
     }
@@ -310,6 +313,16 @@ pub struct Sequence {
     /// geometry, selection). They are preserved byte for byte so that a file
     /// opened and saved again is unchanged apart from what the user edited.
     pub strider_header: Option<Vec<u8>>,
+    /// Every packet of the SnapGene `.dna` file the sequence was read from,
+    /// in file order: `(packet type, payload)`.
+    ///
+    /// SnapGene stores primers, notes, cloning history, sequencing traces and
+    /// enzyme caches we do not model. Keeping the packets lets
+    /// `sc_format::snapgene::write` give back the original file byte for
+    /// byte when nothing was edited, and keep everything else when the
+    /// sequence, features or comment were.
+    #[serde(default)]
+    pub snapgene_extras: Option<Vec<(u8, Vec<u8>)>>,
 }
 
 impl Sequence {

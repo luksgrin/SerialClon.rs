@@ -52,9 +52,9 @@
       "../resources/RELibrary": "RELibrary"
     },
     "category": "public.app-category.medical",
-    "shortDescription": "DNA cloning workbench — an independent reimplementation of Serial Cloner",
+    "shortDescription": "DNA cloning workbench \u2014 an independent reimplementation of Serial Cloner",
     "longDescription": "SerialClon.rs is an open-source, maintained reimplementation of the Serial Cloner molecular biology workbench: the same windows, interactions, keystrokes and file formats (.xdna, FASTA, GenBank, ApE, Vector NTI, MacVector) on a Rust + Tauri stack. Not affiliated with SerialBasics.",
-    "copyright": "SerialClon.rs contributors. Not affiliated with Serial Cloner / SerialBasics. Enzyme data © REBASE, R. J. Roberts, NEB.",
+    "copyright": "SerialClon.rs contributors. Not affiliated with Serial Cloner / SerialBasics. Enzyme data \u00a9 REBASE, R. J. Roberts, NEB.",
     "macOS": {
       "minimumSystemVersion": "10.15"
     },
@@ -77,6 +77,15 @@
         "description": "DNA Strider / Serial Cloner sequence",
         "role": "Editor",
         "mimeType": "application/x-serialclon-xdna"
+      },
+      {
+        "ext": [
+          "dna"
+        ],
+        "name": "SnapGene sequence",
+        "description": "SnapGene DNA file",
+        "role": "Editor",
+        "mimeType": "application/x-snapgene"
       },
       {
         "ext": [

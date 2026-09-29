@@ -133,6 +133,7 @@ pub fn ligate(
         ends: first.ends.clone(),
         source: Source::New,
         strider_header: None,
+        snapgene_extras: None,
     };
     inherit_into(&mut product.features, first, 0, first.len(), 0);
     let mut parts = vec![format!("{} [{} bp]", first.name, first.len())];

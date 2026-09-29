@@ -49,8 +49,8 @@ Your existing files keep working. This is a hard requirement, not a nice-to-have
 | | |
 |---|---|
 | **Native, read + write** | `.xdna` (extended DNA Strider) — byte layout reverse-engineered and documented in [`PLAN.md` §1.4](PLAN.md), including the Serial Cloner annotation block (features, colours, cohesive overhangs) |
-| **Import** | FASTA (incl. degenerate and multi-FASTA), GenBank / EMBL with features, ApE, Vector NTI `.ma4`, MacVector `.nucl`, DNAStar EditSeq `.seq`, pDRAW32 `.pdw`, raw text |
-| **Export** | `.xdna`, FASTA, GenBank with features and colours, PNG maps, printable text maps |
+| **Import** | FASTA (incl. degenerate and multi-FASTA), GenBank / EMBL with features, **SnapGene `.dna`** with features and primers (saved back byte for byte, history and traces kept), raw text; ApE, Vector NTI `.ma4`, MacVector `.nucl`, DNAStar EditSeq `.seq`, pDRAW32 `.pdw` still to come |
+| **Export** | `.xdna`, FASTA, GenBank with features and colours, SnapGene `.dna`, PNG maps, printable text maps |
 | **Enzymes** | REBASE `striderc` — the exact format Serial Cloner's `RELibrary` used, refreshable with `scripts/update-rebase.sh` |
 
 ## Stack

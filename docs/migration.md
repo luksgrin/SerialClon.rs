@@ -7,7 +7,9 @@ is identical, what is different and why, and what was learned about the original
 
 - **Your files.** `.xdna` files open and save byte for byte, including DNA Strider's own fields,
   the comments, the features with their colours, and the cohesive ends. GenBank exports with the
-  `SerialCloner_*` qualifiers round-trip. See [File formats](file-formats.md).
+  `SerialCloner_*` qualifiers round-trip. SnapGene `.dna` files open with their features and
+  primers and save back with their history intact — the original could not read them at all.
+  See [File formats](file-formats.md).
 - **The windows.** Toolbar, Help window, Sequence Window (tabs, spinners, lock, Info panel, Find),
   Graphic Map, Sequence Map, Site Usage, Enzyme Library, Build a Construct, Create an Adaptor,
   Run a PCR, Make shRNA, Gateway, Extract Fragment, Align two Sequences, Virtual Cutter, Silent

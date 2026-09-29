@@ -465,6 +465,7 @@ fn finish(rec: Record) -> Result<Sequence> {
         ends: rec.sc_ends.as_deref().map(parse_ends).unwrap_or_default(),
         source: Source::GenBank,
         strider_header: None,
+        snapgene_extras: None,
     })
 }
 

@@ -6,6 +6,12 @@ All notable changes to SerialClon.rs. The project reimplements Serial Cloner 2.6
 
 ## Unreleased
 
+- **SnapGene `.dna` files open and save.** Sequence with case and topology, features with
+  colours and strands, primers as `primer_bind` features, the description as the comment. A
+  file opened from SnapGene saves back to `.dna` byte for byte when unedited, and keeps its
+  primers, history and traces when edited; File ▸ Export ▸ SnapGene writes any sequence as a
+  `.dna` file. `.dna` is a file association and an Open filter. Verified on 24 public fixtures
+  and cross-checked with Biopython's parser.
 - Events sent to one window no longer reach every window. Tauri delivers a targeted event to
   every listener registered without a target, so Edit ▸ Paste in the PCR window (or the Find
   drawer, or any tool window) was *also* pasted into the sequence of every open Sequence Window.

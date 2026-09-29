@@ -25,11 +25,12 @@ const OPEN_FILTERS: &[(&str, &[&str])] = &[
     (
         "All sequence files",
         &[
-            "xdna", "fasta", "fsta", "fa", "fas", "fna", "gb", "gbk", "genbank", "embl", "txt",
-            "text", "asc", "ascii",
+            "xdna", "dna", "fasta", "fsta", "fa", "fas", "fna", "gb", "gbk", "genbank", "embl",
+            "txt", "text", "asc", "ascii",
         ],
     ),
     ("Serial Cloner / DNA Strider", &["xdna"]),
+    ("SnapGene", &["dna"]),
     ("FASTA", &["fasta", "fsta", "fa", "fas", "fna"]),
     ("GenBank / EMBL", &["gb", "gbk", "genbank", "embl"]),
     ("Text", &["txt", "text", "asc", "ascii"]),
@@ -124,15 +125,22 @@ pub fn save(app: &AppHandle, id: DocId, save_as: bool) -> Result<bool, String> {
         let doc = store.get(id).ok_or("no such document")?;
         (doc.path.clone(), doc.seq.name.clone())
     };
+    let is_snapgene =
+        |p: &std::path::Path| p.extension().is_some_and(|e| e.eq_ignore_ascii_case("dna"));
     let path = match (&current, save_as) {
         (Some(p), false) => p.clone(),
         _ => {
+            // A sequence that came from SnapGene is offered back as SnapGene
+            // (everything the file held is kept); anything else as .xdna.
+            let from_snapgene = current.as_deref().is_some_and(is_snapgene);
+            let ext = if from_snapgene { "dna" } else { "xdna" };
             let mut dialog = app
                 .dialog()
                 .file()
                 .set_title("Save sequence")
                 .add_filter("Serial Cloner", &["xdna"])
-                .set_file_name(format!("{name}.xdna"));
+                .add_filter("SnapGene", &["dna"])
+                .set_file_name(format!("{name}.{ext}"));
             if let Some(dir) = current.as_ref().and_then(|p| p.parent()) {
                 dialog = dialog.set_directory(dir);
             }
@@ -150,10 +158,14 @@ pub fn save(app: &AppHandle, id: DocId, save_as: bool) -> Result<bool, String> {
         if save_as || current.is_none() {
             doc.seq.name = sc_format::name_from_path(&path);
         }
-        if doc.seq.source == Source::Strider {
-            doc.seq.source = Source::SerialCloner;
+        if is_snapgene(&path) {
+            sc_format::snapgene::write(&doc.seq)
+        } else {
+            if doc.seq.source == Source::Strider {
+                doc.seq.source = Source::SerialCloner;
+            }
+            sc_format::xdna::write(&doc.seq)
         }
-        sc_format::xdna::write(&doc.seq)
     };
     std::fs::write(&path, bytes).map_err(|e| format!("{}: {e}", path.display()))?;
     {
@@ -161,10 +173,13 @@ pub fn save(app: &AppHandle, id: DocId, save_as: bool) -> Result<bool, String> {
         if let Some(doc) = store.get_mut(id) {
             doc.path = Some(path.clone());
             doc.dirty = false;
-            if doc.seq.source == Source::New
+            if is_snapgene(&path) {
+                doc.seq.source = Source::SnapGene;
+            } else if doc.seq.source == Source::New
                 || doc.seq.source == Source::Fasta
                 || doc.seq.source == Source::GenBank
                 || doc.seq.source == Source::RawText
+                || doc.seq.source == Source::SnapGene
             {
                 doc.seq.source = Source::SerialCloner;
             }
@@ -189,6 +204,8 @@ pub enum ExportFormat {
     Fasta,
     /// File ▸ Export ▸ GenBank (with features).
     GenBank,
+    /// File ▸ Export ▸ SnapGene (.dna).
+    SnapGene,
 }
 
 /// File ▸ Export. Returns `Ok(false)` if cancelled.
@@ -198,14 +215,16 @@ pub fn export(app: &AppHandle, id: DocId, format: ExportFormat) -> Result<bool, 
         let store = state.store.lock().unwrap();
         let doc = store.get(id).ok_or("no such document")?;
         let text = match format {
-            ExportFormat::Fasta => sc_format::fasta::write(&doc.seq),
-            ExportFormat::GenBank => sc_format::genbank::write(&doc.seq, &today()),
+            ExportFormat::Fasta => sc_format::fasta::write(&doc.seq).into_bytes(),
+            ExportFormat::GenBank => sc_format::genbank::write(&doc.seq, &today()).into_bytes(),
+            ExportFormat::SnapGene => sc_format::snapgene::write(&doc.seq),
         };
         (doc.seq.name.clone(), text)
     };
     let (filter, ext) = match format {
         ExportFormat::Fasta => ("FASTA", "fasta"),
         ExportFormat::GenBank => ("GenBank", "gb"),
+        ExportFormat::SnapGene => ("SnapGene", "dna"),
     };
     let Some(path) = app
         .dialog()

@@ -5,14 +5,15 @@
 //! the file name the way Serial Cloner's Open command does; [`read`] is the
 //! one-stop entry point.
 //!
-//! Formats in this milestone (M1): the native [`xdna`] (DNA Strider and Serial
-//! Cloner), [`fasta`] and [`genbank`] (also EMBL-style continuation lines),
-//! plus raw text. ApE, Vector NTI `.ma4`, MacVector `.nucl`, DNAStar `.seq`
-//! and pDRAW32 `.pdw` follow in later milestones.
+//! Formats: the native [`xdna`] (DNA Strider and Serial Cloner), [`fasta`],
+//! [`genbank`] (also EMBL-style continuation lines), SnapGene [`snapgene`]
+//! `.dna` (read and write), plus raw text. ApE, Vector NTI `.ma4`, MacVector
+//! `.nucl`, DNAStar `.seq` and pDRAW32 `.pdw` are still to come.
 
 pub mod fasta;
 pub mod genbank;
 pub mod raw;
+pub mod snapgene;
 pub mod xdna;
 
 use std::path::Path;
@@ -45,6 +46,8 @@ pub enum Format {
     Fasta,
     /// GenBank / EMBL / DDBJ flat file.
     GenBank,
+    /// SnapGene `.dna`.
+    SnapGene,
     /// Anything else: bases are extracted from the text.
     RawText,
 }
@@ -57,6 +60,7 @@ impl Format {
             Self::Xdna => &["xdna"],
             Self::Fasta => &["fasta", "fsta", "fa", "fas", "fna"],
             Self::GenBank => &["gb", "gbk", "genbank", "embl"],
+            Self::SnapGene => &["dna"],
             Self::RawText => &["txt", "text", "asc", "ascii"],
         }
     }
@@ -64,6 +68,9 @@ impl Format {
 
 /// Guesses the format from the content first and the extension second.
 pub fn detect(bytes: &[u8], path: Option<&Path>) -> Format {
+    if snapgene::looks_like(bytes) {
+        return Format::SnapGene;
+    }
     if xdna::looks_like(bytes) {
         return Format::Xdna;
     }
@@ -81,7 +88,12 @@ pub fn detect(bytes: &[u8], path: Option<&Path>) -> Format {
     }
     if let Some(ext) = path.and_then(|p| p.extension()).and_then(|e| e.to_str()) {
         let ext = ext.to_ascii_lowercase();
-        for f in [Format::Xdna, Format::Fasta, Format::GenBank] {
+        for f in [
+            Format::Xdna,
+            Format::Fasta,
+            Format::GenBank,
+            Format::SnapGene,
+        ] {
             if f.extensions().contains(&ext.as_str()) {
                 return f;
             }
@@ -106,6 +118,7 @@ pub fn read(bytes: &[u8], path: Option<&Path>) -> Result<Vec<Sequence>> {
         Format::Xdna => vec![xdna::read(bytes, &name)?],
         Format::Fasta => fasta::read(bytes),
         Format::GenBank => genbank::read(bytes)?,
+        Format::SnapGene => vec![snapgene::read(bytes, &name)?],
         Format::RawText => vec![raw::read(bytes, &name)],
     };
     if seqs.is_empty() {

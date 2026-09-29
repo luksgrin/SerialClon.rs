@@ -353,6 +353,7 @@ fn pcr_oriented(
         ends: Ends::default(),
         source: Source::New,
         strider_header: None,
+        snapgene_extras: None,
     };
     if ta {
         // A 3' A on each strand: on the top strand's coordinates that is a
