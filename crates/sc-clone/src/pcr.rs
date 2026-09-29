@@ -130,6 +130,27 @@ pub fn anneal(
     Err(PcrError::NoAnnealing(which))
 }
 
+/// Where a primer anneals on whichever strand it matches. Returns the
+/// annealing and `true` when it is the strand the box did *not* expect
+/// (a forward primer on the bottom strand, or a reverse one on the top):
+/// the region of interest runs on the file's reverse strand, which is fine
+/// as long as the other primer does the same.
+pub fn anneal_either(
+    matrix: &[u8],
+    circular: bool,
+    primer: &[u8],
+    reverse: bool,
+    which: &'static str,
+) -> Result<(Annealing, bool), PcrError> {
+    match anneal(matrix, circular, primer, reverse, which) {
+        Ok(a) => Ok((a, false)),
+        Err(PcrError::WrongStrand { .. }) => {
+            anneal_strand(matrix, circular, primer, !reverse).map(|a| (a, true))
+        }
+        Err(e) => Err(e),
+    }
+}
+
 /// [`anneal`] on one strand only, without the other-strand diagnosis.
 fn anneal_strand(
     matrix: &[u8],
@@ -196,7 +217,7 @@ pub fn pcr(
                 }
             }
             product.comment.push_str(
-                "\rThe primer pair is inverted relative to the matrix's top strand; the product is given from the forward primer.",
+                "\rThe amplified region runs on the reverse strand of the matrix; the product is given 5'->3' from the forward primer.",
             );
             Ok(product)
         }
@@ -428,7 +449,7 @@ mod tests {
                 .to_ascii_uppercase()
                 .starts_with(top_r.as_bytes())
         );
-        assert!(inverted.comment.contains("inverted"));
+        assert!(inverted.comment.contains("reverse strand of the matrix"));
         let fwd_core = inverted
             .features
             .iter()

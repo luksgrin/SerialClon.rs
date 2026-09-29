@@ -43,20 +43,23 @@
   }
   const isOther = (c: PrimerCheck | string | null) => c !== null && typeof c !== 'string' && c.other_strand;
   const isOk = (c: PrimerCheck | string | null) => c !== null && typeof c !== 'string' && !c.other_strand;
-  /** The pair is inverted relative to the file's top strand: forward on the bottom, reverse on the top. Valid. */
-  const inverted = $derived(isOther(fwdCheck) && isOther(revCheck));
+  /** Both primers on the strands opposite to the file's: the amplicon runs on the reverse strand. Valid. */
+  const reverseRegion = $derived(isOther(fwdCheck) && isOther(revCheck));
+  /** Both primers on the same strand: they point the same way, no product. */
+  const sameStrand = $derived((isOther(fwdCheck) && isOk(revCheck)) || (isOk(fwdCheck) && isOther(revCheck)));
   const describe = (c: PrimerCheck | string | null, which: 'forward' | 'reverse') => {
     if (c === null) return '';
     if (typeof c === 'string') return c;
-    const strand = which === 'forward' ? 'bottom' : 'top';
-    const partner = which === 'forward' ? 'reverse' : 'forward';
-    if (!c.other_strand) return `anneals at ${c.start}–${c.end}${c.tail ? `, ${c.tail} nt tail` : ''}, Tm ${c.tm.toFixed(1)} °C`;
-    if (inverted) return `anneals to the ${strand} strand at ${c.start}–${c.end}. The pair is inverted relative to this file's top strand — fine: the product is given from the forward primer.`;
-    if (isOk(which === 'forward' ? revCheck : fwdCheck))
-      return `as written this matches the ${strand} strand at ${c.start}–${c.end}, the same strand as the ${partner} primer: no product. Use its reverse complement, or move it if it is your ${partner} primer.`;
-    return `as written this matches the ${strand} strand at ${c.start}–${c.end}. Fine if the ${partner} primer is on the ${which === 'forward' ? 'top' : 'bottom'} strand (an inverted pair); otherwise use its reverse complement.`;
+    const strand = (which === 'forward') !== c.other_strand ? 'top' : 'bottom';
+    const site = `anneals at ${c.start}–${c.end} on the ${strand} strand${c.tail ? `, ${c.tail} nt tail` : ''}, Tm ${c.tm.toFixed(1)} °C`;
+    if (!c.other_strand) return site;
+    if (sameStrand) {
+      const partner = which === 'forward' ? 'reverse' : 'forward';
+      return `${site} — the same strand as the ${partner} primer, so the two point the same way and give no product. If this is the top-strand sequence of the site, use its reverse complement; if it is really your ${partner} primer, move it.`;
+    }
+    return site;
   };
-  const wrongBox = (c: PrimerCheck | string | null) => isOther(c) && !inverted;
+  const wrongBox = (c: PrimerCheck | string | null) => isOther(c) && sameStrand;
   /** A primer entered in the wrong box: exchange the two boxes. */
   function swap() {
     [forward, reverse] = [reverse, forward];
@@ -125,6 +128,11 @@
       </span>
     {/if}
   </fieldset>
+  {#if reverseRegion}
+    <p class="note" data-help-name="Reverse strand" data-help="Both primers anneal to the strands opposite to the ones this file's orientation would suggest: the region you amplify is stored reverse-complemented in this file. The PCR is the same; the product is given 5'→3' from the forward primer.">
+      The region you amplify runs on the reverse strand of this file (the forward primer matches the bottom strand, the reverse primer the top strand). That is fine: the product is given 5'→3' from the forward primer.
+    </p>
+  {/if}
   <div class="row">
     <label data-help-name="3' A overhang" data-help="Adds the single 3' A that Taq polymerase leaves, for TA cloning."><input type="checkbox" bind:checked={ta} /> 3' A overhang (TA cloning)</label>
     <button type="button" class="primary" onclick={run} disabled={matrix === null || !forward.trim() || !reverse.trim()} data-help-name="Run PCR" data-help="Amplifies: the product opens in a new Sequence Window with the primers' Anchor and Core as Features, the matrix Features inside, and the provenance in the comments.">Run PCR</button>
@@ -135,6 +143,10 @@
   .warn {
     color: var(--site-double);
     font-weight: 600;
+  }
+  .note {
+    margin: 0;
+    color: var(--fg-muted);
   }
   .fixes {
     display: flex;
