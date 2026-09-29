@@ -6,10 +6,9 @@
    * into a new construct.
    */
   import { onMount } from 'svelte';
-  import { listen } from '@tauri-apps/api/event';
-  import { message } from '@tauri-apps/plugin-dialog';
+    import { message } from '@tauri-apps/plugin-dialog';
   import ToolWindow from '$lib/components/ToolWindow.svelte';
-  import { api, type ConstructSelection, type FragmentPreview, type MapSite, type SiteRefView } from '$lib/doc';
+  import { api, type ConstructSelection, type FragmentPreview, type MapSite, type SiteRefView, listenHere } from '$lib/doc';
 
   interface Slot {
     doc: number | null;
@@ -119,7 +118,7 @@
     void refreshDocs();
     const timer = setInterval(() => void refreshDocs(), 3000);
     let unlisten: (() => void) | undefined;
-    void listen<ConstructSelection>('construct:selection', async (e) => {
+    void listenHere<ConstructSelection>('construct:selection', async (e) => {
       const sel = e.payload;
       const slot = slots[active] ?? slots[0]!;
       await chooseDoc(active, sel.doc);

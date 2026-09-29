@@ -5,8 +5,8 @@
  * focused window as a `menu` event and this applies it to the focused text
  * field — the behaviour of the original's standard Edit menu.
  */
-import { listen, type UnlistenFn } from '@tauri-apps/api/event';
-import { api } from '$lib/doc';
+import type { UnlistenFn } from '@tauri-apps/api/event';
+import { api, listenHere } from '$lib/doc';
 
 type TextField = HTMLInputElement | HTMLTextAreaElement;
 
@@ -68,7 +68,7 @@ export async function applyEditCommand(cmd: string): Promise<boolean> {
 /** Installs the handler for this window. Returns a disposer. */
 export function installEditMenu(): () => void {
   let unlisten: UnlistenFn | undefined;
-  listen<string>('menu', (e) => void applyEditCommand(e.payload))
+  listenHere<string>('menu', (e) => void applyEditCommand(e.payload))
     .then((u) => (unlisten = u))
     .catch(() => {}); // plain browser, no Tauri
   return () => unlisten?.();
