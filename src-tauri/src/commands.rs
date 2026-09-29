@@ -59,9 +59,10 @@ pub fn broadcast(app: &AppHandle, id: DocId) {
         store.get(id).map(|d| d.view(id))
     };
     if let Some(view) = view {
-        for label in [windows::seq_label(id), windows::find_label(id)] {
-            let _ = app.emit_to(label.as_str(), "doc:changed", &view);
-        }
+        // Every window showing this document (maps, drawers, Site Usage, the
+        // cloning windows' pickers) must hear about it; listeners filter by
+        // the id in the payload, so this is a true broadcast.
+        let _ = app.emit("doc:changed", &view);
         if let Some(w) = app.get_webview_window(&windows::seq_label(id)) {
             let title = if view.dirty {
                 format!("{} •", view.name)
