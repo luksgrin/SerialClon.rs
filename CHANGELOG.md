@@ -6,6 +6,10 @@ All notable changes to SerialClon.rs. The project reimplements Serial Cloner 2.6
 
 ## Unreleased
 
+- Toolbar: the window sizes itself to the strip, so button hover boxes are no longer cut at the
+  window edges. Textareas everywhere can be resized in height only and never wider than their
+  window; tool windows scroll when their content grows.
+
 - **SnapGene `.dna` files open and save.** Sequence with case and topology, features with
   colours and strands, primers as `primer_bind` features, the description as the comment. A
   file opened from SnapGene saves back to `.dna` byte for byte when unedited, and keeps its

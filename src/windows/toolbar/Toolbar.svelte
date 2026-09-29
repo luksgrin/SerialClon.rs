@@ -6,6 +6,7 @@
    * others are wired up in the milestone that builds their window.
    */
   import { onMount } from 'svelte';
+  import { getCurrentWindow, LogicalSize } from '@tauri-apps/api/window';
   import { appInfo, toggleHelpWindow, type AppInfo } from '$lib/tauri';
   import { api } from '$lib/doc';
   import { formatShortcut, shortcutById } from '$lib/shortcuts';
@@ -48,6 +49,34 @@
   ];
 
   let info = $state<AppInfo | null>(null);
+  let strip = $state<HTMLDivElement | undefined>();
+
+  /**
+   * Sizes the window to the strip: the configured height is a guess that the
+   * platform's title bar or a larger font can invalidate, which left the
+   * buttons' hover boxes cut at the window edges.
+   */
+  async function fitWindow() {
+    if (!strip) return;
+    try {
+      const win = getCurrentWindow();
+      const scale = await win.scaleFactor();
+      const inner = await win.innerSize();
+      const needed = Math.ceil(strip.scrollHeight);
+      const current = Math.round(inner.height / scale);
+      if (Math.abs(needed - current) > 1) await win.setSize(new LogicalSize(inner.width / scale, needed));
+    } catch {
+      /* plain browser */
+    }
+  }
+
+  onMount(() => {
+    void fitWindow();
+    const ro = new ResizeObserver(() => void fitWindow());
+    if (strip) ro.observe(strip);
+    return () => ro.disconnect();
+  });
+
   onMount(async () => {
     try {
       info = await appInfo();
@@ -68,7 +97,7 @@
   );
 </script>
 
-<div class="toolbar" role="toolbar" aria-label="SerialClon toolbar">
+<div class="toolbar" role="toolbar" aria-label="SerialClon toolbar" bind:this={strip}>
   {#each groups as group, i (i)}
     {#if i > 0}<div class="sep" aria-hidden="true"></div>{/if}
     {#each group as tool (tool.id)}
@@ -96,10 +125,11 @@
     display: flex;
     align-items: center;
     gap: 2px;
-    height: 100vh;
-    padding: 0 8px;
+    min-height: 100vh;
+    padding: 6px 8px;
     box-sizing: border-box;
     background: var(--bg);
+    overflow: hidden;
   }
   .sep {
     width: 1px;
@@ -142,6 +172,7 @@
   }
   .label {
     font-size: var(--fs-small);
+    line-height: 1.2;
     white-space: nowrap;
   }
   .spacer {

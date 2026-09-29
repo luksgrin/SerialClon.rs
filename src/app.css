@@ -51,6 +51,17 @@ button {
   color: inherit;
 }
 
+/* A textarea may grow in height but never wider than its container: the
+   resize handle used to let it be dragged past the window's edge. */
+textarea {
+  resize: vertical;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+fieldset {
+  min-width: 0;
+}
+
 /* ---------------------------------------------------------------------------
    Aqua Classic: the look of Serial Cloner 2.6 on Mac OS X (reference/ui).
    Only tokens and generic controls change; layout is untouched.
