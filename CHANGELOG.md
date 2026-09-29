@@ -4,6 +4,16 @@ All notable changes to SerialClon.rs. The project reimplements Serial Cloner 2.6
 (F. Perez, SerialBasics, 2013) window for window; each entry names the milestone of
 [`PLAN.md`](PLAN.md) it completed.
 
+## Unreleased
+
+- Edit ▸ Undo / Redo / Select All / Cut / Copy / Paste now act on the window that has focus, as
+  the original's Edit menu did. Before, in every window other than the Sequence Window (the PCR
+  primers, the Find drawer, the Build a Construct slots…) ⌘V pasted the clipboard into the
+  sequence field of the last Sequence Window instead of the field you were typing in.
+- Run a PCR: a primer that anneals to the other strand is no longer just "does not anneal"; the
+  window says where it anneals, that it is a reverse (or forward) primer, and offers to move it to
+  the other box.
+
 ## 1.0.0 — 2026-09-09
 
 The first release. Every window of the original except the mini web browser (replaced by

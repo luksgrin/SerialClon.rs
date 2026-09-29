@@ -19,6 +19,23 @@ pub enum PcrError {
     /// A primer anneals at more than one place.
     #[error("the {0} primer anneals at {1} places")]
     Ambiguous(&'static str, usize),
+    /// The primer anneals, but to the other strand: it was entered in the
+    /// wrong box. Positions are 1-based on the top strand.
+    #[error(
+        "the {which} primer anneals to the {strand} strand at {start}–{end}: it is a {other} primer"
+    )]
+    WrongStrand {
+        /// `forward` or `reverse`.
+        which: &'static str,
+        /// The strand it does anneal to.
+        strand: &'static str,
+        /// 1-based start on the top strand.
+        start: usize,
+        /// 1-based end on the top strand.
+        end: usize,
+        /// The box it belongs in.
+        other: &'static str,
+    },
     /// The reverse primer anneals before the forward one on a linear matrix.
     #[error("the primers face away from each other: no product on a linear matrix")]
     Reversed,
@@ -97,10 +114,56 @@ pub fn anneal(
         }
     }
     if ambiguous > 1 {
-        Err(PcrError::Ambiguous(which, ambiguous))
-    } else {
-        Err(PcrError::NoAnnealing(which))
+        return Err(PcrError::Ambiguous(which, ambiguous));
     }
+    // Not on this strand: is it on the other one? Then the user put it in
+    // the wrong box, which is worth saying.
+    if let Ok(a) = anneal_strand(matrix, circular, primer, !reverse) {
+        return Err(PcrError::WrongStrand {
+            which,
+            strand: if reverse { "top" } else { "bottom" },
+            start: a.start + 1,
+            end: a.end,
+            other: if reverse { "forward" } else { "reverse" },
+        });
+    }
+    Err(PcrError::NoAnnealing(which))
+}
+
+/// [`anneal`] on one strand only, without the other-strand diagnosis.
+fn anneal_strand(
+    matrix: &[u8],
+    circular: bool,
+    primer: &[u8],
+    reverse: bool,
+) -> Result<Annealing, PcrError> {
+    let n = matrix.len();
+    let mut hay = matrix.to_vec();
+    if circular {
+        hay.extend_from_slice(matrix);
+    }
+    for k in (MIN_CORE.min(primer.len())..=primer.len()).rev() {
+        let core = &primer[primer.len() - k..];
+        let probe = if reverse {
+            reverse_complement(core)
+        } else {
+            core.to_vec()
+        };
+        let hits = occurrences(&hay, &probe, n, circular);
+        match hits.len() {
+            0 => continue,
+            1 => {
+                return Ok(Annealing {
+                    start: hits[0],
+                    end: hits[0] + k,
+                    tail: primer[..primer.len() - k].to_vec(),
+                    core: core.to_vec(),
+                });
+            }
+            m => return Err(PcrError::Ambiguous("", m)),
+        }
+    }
+    Err(PcrError::NoAnnealing(""))
 }
 
 /// Runs the reaction. `ta` adds the 3' A overhangs of a Taq product.
@@ -291,6 +354,44 @@ mod tests {
             pcr(&rep, "GGATCCACTAGTA", "GGGGGGGGGGGG", false),
             Err(PcrError::Ambiguous("forward", 2))
         ));
+    }
+
+    #[test]
+    fn a_primer_in_the_wrong_box_is_diagnosed_not_just_refused() {
+        let m = MATRIX.as_bytes();
+        let top: Vec<u8> = m[6..28].to_ascii_uppercase();
+        let bottom = reverse_complement(&top);
+        assert!(anneal(m, false, &top, false, "forward").is_ok());
+        assert!(anneal(m, false, &bottom, true, "reverse").is_ok());
+        let e = anneal(m, false, &bottom, false, "forward").unwrap_err();
+        assert_eq!(
+            e,
+            PcrError::WrongStrand {
+                which: "forward",
+                strand: "bottom",
+                start: 7,
+                end: 28,
+                other: "reverse"
+            }
+        );
+        assert_eq!(
+            e.to_string(),
+            "the forward primer anneals to the bottom strand at 7–28: it is a reverse primer"
+        );
+        let e = anneal(m, false, &top, true, "reverse").unwrap_err();
+        assert!(matches!(
+            e,
+            PcrError::WrongStrand {
+                strand: "top",
+                other: "forward",
+                ..
+            }
+        ));
+        // Nowhere at all is still "does not anneal".
+        assert_eq!(
+            anneal(m, false, b"TTTTTTTTTTTTTTTTTTTT", false, "forward").unwrap_err(),
+            PcrError::NoAnnealing("forward")
+        );
     }
 
     #[test]
