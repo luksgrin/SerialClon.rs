@@ -6,10 +6,9 @@
    * the forward or reverse primer.
    */
   import { onMount } from 'svelte';
-  import { listen } from '@tauri-apps/api/event';
-  import { message } from '@tauri-apps/plugin-dialog';
+    import { message } from '@tauri-apps/plugin-dialog';
   import ToolWindow from '$lib/components/ToolWindow.svelte';
-  import { api, type PrimerCheck } from '$lib/doc';
+  import { api, type PrimerCheck, listenHere } from '$lib/doc';
 
   let docs = $state<[number, string][]>([]);
   let matrix = $state<number | null>(null);
@@ -42,17 +41,25 @@
       await message(String(e), { title: 'Run a PCR', kind: 'error' });
     }
   }
-  const describe = (c: PrimerCheck | string | null, which: 'forward' | 'reverse') =>
-    c === null
-      ? ''
-      : typeof c === 'string'
-        ? c
-        : c.other_strand
-          ? which === 'reverse'
-            ? `as written this matches the top strand at ${c.start}–${c.end}. A reverse primer is given 5'→3' on the bottom strand: use its reverse complement (or, if it is your forward primer, move it).`
-            : `as written this matches the bottom strand at ${c.start}–${c.end}. A forward primer is given 5'→3' on the top strand: use its reverse complement (or, if it is your reverse primer, move it).`
-          : `anneals at ${c.start}–${c.end}${c.tail ? `, ${c.tail} nt tail` : ''}, Tm ${c.tm.toFixed(1)} °C`;
-  const wrongBox = (c: PrimerCheck | string | null) => c !== null && typeof c !== 'string' && c.other_strand;
+  const isOther = (c: PrimerCheck | string | null) => c !== null && typeof c !== 'string' && c.other_strand;
+  const isOk = (c: PrimerCheck | string | null) => c !== null && typeof c !== 'string' && !c.other_strand;
+  /** Both primers on the strands opposite to the file's: the amplicon runs on the reverse strand. Valid. */
+  const reverseRegion = $derived(isOther(fwdCheck) && isOther(revCheck));
+  /** Both primers on the same strand: they point the same way, no product. */
+  const sameStrand = $derived((isOther(fwdCheck) && isOk(revCheck)) || (isOk(fwdCheck) && isOther(revCheck)));
+  const describe = (c: PrimerCheck | string | null, which: 'forward' | 'reverse') => {
+    if (c === null) return '';
+    if (typeof c === 'string') return c;
+    const strand = (which === 'forward') !== c.other_strand ? 'top' : 'bottom';
+    const site = `anneals at ${c.start}–${c.end} on the ${strand} strand${c.tail ? `, ${c.tail} nt tail` : ''}, Tm ${c.tm.toFixed(1)} °C`;
+    if (!c.other_strand) return site;
+    if (sameStrand) {
+      const partner = which === 'forward' ? 'reverse' : 'forward';
+      return `${site} — the same strand as the ${partner} primer, so the two point the same way and give no product. If this is the top-strand sequence of the site, use its reverse complement; if it is really your ${partner} primer, move it.`;
+    }
+    return site;
+  };
+  const wrongBox = (c: PrimerCheck | string | null) => isOther(c) && sameStrand;
   /** A primer entered in the wrong box: exchange the two boxes. */
   function swap() {
     [forward, reverse] = [reverse, forward];
@@ -79,7 +86,7 @@
     void refreshDocs();
     const t = setInterval(() => void refreshDocs(), 3000);
     let unlisten: (() => void) | undefined;
-    void listen<{ which: 'forward' | 'reverse'; text: string }>('pcr:primer', (e) => {
+    void listenHere<{ which: 'forward' | 'reverse'; text: string }>('pcr:primer', (e) => {
       if (e.payload.which === 'forward') forward = e.payload.text;
       else reverse = e.payload.text;
       scheduleCheck();
@@ -121,6 +128,11 @@
       </span>
     {/if}
   </fieldset>
+  {#if reverseRegion}
+    <p class="note" data-help-name="Reverse strand" data-help="Both primers anneal to the strands opposite to the ones this file's orientation would suggest: the region you amplify is stored reverse-complemented in this file. The PCR is the same; the product is given 5'→3' from the forward primer.">
+      The region you amplify runs on the reverse strand of this file (the forward primer matches the bottom strand, the reverse primer the top strand). That is fine: the product is given 5'→3' from the forward primer.
+    </p>
+  {/if}
   <div class="row">
     <label data-help-name="3' A overhang" data-help="Adds the single 3' A that Taq polymerase leaves, for TA cloning."><input type="checkbox" bind:checked={ta} /> 3' A overhang (TA cloning)</label>
     <button type="button" class="primary" onclick={run} disabled={matrix === null || !forward.trim() || !reverse.trim()} data-help-name="Run PCR" data-help="Amplifies: the product opens in a new Sequence Window with the primers' Anchor and Core as Features, the matrix Features inside, and the provenance in the comments.">Run PCR</button>
@@ -131,6 +143,10 @@
   .warn {
     color: var(--site-double);
     font-weight: 600;
+  }
+  .note {
+    margin: 0;
+    color: var(--fg-muted);
   }
   .fixes {
     display: flex;

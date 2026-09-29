@@ -130,6 +130,27 @@ pub fn anneal(
     Err(PcrError::NoAnnealing(which))
 }
 
+/// Where a primer anneals on whichever strand it matches. Returns the
+/// annealing and `true` when it is the strand the box did *not* expect
+/// (a forward primer on the bottom strand, or a reverse one on the top):
+/// the region of interest runs on the file's reverse strand, which is fine
+/// as long as the other primer does the same.
+pub fn anneal_either(
+    matrix: &[u8],
+    circular: bool,
+    primer: &[u8],
+    reverse: bool,
+    which: &'static str,
+) -> Result<(Annealing, bool), PcrError> {
+    match anneal(matrix, circular, primer, reverse, which) {
+        Ok(a) => Ok((a, false)),
+        Err(PcrError::WrongStrand { .. }) => {
+            anneal_strand(matrix, circular, primer, !reverse).map(|a| (a, true))
+        }
+        Err(e) => Err(e),
+    }
+}
+
 /// [`anneal`] on one strand only, without the other-strand diagnosis.
 fn anneal_strand(
     matrix: &[u8],
@@ -168,6 +189,61 @@ fn anneal_strand(
 
 /// Runs the reaction. `ta` adds the 3' A overhangs of a Taq product.
 pub fn pcr(
+    matrix: &Sequence,
+    forward: &str,
+    reverse: &str,
+    ta: bool,
+) -> Result<Sequence, PcrError> {
+    let circular = matrix.topology.is_circular();
+    let fwd = clean(forward);
+    let rev = clean(reverse);
+    match (
+        anneal(&matrix.bases, circular, &fwd, false, "forward"),
+        anneal(&matrix.bases, circular, &rev, true, "reverse"),
+    ) {
+        (Ok(_), Ok(_)) => pcr_oriented(matrix, forward, reverse, ta),
+        // The pair is inverted relative to the file's top strand: the forward
+        // primer sits on the bottom strand and the reverse on the top. That is
+        // a valid pair; amplify with the roles swapped and give the product
+        // from the user's forward primer.
+        (Err(PcrError::WrongStrand { .. }), Err(PcrError::WrongStrand { .. })) => {
+            let mut product = pcr_oriented(matrix, reverse, forward, ta)?;
+            antiparallel(&mut product);
+            for f in &mut product.features {
+                if let Some(rest) = f.name.strip_prefix("Fwd primer") {
+                    f.name = format!("Rev primer{rest}");
+                } else if let Some(rest) = f.name.strip_prefix("Rev primer") {
+                    f.name = format!("Fwd primer{rest}");
+                }
+            }
+            product.comment.push_str(
+                "\rThe amplified region runs on the reverse strand of the matrix; the product is given 5'->3' from the forward primer.",
+            );
+            Ok(product)
+        }
+        (Err(e), _) | (_, Err(e)) => Err(e),
+    }
+}
+
+/// Reverse-complements a product in place: bases, ends and features.
+fn antiparallel(seq: &mut Sequence) {
+    seq.bases = reverse_complement(&seq.bases);
+    std::mem::swap(&mut seq.ends.left, &mut seq.ends.right);
+    let len = seq.len() as u32;
+    for f in &mut seq.features {
+        let (s, e) = (len + 1 - f.start, len + 1 - f.end);
+        f.start = s;
+        f.end = e;
+        f.strand = if f.strand == Strand::Forward {
+            Strand::Reverse
+        } else {
+            Strand::Forward
+        };
+    }
+}
+
+/// The reaction with the forward primer on the top strand.
+fn pcr_oriented(
     matrix: &Sequence,
     forward: &str,
     reverse: &str,
@@ -354,6 +430,37 @@ mod tests {
         assert!(matches!(
             pcr(&rep, "GGATCCACTAGTA", "GGGGGGGGGGGG", false),
             Err(PcrError::Ambiguous("forward", 2))
+        ));
+    }
+
+    #[test]
+    fn an_inverted_pair_amplifies_and_reads_from_the_forward_primer() {
+        let m = Sequence::new("m", MATRIX.as_bytes().to_vec());
+        let top_f = &MATRIX[6..24]; // GGATCCACTAGTAACGGC
+        let top_r = String::from_utf8(reverse_complement(&MATRIX.as_bytes()[80..100]))
+            .unwrap()
+            .to_ascii_uppercase();
+        let straight = pcr(&m, top_f, &top_r, false).unwrap();
+        // Same pair named the other way round: "forward" on the bottom strand.
+        let inverted = pcr(&m, &top_r, top_f, false).unwrap();
+        assert_eq!(inverted.bases, reverse_complement(&straight.bases));
+        assert!(
+            inverted
+                .bases
+                .to_ascii_uppercase()
+                .starts_with(top_r.as_bytes())
+        );
+        assert!(inverted.comment.contains("reverse strand of the matrix"));
+        let fwd_core = inverted
+            .features
+            .iter()
+            .find(|f| f.name == "Fwd primer Core")
+            .unwrap();
+        assert_eq!((fwd_core.start, fwd_core.strand), (1, Strand::Forward));
+        // Both primers on the same strand is still an error.
+        assert!(matches!(
+            pcr(&m, top_f, top_f, false),
+            Err(PcrError::WrongStrand { .. })
         ));
     }
 

@@ -9,7 +9,8 @@
  *
  * Optional `data-help-name` overrides the element's visible label.
  */
-import { emitTo, listen, type UnlistenFn } from '@tauri-apps/api/event';
+import { emitTo, type UnlistenFn } from '@tauri-apps/api/event';
+import { listenHere } from '$lib/doc';
 
 export const HELP_EVENT = 'help:hover';
 export const HELP_WINDOW = 'help';
@@ -51,5 +52,5 @@ export function installHelpBus(windowName: string, root: Document = document): (
 
 /** Subscribes the Help window itself. */
 export function onHelp(handler: (message: HelpMessage) => void): Promise<UnlistenFn> {
-  return listen<HelpMessage>(HELP_EVENT, (event) => handler(event.payload));
+  return listenHere<HelpMessage>(HELP_EVENT, (event) => handler(event.payload));
 }
