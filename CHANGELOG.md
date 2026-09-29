@@ -6,6 +6,10 @@ All notable changes to SerialClon.rs. The project reimplements Serial Cloner 2.6
 
 ## Unreleased
 
+- Maps, Site Usage, the Virtual Cutter and the Silent Map follow their document again after an
+  edit or a Linearize / Circularize (a regression of the event-scoping fix: the change
+  notification only reached the Sequence Window and its Find drawer).
+
 - Toolbar: the window sizes itself to the strip, so button hover boxes are no longer cut at the
   window edges. Textareas everywhere can be resized in height only and never wider than their
   window; tool windows scroll when their content grows.
