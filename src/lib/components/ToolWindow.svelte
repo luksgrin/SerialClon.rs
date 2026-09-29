@@ -42,6 +42,7 @@
     display: flex;
     flex-direction: column;
     gap: 8px;
+    overflow: auto;
   }
   :global(.tool fieldset) {
     border: 1px solid var(--border);
