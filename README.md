@@ -101,7 +101,8 @@ reference/               see reference/README.md
   RELibrary-striderc.211 the enzyme database Serial Cloner 2.6.1 actually shipped
 .github/workflows/
   ci.yml                 fmt, clippy (-D warnings), tests, svelte-check, Vite build × 3 OSes
-  release.yml            installers via tauri-action; draft GitHub Release on a `v*` tag
+  release.yml            manual: installers via tauri-action + a draft GitHub Release, after
+                         checking the version was bumped
 ```
 
 ## Roadmap
@@ -135,8 +136,11 @@ cargo clippy --workspace --all-targets -- -D warnings    # what CI enforces
 npm run check                                            # svelte-check
 ```
 
-Installers for every platform are built by the `Installers` workflow on each push and pull
-request, and attached to a draft GitHub Release when a `v*` tag is pushed.
+The `CI` workflow runs the checks above on every push. Releases are manual: bump the version in
+`src-tauri/tauri.conf.json`, the workspace `Cargo.toml` and `package.json` (they must agree),
+merge, then run the `Installers` workflow from the Actions tab. It refuses to run if the version
+is not newer than the latest release, builds the installers for every platform, and drafts the
+GitHub Release `v<version>`; the tag is created when the draft is published.
 
 ## Licence and attribution
 
