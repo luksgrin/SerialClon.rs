@@ -4,7 +4,12 @@ All notable changes to SerialClon.rs. The project reimplements Serial Cloner 2.6
 (F. Perez, SerialBasics, 2013) window for window; each entry names the milestone of
 [`PLAN.md`](PLAN.md) it completed.
 
-## Unreleased
+## 1.0.0 — 2026-10-12
+
+The first release. Everything below is in it; the milestone work was done between
+2026-09-07 and 2026-09-09, the fixes after the first field tests between 2026-09-29 and 2026-10-12.
+
+### Fixes after the first field tests
 
 - Graphic Map: the drawing always fits the window and scales with it, in Auto and in Show all
   (the map has its own coordinate space and the window shows all of it); no more clipped labels,
@@ -49,7 +54,7 @@ All notable changes to SerialClon.rs. The project reimplements Serial Cloner 2.6
   anneal"; the window says where it matches, reminds that a reverse primer is given 5'→3' on the
   bottom strand, and offers **Reverse-complement** and **Use as forward/reverse primer** buttons.
 
-## 1.0.0 — 2026-09-09
+### Milestones
 
 The first release. Every window of the original except the mini web browser (replaced by
 Web Access on the NCBI and ENA APIs), plus a multiple-alignment window the original lacked.
