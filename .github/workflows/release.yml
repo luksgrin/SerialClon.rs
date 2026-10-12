@@ -1,32 +1,71 @@
-# Builds installers for every platform (PLAN.md §5).
+# Builds installers for every platform and drafts the GitHub Release
+# (PLAN.md §5). Manual only: Actions ▸ Installers ▸ Run workflow.
 #
-# - On a `v*` tag: creates a draft GitHub Release and uploads the bundles plus
-#   the updater's `latest.json`.
-# - On push to main, pull requests and manual runs: builds and uploads the
-#   bundles as workflow artifacts, no release.
+# The run refuses to start unless the version in src-tauri/tauri.conf.json,
+# the workspace Cargo.toml and package.json agree and is newer than the
+# latest `v*` tag; the release is created as a draft under `v<version>` and
+# the tag appears when the draft is published. Bundles are also uploaded as
+# workflow artifacts.
 #
-# Signing is intentionally absent until M7. Without it the app still builds;
-# users just get the Gatekeeper / SmartScreen prompt the original had.
-# When ready, add these to `env:` of the build step from repository secrets:
-#   APPLE_CERTIFICATE, APPLE_CERTIFICATE_PASSWORD, APPLE_SIGNING_IDENTITY,
-#   APPLE_ID, APPLE_PASSWORD, APPLE_TEAM_ID, TAURI_SIGNING_PRIVATE_KEY,
-#   TAURI_SIGNING_PRIVATE_KEY_PASSWORD.
+# Signing is intentionally absent. Without it the app still builds; users
+# just get the Gatekeeper / SmartScreen prompt the original had (the
+# installation page explains the unblocking step).
 name: Installers
 
 on:
-  push:
-    branches: [main]
-    tags: ['v*']
-  pull_request:
   workflow_dispatch:
+    inputs:
+      prerelease:
+        description: Mark the draft release as a pre-release
+        type: boolean
+        default: false
 
 concurrency:
-  group: installers-${{ github.ref }}
-  cancel-in-progress: true
+  group: installers
+  cancel-in-progress: false
 
 jobs:
+  version:
+    name: Check the version
+    runs-on: ubuntu-22.04
+    outputs:
+      version: ${{ steps.read.outputs.version }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Read and compare the version
+        id: read
+        run: |
+          set -euo pipefail
+          conf=$(python3 -c "import json; print(json.load(open('src-tauri/tauri.conf.json'))['version'])")
+          cargo=$(python3 -c "
+          import re, pathlib
+          t = pathlib.Path('Cargo.toml').read_text()
+          m = re.search(r'^\[workspace\.package\](.*?)^\[', t, re.S | re.M)
+          print(re.search(r'^version\s*=\s*\"([^\"]+)\"', m.group(1), re.M).group(1))")
+          npm=$(python3 -c "import json; print(json.load(open('package.json'))['version'])")
+          echo "tauri.conf.json $conf / Cargo.toml $cargo / package.json $npm"
+          if [ "$conf" != "$cargo" ] || [ "$conf" != "$npm" ]; then
+            echo "::error::the three manifests disagree on the version"; exit 1
+          fi
+          if git rev-parse -q --verify "refs/tags/v$conf" >/dev/null; then
+            echo "::error::tag v$conf already exists — bump the version before releasing"; exit 1
+          fi
+          latest=$(git tag -l 'v*' | sed 's/^v//' | sort -V | tail -1)
+          if [ -n "$latest" ]; then
+            newest=$(printf '%s\n%s\n' "$latest" "$conf" | sort -V | tail -1)
+            if [ "$newest" != "$conf" ]; then
+              echo "::error::version $conf is not newer than the latest release v$latest"; exit 1
+            fi
+          fi
+          echo "version=$conf" >> "$GITHUB_OUTPUT"
+          echo "Releasing v$conf (latest so far: ${latest:-none})"
+
   build:
     name: ${{ matrix.name }}
+    needs: version
     permissions:
       contents: write
     strategy:
@@ -92,17 +131,16 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           args: ${{ matrix.args }}
-          # Empty tagName = build only, no release.
-          tagName: ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || '' }}
-          releaseName: SerialClon.rs ${{ github.ref_name }}
+          tagName: v${{ needs.version.outputs.version }}
+          releaseName: SerialClon.rs v${{ needs.version.outputs.version }}
           releaseBody: |
-            SerialClon.rs ${{ github.ref_name }} — installers for macOS (`.dmg`, Apple Silicon / Intel / Universal), Windows (`.msi`, NSIS `.exe`) and Ubuntu (`.deb`, `.AppImage`).
+            SerialClon.rs v${{ needs.version.outputs.version }} — installers for macOS (`.dmg`, Apple Silicon / Intel / Universal), Windows (`.msi`, NSIS `.exe`) and Ubuntu (`.deb`, `.AppImage`).
 
             The installers are **not code-signed**. The first launch needs one unblocking step: on macOS, right-click the app ▸ Open (or run `xattr -cr "/Applications/SerialClon.rs.app"`); on Windows, choose "More info ▸ Run anyway". Step-by-step instructions with screenshots: https://luksgrin.github.io/SerialClon.rs/installation/
 
             What changed: see CHANGELOG.md.
           releaseDraft: true
-          prerelease: ${{ contains(github.ref_name, '-') }}
+          prerelease: ${{ inputs.prerelease }}
           uploadWorkflowArtifacts: true
           # One artifact per bundle type. Both macOS arches build on the same arm64
           # runner, so `[arch]` would collide; the matrix slug is the explicit arch.
