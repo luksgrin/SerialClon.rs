@@ -1,91 +1,76 @@
 # Built-in Feature Collections
 
-The original shipped ~150 Features in five Collections (Features ReadMe v2.1, "Internal database of
-Features"), but only their **names** are in the reference material: the Collection files themselves
-(`~/Library/Application Support/SerialCloner/Features/`) are not. The JSON files in this directory
-are therefore a **reconstruction from public records**: every DNA consensus was read out of an
-annotated sample file in `reference/sequences/` or a public GenBank / SGD record (its accession and
-coordinates are in the definition's `comment`), and every peptide comes from a UniProt or published
-sequence. Nothing was typed from memory; what could not be verified is listed as missing below.
+The five collections `generic.json`, `yeast.json`, `other.json`, `tags-and-cut.json` and
+`gateway.json` are **Serial Cloner 2.6.1's own internal Feature database**, recovered from the
+application in October 2026 (see `reference/original/features/` for the verbatim dump and
+`reference/docs/original-behaviour.md` for how it was obtained). On first launch the original
+writes that database to disk as five text files (`#V1.0#` / `#Format=…` / `#CollectionName=…`
+header, one comma-separated definition per line); the Linux build was run under Xvfb in a
+container and the files it wrote were converted field for field into our JSON schema. The sixth
+file, `additions.json`, holds the definitions of ours that the original does not have; it is
+shipped **unchecked for scanning** so that a default scan gives exactly the original's result.
 
-Where two canonical sources differ (pBR322 vs pBluescript AmpR, the S288C reference vs the allele
-carried by the pRS vectors, the Streptomyces pac vs the pac of pLKO.1) the consensus is degenerate
-at those positions and the comment says so. Promoter and terminator fragments from the yeast genome
-are the *proximal* regions (400 bp upstream of the ATG, 250 bp downstream of the stop) so that any
-longer fragment a vector carries still contains them.
+Coverage is therefore **155 of 155** original definitions (79 Generic, 24 Yeast, 10 Other,
+24 Tag & Cut, 18 Gateway), replacing the 1.0.0 reconstruction from public records, which had
+131 of the ~150 names listed in the Features ReadMe v2.1 and, as it turned out, reproduced only
+22 of the original's consensus sequences exactly.
 
-The records behind the researched definitions are committed under `reference/sequences/genbank/`
-and `crates/sc-features/tests/researched.rs` checks that a scan finds each definition at the
-record's own annotated coordinates.
+An install seeded by 1.0.0 keeps its old files under `{app data}/features/` until
+*Manage Features ▸ Restore built-in collections* is used.
 
-**Still to research:** the names listed as missing below. A copy of the original's
-`SerialCloner/Features/` folder from any old installation would settle the whole list at once.
-Until then, users can import their own Collections (Manage Features ▸ Import: SerialClon JSON,
-generic table, ApE).
+## What the original's database looks like
 
-Schema: one JSON object per Collection — `name`, `scan`, `builtin`, `features[]` with `name`,
-`kind` (GenBank key), `color` (`#rrggbb`), `arrow`, `sense_only`, `peptide`, `five`, `three`,
+- Every definition is *simple*: one consensus, no 3' part, no upstream/downstream context and
+  no "additional" ends — the complex-definition fields exist in the file format but are empty
+  in all 155 records. All have Arrow and ToScan set and OnlySenseStrand unset; the Comments
+  field is empty.
+- Feature types are the GenBank keys the original uses, verbatim, including its capitalised
+  `Promoter` and `Misc`.
+- Colours are the file's `&hRRGGBB` values, written here as `#rrggbb`.
+- A consensus may contain IUPAC letters (`N`, `R`, `Y`, `M`, `S`, `W`, `K`) and the original's
+  gap wildcard **`#`**, which its scanner turns into `.*` (any run of bases, greedy). `KanR`,
+  `M13 origin`, `LEU2`, `HIS3`, `2 micron origin` and `ADH1 promoter` carry one; the scanner
+  in `sc-features` implements it. Any other character (`2 micron origin` has a stray `>`) is
+  dropped by the original's regex builder and by ours.
+- Names repeat: `TetR` (two different sequences), `IRES` (two), `TEV site` (two), `mPGK Prom`
+  (one of which is a copy of the EM7 promoter sequence), `Avitag` (identical twice). They are
+  kept as they are.
+- The peptide tags are `PEP` definitions matched against the translation; `SV40 NLS2` is a DNA
+  definition in the original although it sits in the Tag & Cut collection.
+- Several sequences differ from the published vectors (the original's `CMV promoter` carries an
+  `N` that pEGFP-N1 does not match, its `PuroR` is not pLKO.1's); they are the original's and
+  are shipped unchanged, because the aim is to annotate exactly what the original annotates.
+  `reference/original/golden/scan/` holds the original's own scan results for the shipped
+  sample files and `crates/sc-features/tests/fixtures.rs` checks that ours are identical.
+
+## The one deliberate deviation
+
+`AttB1` is defined in the original on the opposite strand to `AttB2`, `AttP1`, `AttL1` and
+`AttR1` (`AGCCWRCTTTTTTGTACAAACTTGT`, the reverse complement of the attB1 everybody writes).
+`gateway.json` ships it reverse-complemented (`ACAAGTTTGTACAAAAAAGYWGGCT`) so that an
+attB1–insert–attB2 fragment is recognised in the sense orientation by the Gateway window; the
+scan finds the same sites, on the other strand. The verbatim definition is in
+`reference/original/features/gateway.json` and in the definition's own comment.
+
+## Additions (`additions.json`, not scanned by default)
+
+Kozak, hPGK promoter, NOS terminator, trc promoter, Ig kappa ss, Enterokinase site,
+ARS consensus, GAL4 UAS, TEF promoter, TEF terminator — researched definitions from 1.0.0 whose
+provenance (accession and coordinates) is in each definition's comment and whose records are
+under `reference/sequences/genbank/`. The other 1.0.0 extras were other spellings of
+definitions the original has and were dropped (`Lac Promoter` → `lac`, `Amp Promoter` →
+`Amp prom`, `HIV-1 5LTR` → `HIV-1 5 LTR`, `HIV RRE` → `RRE`, `SV40 intron` → `SV40 int`,
+`rrnBT2` → `rrnB T2`, `E- tag` → `E-tag`, `Strp tag II` → `Strep tag II`, `TEV tag [1]/[2]` →
+`TEV site`, `Factor Xa site` → `FactorXa site`, `IRES [1]/[2]` → `IRES`, `Synthetic intron` →
+`synth int`).
+
+## Schema
+
+One JSON object per collection — `name`, `scan`, `builtin`, `features[]` with `name`, `kind`
+(GenBank key), `color` (`#rrggbb`), `arrow`, `sense_only`, `peptide`, `five`, `three`,
 `potential_five`, `potential_three`, `upstream`, `downstream`, `comment`, `scan`. See
-`crates/sc-features/src/lib.rs`.
-
-## Coverage: 131 of 150 original names present
-
-### Generic
-
-Present (59): T3, M13-fwd, M13-rev, T7, SP6, ColE1 origin, F1 ori, 2u ori, M13 origin, LacZ alpha, LacO, AmpR, LacI, Kan/neoR, KanR, CmR, TetR, ZeoR, BlastiR, PuroR, GentaR, HygroR, SV40 late polyA, CMV promoter, SV40 early promoter, FRT, LoxP, TRE, U6 promoter, bar, dhfr, aadA, pat, R6K ori, PBAD, NOS-P, TrpC, CaMV 35S, EGFP, GST, mRFP1, mCherry, hRluc1, Rluc, IRES [1], Amp Promoter, Lac Promoter, HIV-1 5LTR, HIV-1 psi, HIV RRE, Delta U3, SV40 intron, SV40 ORI, lacI, tac promoter, rrnB, rrnB T1, rrnBT2, bGH PA
-
-Covered under another name (5): Spec (= aadA), APH(3')-IIA (= Kan/neoR), aph (= KanR), oriVR6Kgamma (= R6K ori), 35S CMV (= CaMV 35S)
-
-**Missing (13):** TetA, hGH polyA signal, EM7 promoter, mPGK Prom, tsr, oriS, oriRg, AML-P, EYFP, ECFP, AcGFP, IRES [2], Synthetic intron
-
-### Yeast
-
-Present (24): KanMX, URA3, TRP1, MET15, LYS2, LEU2, HIS3, ADE2, 2 micron origin, CEN-ARS pRS, CEN-ARS YCp-lac, CEN-ARS YCp50, GAL4 terminator, CYC1 terminator, ADH1 terminator, MET15 promoter, GAL1-10 promoter, GAL1 promoter, ADH1 promoter, Gal4 activation domain, LexA DNA-binding domain, Gal4 DNA-binding domain, HIS1, PDR5
-
-**Missing (0):** —
-
-### Other
-
-Present (10): IL2 ss, human IgG1 Fc, human IgG2 Fc, human IgG3 Fc, human IgG4 Fc, mouse IgG2A Fc, mouse IgG2B Fc, mouse IgG3 Fc, rabbit IgG Fc, rat IgG2B Fc
-
-**Missing (0):** —
-
-### Tags & Cut
-
-Present (22): 6His, Cys, C-Myc tag, HA tag, VSV-G tag, HSV tag, Flag tag, T7 tag, GluGlu tag, E- tag, S-tag, PC tag, Strp tag II, SBP tag, Avitag, TEV tag [1], TEV tag [2], PreScission site, Factor Xa site, Thrombin site, SV40 NLS1, SV40 NLS2
-
-**Missing (0):** —
-
-### Gateway
-
-Present (11): attB4, attB3, AttB2, AttB1, AttP2, AttP1, AttL2, AttL1, AttR2, AttR1, ccdB
-
-**Missing (6):** attP4, attP3, attL4, attL3, attR4, attR3
-
-## Added beyond the original list
-
-- Generic: Kozak, hPGK promoter, NOS terminator, trc promoter
-- Other: Ig kappa ss
-- Tags & Cut: V5 tag, Enterokinase site
-- Yeast: ARS consensus, GAL4 UAS, TEF promoter, TEF terminator
-
-## Why the remaining names are missing
-
-- **Gateway attP3/attP4/attL3/attL4/attR3/attR4** (MultiSite): the pDONR P4-P1R / P2R-P3 vectors are not in a public sequence database.
-- **EM7 promoter, hGH polyA signal, mPGK Prom, Synthetic intron, IRES [2], AML-P, oriS, oriRg, tsr, TetA, M13 origin variants, EYFP / ECFP / AcGFP, SV40 ORI variants**: the vectors that define them (pcDNA3.1/Zeo, pSecTag, pMSCV, pCI, pBeloBAC11 as annotated, Clontech FP vectors) are either not deposited or deposited without feature annotation, so no verifiable span exists. hPGK promoter is shipped instead of the mouse PGK promoter.
-- **Yeast promoters/terminators** are shipped as proximal genome regions (see above); the exact fragments of specific vectors (pYES2, pESC, Mumberg) are not deposited.
-- **Gal4 / LexA domains** are shipped as peptides (UniProt spans), which detect any codon usage.
-
-## Provenance of the present DNA entries
-
-| Feature | Source |
-|---|---|
-| T3, M13-fwd, M13-rev, T7, ColE1 origin, F1 ori, LacZ alpha, LacO | `pBluescript-II-KS+-annotated.xdna` annotations |
-| AmpR | KS(+) and pBR322 annotations merged; degenerate (R, Y) where they differ |
-| TetR | `pBR322-annotated.xdna` annotation |
-| Kan/neoR, EGFP, CMV promoter | `pEGFP-N1.xdna` at Clontech's coordinates (2629..3423, 679..1398, 1..589) |
-| CmR, ccdB, AttP1, AttP2, AttR1, AttR2 | `pDONR201.xdna` / `pDEST14.xdna` |
-| SV40 early promoter, SV40 late polyA, Lac Promoter, Kozak | motif verified in a fixture |
-| SP6, bGH PA, FRT, LoxP, TRE, tac promoter, AttB1–4, AttL1, AttL2, ARS consensus, GAL4 UAS | textbook motifs, not in any fixture |
-| Tags & Cut, IL2 ss, Ig kappa ss | published peptide sequences |
-| Every other entry | the GenBank / RefSeq / SGD / UniProt accession and coordinates given in its `comment` |
+`crates/sc-features/src/lib.rs`. The original's fourteen fields map onto it as
+FeatureName → `name`, Seq5prime → `five`, Seq3prime → `three`, SeqUpstream → `upstream`,
+SeqDownstream → `downstream`, Additional5prime → `potential_five`, Additional3prime →
+`potential_three`, FeatureType → `kind`, Comments → `comment`, DNA_PEP → `peptide`,
+Color → `color`, Arrow → `arrow`, ToScan → `scan`, OnlySenseStrand → `sense_only`.

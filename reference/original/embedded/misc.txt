@@ -1,0 +1,8 @@
+collection names (order): Generic,Tag & Cut,Gateway,Yeast,Other
+open dialog file types: Serial Cloner DNA;Serial Cloner Prot;MacVector;VectorNTI;ApE;GenBank;DNA Text;*.*
+ORF start codon options: ATG,GTG,ATG|GTG,ATG|CTG|GTG|TTG
+monospace font candidates: Courier, Courier New, Lucida Console, Lucida Sans Typewriter, Andale Mono, Monaco, Consolas
+pK table names: EMBOSS, Wikipedia, DTASelect, Rodwell, Sillero
+genetic code names: Standard, Vertebrate Mitochondrial, Yeast Mitochondrial, Mold, Protozoan, Coelenterate Mitochondrial and Mycoplasma/Spiroplasma, Invertebrate Mitochondrial, Ciliate Macronuclear and Dasycladacean, Echinoderm Mitochondrial, Alternative Ciliate Macronuclear, Eubacterial, Alternative Yeast, Ascidian Mitochondrial, Flatworm Mitochondrial, Blepharisma Nuclear Code
+version check URLs: http://www.serialbasics.com/serialcloner/version.html ; http://serialbasics.free.fr/serialcloner/version.html
+Features file header: #V1.0# #Format=FeatureName,Seq5prime,Seq3prime,SeqUpstream,SeqDownstream,Additional5prime,Additional3prime,FeatureType,Comments,DNA_PEP,Color,Arrow,ToScan,OnlySenseStrand# #CollectionName= #UseThisCollection=

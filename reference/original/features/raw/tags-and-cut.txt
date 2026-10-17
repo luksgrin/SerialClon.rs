@@ -1,0 +1,28 @@
+#V1.0#
+#Format=FeatureName,Seq5prime,Seq3prime,SeqUpstream,SeqDownstream,Additional5prime,Additional3prime,FeatureType,Comments,DNA_PEP,Color,Arrow,ToScan,OnlySenseStrand#
+#CollectionName=Tag & Cut#
+#UseThisCollection=True#
+6His,HHHHHH,,,,,,CDS,,PEP,&h008000,True,True,False
+Cys,CCPGCC,,,,,,CDS,,PEP,&h008000,True,True,False
+c-Myc tag,EQKLISEEDL,,,,,,CDS,,PEP,&h008000,True,True,False
+HA tag,YPYDVPDYA,,,,,,CDS,,PEP,&h008000,True,True,False
+VSV-G tag,YTDIEMNRLGK,,,,,,CDS,,PEP,&h008000,True,True,False
+HSV tag,QPELAPEDPED,,,,,,CDS,,PEP,&h008000,True,True,False
+V5 tag,GKPIPNPLLGLDST,,,,,,CDS,,PEP,&h008000,True,True,False
+Flag tag,DYKDDDDK,,,,,,CDS,,PEP,&h008000,True,True,False
+T7 tag,CMASMTGGQQMG,,,,,,CDS,,PEP,&h008000,True,True,False
+GluGlu tag,EYMPME,,,,,,CDS,,PEP,&h008000,True,True,False
+E-tag,GAPVPYPDPLEPR,,,,,,CDS,,PEP,&h008000,True,True,False
+S-tag,KETAAAKFERQHMDS,,,,,,CDS,,PEP,&h008000,True,True,False
+PC tag,EDQVDPRLIDGKEFDGRP,,,,,,CDS,,PEP,&h008000,True,True,False
+Strep tag II,WSHPQFEK,,,,,,CDS,,PEP,&h008000,True,True,False
+SBP tag,DEKTTGWRGGHVVEGLAGELEQLRARLEHHPQGQREP,,,,,,CDS,,PEP,&h008000,True,True,False
+Avitag,GLNDIFEAQKIEWHE,,,,,,CDS,,PEP,&h008000,True,True,False
+TEV site,ENLYFQG,,,,,,CDS,,PEP,&h008000,True,True,False
+TEV site,ENLYFQS,,,,,,CDS,,PEP,&h008000,True,True,False
+PreScission site,LEVLFQGP,,,,,,CDS,,PEP,&h008000,True,True,False
+FactorXa site,IEGR,,,,,,CDS,,PEP,&h008000,True,True,False
+Thrombin site,LVPRGS,,,,,,CDS,,PEP,&h008000,True,True,False
+Avitag,GLNDIFEAQKIEWHE,,,,,,CDS,,PEP,&h008000,True,True,False
+SV40 NLS1,PKKKRKVG,,,,,,misc_feature,,PEP,&h008000,True,True,False
+SV40 NLS2,GCGGAATTAATTCCCGAGCCTCCAAAAAAGAAGAGAAAGGTCGAATTGGGTACCGCC,,,,,,misc_feature,,DNA,&h4682B4,True,True,False

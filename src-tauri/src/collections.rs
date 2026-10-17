@@ -1,6 +1,7 @@
 //! Feature collections on disk: `{app data}/features/*.json`. The built-in
-//! five are written there on first run so the user can edit them; "Restore
-//! built-in collections" puts them back.
+//! collections are written there on first run so the user can edit them;
+//! "Restore built-in collections" puts them back (and is how an install
+//! seeded by 1.0.0 picks up the database recovered from the original).
 
 use std::path::PathBuf;
 
@@ -52,8 +53,17 @@ pub fn load(app: &AppHandle) -> Vec<Collection> {
         .filter_map(|f| std::fs::read_to_string(f).ok())
         .filter_map(|t| Collection::from_json(&t).ok())
         .collect();
-    // Built-ins first, in their canonical order, then the user's.
-    let order = ["Generic", "Yeast", "Other", "Tags & Cut", "Gateway"];
+    // Built-ins first, in their canonical order, then the user's ("Tags &
+    // Cut" is the name the 1.0.0 reconstruction used).
+    let order = [
+        "Generic",
+        "Yeast",
+        "Other",
+        "Tag & Cut",
+        "Tags & Cut",
+        "Gateway",
+        "SerialClon additions",
+    ];
     out.sort_by_key(|c| {
         order
             .iter()

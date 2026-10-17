@@ -4,6 +4,27 @@ All notable changes to SerialClon.rs. The project reimplements Serial Cloner 2.6
 (F. Perez, SerialBasics, 2013) window for window; each entry names the milestone of
 [`PLAN.md`](PLAN.md) it completed.
 
+## Unreleased
+
+### Data recovered from the original binaries (2026-10-17)
+
+- The built-in Feature collections are now Serial Cloner 2.6.1's own database, all 155
+  definitions, recovered by running the original's Linux build and reading the files it writes
+  on first launch (`reference/original/features/`). The 1.0.0 reconstruction had 131 names and
+  only 22 sequences right; the previous extras live on in a "SerialClon additions" collection
+  that is not scanned by default. The scanner gained the original's `#` gap wildcard. An install
+  seeded by 1.0.0 picks the new database up with *Manage Features ▸ Restore built-in
+  collections*.
+- `.xdna` cohesive ends and the GenBank `SerialCloner_Ends=` comment are now written the way the
+  original writes them (ends flag 0/5/3/35, overhang lengths signed by 5'/3', bases 5'→3' on
+  their strand), checked against files the original produced (`reference/original/golden/`).
+- Gateway site detection no longer reports an ambiguity when attP1 and attP2 (which differ by
+  one base) are both present.
+- `reference/original/` also holds the archive inventory with SHA-256 digests, the fallback
+  enzyme library, DNA ladders, codon-usage tables, genetic-code names and pK tables read out
+  of the executable, and `reference/docs/original-behaviour.md` records the same/differs
+  verdicts of the behaviour comparison (Tm, protein MW, pI, scan, GenBank export).
+
 ## 1.0.0 — 2026-10-12
 
 The first release. Everything below is in it; the milestone work was done between

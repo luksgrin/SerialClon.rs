@@ -51,7 +51,8 @@ fn egfp_from_pegfp_n1_into_pbluescript_ks_plus() {
         .iter()
         .find(|f| f.name == "EGFP")
         .expect("EGFP travels with the fragment");
-    assert_eq!(egfp.len(insert.len() as u32), 720);
+    // The original's EGFP consensus is the 714-bp body without start/stop.
+    assert_eq!(egfp.len(insert.len() as u32), 714);
 
     // Open the vector at the same sites: the backbone runs from NotI round to BamHI.
     let vector_src = read("pBluescript-II-KS+-annotated.xdna");

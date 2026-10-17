@@ -157,7 +157,9 @@ impl Collection {
     }
 }
 
-/// The five collections compiled into the application.
+/// The collections compiled into the application: the original's five
+/// (recovered from Serial Cloner 2.6.1 itself, see
+/// `resources/features/README.md`) and our additions.
 pub fn builtin_collections() -> Vec<Collection> {
     [
         include_str!("../../../resources/features/generic.json"),
@@ -165,6 +167,7 @@ pub fn builtin_collections() -> Vec<Collection> {
         include_str!("../../../resources/features/other.json"),
         include_str!("../../../resources/features/tags-and-cut.json"),
         include_str!("../../../resources/features/gateway.json"),
+        include_str!("../../../resources/features/additions.json"),
     ]
     .iter()
     .filter_map(|t| Collection::from_json(t).ok())
@@ -194,20 +197,36 @@ mod tests {
     #[test]
     fn builtin_collections_load() {
         let c = builtin_collections();
-        assert_eq!(c.len(), 5);
+        assert_eq!(c.len(), 6);
         let names: Vec<&str> = c.iter().map(|c| c.name.as_str()).collect();
         assert_eq!(
             names,
-            ["Generic", "Yeast", "Other", "Tags & Cut", "Gateway"]
+            [
+                "Generic",
+                "Yeast",
+                "Other",
+                "Tag & Cut",
+                "Gateway",
+                "SerialClon additions"
+            ]
         );
+        // The original's 155 definitions (79 + 24 + 10 + 24 + 18), scanned
+        // by default; our additions are shipped but not scanned by default.
+        let counts: Vec<usize> = c.iter().map(|c| c.features.len()).collect();
+        assert_eq!(counts[..5], [79, 24, 10, 24, 18]);
+        assert!(c[..5].iter().all(|c| c.scan && c.builtin));
+        assert!(!c[5].scan && c[5].builtin);
         assert!(c[0].features.iter().any(|f| f.name == "AmpR"));
-        assert!(c[3].features.iter().all(|f| f.peptide));
-        let egfp = c[0].features.iter().find(|f| f.name == "EGFP").unwrap();
-        assert!(egfp.is_complex());
-        assert_eq!(
-            (egfp.potential_five.as_str(), egfp.potential_three.as_str()),
-            ("ATG", "TAA")
+        assert!(c[3].features.iter().filter(|f| f.peptide).count() == 23);
+        // Every original definition is simple: one consensus, no context.
+        assert!(
+            c[..5]
+                .iter()
+                .flat_map(|c| &c.features)
+                .all(|f| !f.is_complex())
         );
+        let kanr = c[0].features.iter().find(|f| f.name == "KanR").unwrap();
+        assert!(kanr.five.contains('#'), "the gap wildcard is kept verbatim");
     }
 
     #[test]
