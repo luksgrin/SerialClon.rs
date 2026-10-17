@@ -32,6 +32,7 @@ export interface Prefs {
   recent_files: number;
   warn_import: boolean;
   orf_min_codons: number;
+  orf_start_codons: string;
   pcr_ta_overhang: boolean;
   autosave_secs: number;
   check_updates: boolean;
@@ -54,32 +55,33 @@ export interface UpdateReport {
 }
 
 export const DEFAULT_PREFS: Prefs = {
-  color_unique: '#f2e14c',
-  color_double: '#f0a53a',
-  color_particular: '#7cb3e8',
-  color_begin: '#2ea043',
-  color_end: '#d1242f',
+  color_unique: '#ffffaf',
+  color_double: '#ff9c07',
+  color_particular: '#7fbfff',
+  color_begin: '#54ba7f',
+  color_end: '#ff3f00',
   color_feature: '#84a4c0',
-  seq_font_size: 13,
-  gmap_re_font_size: 11,
-  gmap_feature_font_size: 10,
-  smap_char_size: 12,
+  seq_font_size: 12,
+  gmap_re_font_size: 9,
+  gmap_feature_font_size: 9,
+  smap_char_size: 11,
   smap_print_size: 8,
   smap_per_line: 100,
   smap_show_reverse: true,
   smap_aa_middle: false,
   gmap_box_re_names: true,
   gmap_box_unique: true,
-  autolock: false,
+  autolock: true,
   recent_files: 10,
   warn_import: true,
-  orf_min_codons: 33,
-  pcr_ta_overhang: false,
+  orf_min_codons: 0,
+  orf_start_codons: 'ATG',
+  pcr_ta_overhang: true,
   autosave_secs: 30,
   check_updates: true,
   proxy: '',
   toolbar_shift: 0,
-  limit_window_width: false,
+  limit_window_width: true,
   theme: 'modern',
   read_speed: 1,
   page_landscape: false,

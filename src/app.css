@@ -12,13 +12,13 @@
   --fg-muted: #6e6e73;
   --border: #c8c8cc;
   --accent: #2f6fbf;
-  --site-unique: #f2e14c;   /* Graphic Map unique sites (yellow in the original) */
-  --site-double: #f0a53a;   /* double sites (orange) */
-  --site-particular: #7cb3e8; /* particular sites (blue) */
-  --select-begin: #2ea043;  /* BEGIN site: green */
-  --select-end: #d1242f;    /* END site: red */
+  --site-unique: #ffffaf;   /* Graphic Map unique sites (the original's RGB(255,255,175)) */
+  --site-double: #ff9c07;   /* double sites (RGB(255,156,7)) */
+  --site-particular: #7fbfff; /* particular sites (RGB(127,191,255)) */
+  --select-begin: #54ba7f;  /* BEGIN site: RGB(84,186,127) */
+  --select-end: #ff3f00;    /* END site: RGB(255,63,0) */
   --feature-default: #84a4c0;
-  --seq-font-size: 13px;
+  --seq-font-size: 12px;
   --smap-print-size: 8px;
   --radius: 5px;
 }

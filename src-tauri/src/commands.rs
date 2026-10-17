@@ -6,7 +6,7 @@
 
 use sc_seq::alphabet::{is_palindromic, matches_at, reverse_complement};
 use sc_seq::stats::{BaseCounts, DEFAULT_NA_MOLAR, melting_temperature, peptide_len, protein_mw};
-use sc_seq::translate::{STANDARD, find_orfs};
+use sc_seq::translate::{STANDARD, find_orfs, orf_start_codons};
 use sc_seq::{Source, Strand, Topology};
 use serde::Serialize;
 use tauri::{AppHandle, Emitter, Manager};
@@ -450,6 +450,65 @@ pub fn find_text(app: AppHandle, id: DocId, query: String) -> Result<Vec<Hit>, S
     Ok(search(&doc.seq.bases, doc.seq.topology, &pattern))
 }
 
+/// Find ▸ Peptide (the original's second tab): every occurrence of an
+/// amino-acid string in the three translations of each strand (`X` matches
+/// any residue), as Position / Size / Strand / Frame rows; Size is in bases.
+#[tauri::command]
+pub fn find_peptide(app: AppHandle, id: DocId, query: String) -> Result<Vec<OrfHit>, String> {
+    let state = app.state::<AppState>();
+    let store = state.store.lock().unwrap();
+    let doc = store.get(id).ok_or("no such document")?;
+    let pattern: Vec<u8> = query
+        .bytes()
+        .filter(|b| b.is_ascii_alphabetic() || *b == b'*')
+        .map(|b| b.to_ascii_uppercase())
+        .collect();
+    let n = doc.seq.bases.len();
+    let mut out = Vec::new();
+    if pattern.is_empty() || n < 3 {
+        return Ok(out);
+    }
+    let rc = reverse_complement(&doc.seq.bases);
+    for (forward, strand) in [(true, doc.seq.bases.as_slice()), (false, rc.as_slice())] {
+        for frame in 0..3usize {
+            if n < frame + 3 {
+                continue;
+            }
+            let aa = STANDARD.translate(&strand[frame..], true).into_bytes();
+            if aa.len() < pattern.len() {
+                continue;
+            }
+            for i in 0..=aa.len() - pattern.len() {
+                let hit = pattern
+                    .iter()
+                    .zip(&aa[i..i + pattern.len()])
+                    .all(|(p, a)| *p == b'X' || p == a);
+                if !hit {
+                    continue;
+                }
+                let lo = frame + 3 * i;
+                let hi = lo + 3 * pattern.len();
+                let (start, end) = if forward {
+                    (lo + 1, hi)
+                } else {
+                    (n - lo, n - hi + 1)
+                };
+                out.push(OrfHit {
+                    position: start.min(end),
+                    start,
+                    end,
+                    forward,
+                    frame: frame as u8 + 1,
+                    length: 3 * pattern.len(),
+                    complete: true,
+                });
+            }
+        }
+    }
+    out.sort_by_key(|h| h.position);
+    Ok(out)
+}
+
 /// Find ▸ Site: every site of an enzyme.
 #[tauri::command]
 pub fn find_site(app: AppHandle, id: DocId, enzyme: String) -> Result<Vec<Hit>, String> {
@@ -473,6 +532,9 @@ pub fn find_site(app: AppHandle, id: DocId, enzyme: String) -> Result<Vec<Hit>, 
 /// An ORF for the Find drawer.
 #[derive(Debug, Clone, Serialize)]
 pub struct OrfHit {
+    /// 1-based lower coordinate of the ORF on either strand — the Position
+    /// column of the original's list (nested reverse ORFs share it).
+    pub position: usize,
     /// 1-based first base of the start codon.
     pub start: usize,
     /// 1-based last base.
@@ -487,9 +549,12 @@ pub struct OrfHit {
     pub complete: bool,
 }
 
-/// Find ▸ ORFs: every ORF of at least `min_codons`, longest first.
+/// Find ▸ ORFs: every ORF of at least `min_codons` (0 = no limit, as the
+/// original's empty field) opened by one of the preferences' start codons,
+/// longest first.
 #[tauri::command]
 pub fn find_orfs_cmd(app: AppHandle, id: DocId, min_codons: usize) -> Result<Vec<OrfHit>, String> {
+    let starts = orf_start_codons(&crate::prefs::get(&app).orf_start_codons);
     let state = app.state::<AppState>();
     let store = state.store.lock().unwrap();
     let doc = store.get(id).ok_or("no such document")?;
@@ -498,9 +563,11 @@ pub fn find_orfs_cmd(app: AppHandle, id: DocId, min_codons: usize) -> Result<Vec
         doc.seq.topology,
         &STANDARD,
         min_codons.max(1),
+        &starts,
     )
     .into_iter()
     .map(|o| OrfHit {
+        position: o.start.min(o.end) as usize,
         start: o.start as usize,
         end: o.end as usize,
         forward: o.strand == Strand::Forward,

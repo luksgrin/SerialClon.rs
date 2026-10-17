@@ -14,6 +14,19 @@ pub enum Side {
     Right,
 }
 
+/// How an end is made blunt — the original's two radio buttons next to
+/// "Non-processed": *Blunt (Fill-In)* keeps the overhang bases (the extent
+/// is kept and the enzyme label gets `-Blunt(filled)`), *Blunt (Remove)*
+/// trims them off (`-Blunt(trimmed)`). The original offers both for either
+/// kind of overhang and does not second-guess the choice.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum BluntMode {
+    /// Fill in: the overhang bases stay.
+    Fill,
+    /// Remove: the overhang bases are trimmed.
+    Remove,
+}
+
 /// Makes one end blunt the way a polymerase would: a 5' overhang is filled
 /// in (the extent is kept), a 3' overhang is chewed back (its bases are
 /// removed).
@@ -22,11 +35,27 @@ pub fn blunt(seq: &mut Sequence, side: Side) {
         Side::Left => &seq.ends.left,
         Side::Right => &seq.ends.right,
     };
+    let mode = if o.length < 0 {
+        BluntMode::Remove
+    } else {
+        BluntMode::Fill
+    };
+    blunt_with(seq, side, mode);
+}
+
+/// Makes one end blunt with an explicit [`BluntMode`]; the fragment's name
+/// is not touched (the window labels the end `-Blunt(filled)` /
+/// `-Blunt(trimmed)` as the original does).
+pub fn blunt_with(seq: &mut Sequence, side: Side, mode: BluntMode) {
+    let o = match side {
+        Side::Left => &seq.ends.left,
+        Side::Right => &seq.ends.right,
+    };
     if o.is_blunt() {
         return;
     }
     let k = o.length.unsigned_abs() as usize;
-    if o.length < 0 {
+    if mode == BluntMode::Remove {
         match side {
             Side::Left => {
                 seq.bases.drain(..k.min(seq.bases.len()));
@@ -111,10 +140,24 @@ fn join(a: &Sequence, b: &Sequence) -> Result<(Vec<u8>, usize), LigationError> {
     Ok((bases, a.bases.len() - k))
 }
 
+/// True if the construct closes on itself: the last fragment's right end
+/// can ligate to the first fragment's left end. The original decides the
+/// product's topology from this alone ("If the 5' end of the ligate
+/// fragment is compatible with the 3' end, then a circular plasmid is
+/// produced. Otherwise, a linear fragment is generated").
+pub fn closes(fragments: &[Sequence]) -> bool {
+    match (fragments.first(), fragments.last()) {
+        (Some(a), Some(b)) => compatible(&b.ends.right, &a.ends.left),
+        _ => false,
+    }
+}
+
 /// Ligates fragments in order. With `circularize` the last right end is
 /// joined to the first left end and the product is circular (a plasmid);
 /// otherwise the product keeps the outer ends. Features inside every
-/// fragment are inherited; the comment records the assembly.
+/// fragment are inherited, and every fragment after the first gets an
+/// `insert from <name>` feature spanning it, as the original's
+/// `LigUpdateAnnot` adds; the comment records the assembly.
 pub fn ligate(
     fragments: &[Sequence],
     circularize: bool,
@@ -142,6 +185,20 @@ pub fn ligate(
         product.bases = bases;
         product.ends.right = b.ends.right.clone();
         inherit_into(&mut product.features, b, 0, b.len(), offset);
+        if !b.is_empty() {
+            product.features.push(sc_seq::Feature {
+                name: format!("insert from {}", b.name),
+                description: first_line(&b.comment).to_owned(),
+                kind: "misc_feature".into(),
+                start: offset as u32 + 1,
+                end: (offset + b.len()) as u32,
+                strand: sc_seq::Strand::Forward,
+                show: true,
+                protect: false,
+                arrow: false,
+                color: sc_seq::Rgb(0x84, 0xa4, 0xc0),
+            });
+        }
         parts.push(format!("{} [{} bp]", b.name, b.len()));
     }
     if circularize {
@@ -263,12 +320,64 @@ mod tests {
         let p = ligate(&[a, b], false, "p").unwrap();
         assert_eq!(p.bases, b"ccccGATCtttt");
         assert!(p.ends.is_blunt());
-        assert_eq!(p.features.len(), 2);
+        // The inherited features plus the original's "insert from" feature
+        // over the insert (from the junction's first duplicated base).
+        assert_eq!(p.features.len(), 3);
         assert_eq!((p.features[1].start, p.features[1].end), (9, 12));
+        assert_eq!(p.features[2].name, "insert from ins");
+        assert_eq!((p.features[2].start, p.features[2].end), (5, 12));
         assert!(
             p.comment
                 .starts_with("Linear ligation of 2: vec [8 bp] + ins [8 bp]")
         );
+    }
+
+    #[test]
+    fn blunt_modes_fill_or_trim_either_overhang_and_closes_detects_a_plasmid() {
+        let mut fill = frag(
+            "f",
+            "AATTCggg",
+            Overhang::five_prime(b"AATT"),
+            Overhang::BLUNT,
+        );
+        blunt_with(&mut fill, Side::Left, BluntMode::Fill);
+        assert_eq!(fill.bases, b"AATTCggg");
+        assert!(fill.ends.left.is_blunt());
+        let mut trim = frag(
+            "t",
+            "AATTCggg",
+            Overhang::five_prime(b"AATT"),
+            Overhang::BLUNT,
+        );
+        blunt_with(&mut trim, Side::Left, BluntMode::Remove);
+        assert_eq!(trim.bases, b"Cggg");
+        // A 3' overhang may be "filled" too: the original does not refuse.
+        let mut keep = frag(
+            "k",
+            "gggGTAC",
+            Overhang::BLUNT,
+            Overhang::three_prime(b"GTAC"),
+        );
+        blunt_with(&mut keep, Side::Right, BluntMode::Fill);
+        assert_eq!(keep.bases, b"gggGTAC");
+        assert!(keep.ends.right.is_blunt());
+
+        let a = frag(
+            "a",
+            "GATCcc",
+            Overhang::five_prime(b"GATC"),
+            Overhang::BLUNT,
+        );
+        let b = frag(
+            "b",
+            "ttGATC",
+            Overhang::BLUNT,
+            Overhang::five_prime(b"GATC"),
+        );
+        assert!(closes(&[a.clone(), b.clone()]));
+        assert!(!closes(&[a.clone(), a.clone()]));
+        assert!(!closes(std::slice::from_ref(&b)));
+        assert!(!closes(&[]));
     }
 
     #[test]

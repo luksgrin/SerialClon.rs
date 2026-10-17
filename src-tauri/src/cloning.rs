@@ -2,7 +2,7 @@
 //! Adaptor, Make shRNA, Gateway cloning, Site Usage, the Enzyme Library,
 //! the Virtual Cutter and the Silent Map.
 
-use sc_clone::ligate::{Side, blunt, ligate};
+use sc_clone::ligate::{BluntMode, Side, blunt_with, closes, ligate};
 use sc_clone::{SiteRef, extract_between};
 use sc_enzyme::library::parse_entry;
 use sc_seq::{Overhang, Sequence};
@@ -27,10 +27,51 @@ pub struct FragmentSpec {
     pub end: Option<SiteRefView>,
     /// CW / sense.
     pub clockwise: bool,
-    /// Blunt the left end before ligation.
-    pub blunt_left: bool,
-    /// Blunt the right end.
-    pub blunt_right: bool,
+    /// How the left end is processed before ligation.
+    pub blunt_left: BluntChoice,
+    /// How the right end is processed.
+    pub blunt_right: BluntChoice,
+}
+
+/// The original's three radio buttons per extremity.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize, Default)]
+#[serde(rename_all = "lowercase")]
+pub enum BluntChoice {
+    /// Non-processed: the end keeps its overhang.
+    #[default]
+    None,
+    /// Blunt (Fill-In).
+    Fill,
+    /// Blunt (Remove).
+    Remove,
+}
+
+/// What a ligation would produce, for the original's two confirmations.
+#[derive(Debug, Clone, Serialize)]
+pub struct LigationPlan {
+    /// The last right end ligates to the first left end: a circular plasmid.
+    /// Otherwise the product is linear ("Ligation will produce a linear
+    /// fragment and not a circular plasmid").
+    pub circular: bool,
+    /// Only one fragment ("Only one fragment/vector was selected and no
+    /// insert").
+    pub single: bool,
+}
+
+/// Checks the ends before ligating, like the original's Ligate button.
+#[tauri::command]
+pub fn ligation_plan(app: AppHandle, fragments: Vec<FragmentSpec>) -> Result<LigationPlan, String> {
+    let parts: Vec<Sequence> = fragments
+        .iter()
+        .map(|s| resolve(&app, s))
+        .collect::<Result<_, _>>()?;
+    if parts.is_empty() {
+        return Err("No ligation can proceed without a Fragment #1.".into());
+    }
+    Ok(LigationPlan {
+        circular: closes(&parts),
+        single: parts.len() == 1,
+    })
 }
 
 /// What a slot resolves to, for display before ligation.
@@ -73,11 +114,16 @@ fn resolve(app: &AppHandle, spec: &FragmentSpec) -> Result<Sequence, String> {
                 .ok_or("nothing between these sites")?
         }
     };
-    if spec.blunt_left {
-        blunt(&mut fragment, Side::Left);
+    let mode = |c: BluntChoice| match c {
+        BluntChoice::None => None,
+        BluntChoice::Fill => Some(BluntMode::Fill),
+        BluntChoice::Remove => Some(BluntMode::Remove),
+    };
+    if let Some(m) = mode(spec.blunt_left) {
+        blunt_with(&mut fragment, Side::Left, m);
     }
-    if spec.blunt_right {
-        blunt(&mut fragment, Side::Right);
+    if let Some(m) = mode(spec.blunt_right) {
+        blunt_with(&mut fragment, Side::Right, m);
     }
     Ok(fragment)
 }
@@ -124,7 +170,9 @@ pub fn ligate_construct(
     } else {
         name
     };
-    let product = ligate(&parts, circular, &name).map_err(|e| e.to_string())?;
+    let product = ligate(&parts, circular, &name).map_err(|_| {
+        "Serial Cloner cannot ligate fragments in the indicated order.\nPlease check order, orientation and end compatibility".to_owned()
+    })?;
     Ok(open_product(&app, product))
 }
 

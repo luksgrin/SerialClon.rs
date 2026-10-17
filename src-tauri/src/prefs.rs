@@ -67,8 +67,12 @@ pub struct Prefs {
     pub recent_files: usize,
     /// Warn when opening a file that is not in Serial Cloner format.
     pub warn_import: bool,
-    /// Minimum ORF size for Find ▸ ORFs, in codons.
+    /// Minimum ORF size for Find ▸ ORFs, in codons (amino acids); 0 = no
+    /// limit, the original's default.
     pub orf_min_codons: usize,
+    /// Start codons that open an ORF, `|`-separated: one of the original's
+    /// four choices (`ATG`, `GTG`, `ATG|GTG`, `ATG|CTG|GTG|TTG`).
+    pub orf_start_codons: String,
     /// Run a PCR: 3' A overhang by default.
     pub pcr_ta_overhang: bool,
     /// Autosave interval in seconds.
@@ -98,32 +102,33 @@ pub struct Prefs {
 impl Default for Prefs {
     fn default() -> Self {
         Prefs {
-            color_unique: "#f2e14c".into(),
-            color_double: "#f0a53a".into(),
-            color_particular: "#7cb3e8".into(),
-            color_begin: "#2ea043".into(),
-            color_end: "#d1242f".into(),
+            color_unique: "#ffffaf".into(),
+            color_double: "#ff9c07".into(),
+            color_particular: "#7fbfff".into(),
+            color_begin: "#54ba7f".into(),
+            color_end: "#ff3f00".into(),
             color_feature: "#84a4c0".into(),
-            seq_font_size: 13,
-            gmap_re_font_size: 11,
-            gmap_feature_font_size: 10,
-            smap_char_size: 12,
+            seq_font_size: 12,
+            gmap_re_font_size: 9,
+            gmap_feature_font_size: 9,
+            smap_char_size: 11,
             smap_print_size: 8,
             smap_per_line: 100,
             smap_show_reverse: true,
             smap_aa_middle: false,
             gmap_box_re_names: true,
             gmap_box_unique: true,
-            autolock: false,
+            autolock: true,
             recent_files: 10,
             warn_import: true,
-            orf_min_codons: 33,
-            pcr_ta_overhang: false,
+            orf_min_codons: 0,
+            orf_start_codons: "ATG".into(),
+            pcr_ta_overhang: true,
             autosave_secs: 30,
             check_updates: true,
             proxy: String::new(),
             toolbar_shift: 0,
-            limit_window_width: false,
+            limit_window_width: true,
             theme: "modern".into(),
             read_speed: 1.0,
             page_landscape: false,
@@ -143,7 +148,10 @@ impl Prefs {
         self.smap_char_size = self.smap_char_size.clamp(6, 24);
         self.smap_print_size = self.smap_print_size.clamp(4, 16);
         self.smap_per_line = self.smap_per_line.clamp(10, 500);
-        self.orf_min_codons = self.orf_min_codons.clamp(1, 10_000);
+        self.orf_min_codons = self.orf_min_codons.clamp(0, 10_000);
+        if !sc_seq::translate::ORF_START_OPTIONS.contains(&self.orf_start_codons.as_str()) {
+            self.orf_start_codons = "ATG".into();
+        }
         self.autosave_secs = self.autosave_secs.clamp(5, 3600);
         self.toolbar_shift = self.toolbar_shift.clamp(-200, 400);
         self.read_speed = self.read_speed.clamp(0.5, 2.0);
@@ -389,7 +397,15 @@ mod tests {
         assert_eq!(p.recent_files, 25);
         assert_eq!(p.theme, "modern");
         assert_eq!(p.seq_font_size, 8);
-        assert_eq!(p.color_unique, "#f2e14c");
+        // The original's unique-site colour, RGB(255,255,175).
+        assert_eq!(p.color_unique, "#ffffaf");
         assert!(p.warn_import);
+        // ORF preferences: no size limit by default; an unknown start-codon
+        // choice falls back to ATG.
+        assert_eq!(p.orf_min_codons, 0);
+        let q: Prefs = serde_json::from_str(r#"{"orf_start_codons": "TTG"}"#).unwrap();
+        assert_eq!(q.sanitised().orf_start_codons, "ATG");
+        let q: Prefs = serde_json::from_str(r#"{"orf_start_codons": "ATG|GTG"}"#).unwrap();
+        assert_eq!(q.sanitised().orf_start_codons, "ATG|GTG");
     }
 }

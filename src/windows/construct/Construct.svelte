@@ -6,9 +6,9 @@
    * into a new construct.
    */
   import { onMount } from 'svelte';
-    import { message } from '@tauri-apps/plugin-dialog';
+  import { ask, message } from '@tauri-apps/plugin-dialog';
   import ToolWindow from '$lib/components/ToolWindow.svelte';
-  import { api, type ConstructSelection, type FragmentPreview, type MapSite, type SiteRefView, listenHere } from '$lib/doc';
+  import { api, type BluntChoice, type ConstructSelection, type FragmentPreview, type MapSite, type SiteRefView, listenHere } from '$lib/doc';
 
   interface Slot {
     doc: number | null;
@@ -19,8 +19,8 @@
     begin: string;
     end: string;
     clockwise: boolean;
-    bluntLeft: boolean;
-    bluntRight: boolean;
+    bluntLeft: BluntChoice;
+    bluntRight: BluntChoice;
     preview: FragmentPreview | null;
     error: string;
   }
@@ -28,12 +28,11 @@
   let docs = $state<[number, string][]>([]);
   let slots = $state<Slot[]>([blank(), blank()]);
   let active = $state(0);
-  let circular = $state(true);
   let name = $state('Construct');
   let busy = $state(false);
 
   function blank(): Slot {
-    return { doc: null, name: '', sites: [], circular: false, whole: false, begin: '', end: '', clockwise: true, bluntLeft: false, bluntRight: false, preview: null, error: '' };
+    return { doc: null, name: '', sites: [], circular: false, whole: false, begin: '', end: '', clockwise: true, bluntLeft: 'none', bluntRight: 'none', preview: null, error: '' };
   }
   const keyOf = (s: MapSite) => `${s.name}@${s.position}${s.forward === false ? 'r' : ''}`;
   function ref(slot: Slot, key: string): SiteRefView | null {
@@ -106,7 +105,13 @@
     }
     busy = true;
     try {
-      await api.ligateConstruct(specs as NonNullable<(typeof specs)[number]>[], circular, name);
+      // The original decides the topology from the outer ends and asks
+      // before producing a linear fragment or ligating a lone vector.
+      const fragments = specs as NonNullable<(typeof specs)[number]>[];
+      const plan = await api.ligationPlan(fragments);
+      if (plan.single && !(await ask('Only one fragment/vector was selected and no insert.\nDo you want to proceed anyway ?', { title: 'Ligate' }))) return;
+      if (!plan.circular && !(await ask('Ligation will produce a linear fragment and not a circular plasmid.\nDo you want to proceed anyway ?', { title: 'Ligate' }))) return;
+      await api.ligateConstruct(fragments, plan.circular, name);
     } catch (e) {
       await message(String(e), { title: 'Ligation impossible', kind: 'error' });
     } finally {
@@ -170,8 +175,18 @@
             <label><input type="checkbox" bind:checked={slot.whole} onchange={preview} /> whole linear sequence</label>
             <button type="button" onclick={() => selectFullInsert(i)} data-help-name="Select full insert" data-help="Uses the whole linear sequence with its own ends (changelog 2.6).">Full insert</button>
           {/if}
-          <label data-help-name="Blunt left" data-help="Blunts the left end before ligation: a 5' overhang is filled in, a 3' overhang is chewed back."><input type="checkbox" bind:checked={slot.bluntLeft} onchange={preview} /> blunt left</label>
-          <label data-help-name="Blunt right" data-help="Blunts the right end before ligation."><input type="checkbox" bind:checked={slot.bluntRight} onchange={preview} /> blunt right</label>
+          <span class="ends" data-help-name="5' Extremity" data-help="How the left end is processed before ligation: left as it is, made blunt by filling in the overhang (its bases stay), or made blunt by removing the overhang (its bases are trimmed).">
+            5' end
+            <label><input type="radio" bind:group={slot.bluntLeft} value="none" onchange={preview} /> Non-processed</label>
+            <label><input type="radio" bind:group={slot.bluntLeft} value="fill" onchange={preview} /> Blunt (Fill-In)</label>
+            <label><input type="radio" bind:group={slot.bluntLeft} value="remove" onchange={preview} /> Blunt (Remove)</label>
+          </span>
+          <span class="ends" data-help-name="3' Extremity" data-help="How the right end is processed before ligation: left as it is, filled in, or trimmed.">
+            3' end
+            <label><input type="radio" bind:group={slot.bluntRight} value="none" onchange={preview} /> Non-processed</label>
+            <label><input type="radio" bind:group={slot.bluntRight} value="fill" onchange={preview} /> Blunt (Fill-In)</label>
+            <label><input type="radio" bind:group={slot.bluntRight} value="remove" onchange={preview} /> Blunt (Remove)</label>
+          </span>
         {/if}
         {#if slot.preview}
           <span class="preview mono">{slot.preview.name}: {slot.preview.length} bp, left {slot.preview.left}, right {slot.preview.right}, {slot.preview.features} features</span>
@@ -183,9 +198,8 @@
   <div class="row">
     <button type="button" onclick={() => (slots = [...slots, blank()])}>+ slot</button>
     <button type="button" onclick={() => { if (slots.length > 1) slots = slots.slice(0, -1); }}>− slot</button>
-    <label><input type="checkbox" bind:checked={circular} /> circular construct (last end ligates to the first)</label>
     <label>Name <input type="text" bind:value={name} /></label>
-    <button type="button" class="primary" onclick={ligate} disabled={busy} data-help-name="Ligate" data-help="Ligates the fragments in order. Ends must be compatible (both blunt, or complementary overhangs of the same kind); the product opens in a new Sequence Window with its provenance in the comments and the inherited Features.">Ligate</button>
+    <button type="button" class="primary" onclick={ligate} disabled={busy} data-help-name="Ligate" data-help="Proceed to ligation between the fragments in order. If the 5' end of the first fragment is compatible with the 3' end of the last, a circular plasmid is produced; otherwise a linear fragment is generated (after asking). Ends must be compatible (both blunt, or complementary overhangs of the same kind). The product opens in a new Sequence Window with its provenance in the comments, the inherited Features and an 'insert from' feature per insert; it is not saved on disk.">Ligate</button>
   </div>
 </ToolWindow>
 

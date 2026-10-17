@@ -109,6 +109,8 @@ export interface Hit {
 }
 
 export interface OrfHit {
+  /** Lower coordinate on either strand (the original's Position column). */
+  position: number;
   start: number;
   end: number;
   forward: boolean;
@@ -345,6 +347,7 @@ export const api = {
     invoke<SelectionInfo>('selection_info', { id, from, to, firstOrf }),
   findText: (id: number, query: string) => invoke<Hit[]>('find_text', { id, query }),
   findSite: (id: number, enzyme: string) => invoke<Hit[]>('find_site', { id, enzyme }),
+  findPeptide: (id: number, query: string) => invoke<OrfHit[]>('find_peptide', { id, query }),
   findOrfs: (id: number, minCodons: number) => invoke<OrfHit[]>('find_orfs_cmd', { id, minCodons }),
   enzymeList: (id: number) => invoke<EnzymeEntry[]>('enzyme_list', { id }),
   recentFiles: () => invoke<string[]>('recent_files'),
@@ -412,6 +415,7 @@ export const api = {
   previewFragments: (fragments: FragmentSpec[]) => invoke<FragmentPreview[]>('preview_fragments', { fragments }),
   ligateConstruct: (fragments: FragmentSpec[], circular: boolean, name: string) =>
     invoke<DocumentView>('ligate_construct', { fragments, circular, name }),
+  ligationPlan: (fragments: FragmentSpec[]) => invoke<LigationPlan>('ligation_plan', { fragments }),
   runPcr: (id: number, forward: string, reverse: string, ta: boolean) => invoke<DocumentView>('run_pcr', { id, forward, reverse, ta }),
   checkPrimer: (id: number, primer: string, reverse: boolean) => invoke<PrimerCheck>('check_primer', { id, primer, reverse }),
   pcrWindowOpen: () => invoke<boolean>('pcr_window_open'),
@@ -443,8 +447,16 @@ export interface FragmentSpec {
   begin: SiteRefView | null;
   end: SiteRefView | null;
   clockwise: boolean;
-  blunt_left: boolean;
-  blunt_right: boolean;
+  /** Non-processed / Blunt (Fill-In) / Blunt (Remove), as the original's radios. */
+  blunt_left: BluntChoice;
+  blunt_right: BluntChoice;
+}
+
+export type BluntChoice = 'none' | 'fill' | 'remove';
+
+export interface LigationPlan {
+  circular: boolean;
+  single: boolean;
 }
 
 export interface FragmentPreview {
