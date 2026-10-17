@@ -7,7 +7,7 @@
   import { getCurrentWindow } from '@tauri-apps/api/window';
   import { confirm, message } from '@tauri-apps/plugin-dialog';
   import { api } from '$lib/doc';
-  import { checkForUpdates, prefs, prefsReady, resetPrefs, savePrefs, type Prefs } from '$lib/prefs';
+  import { checkForUpdates, onUpdateProgress, prefsReady, resetPrefs, savePrefs, type Prefs, type UpdateProgress } from '$lib/prefs';
 
   const section = new URLSearchParams(window.location.search).get('section');
 
@@ -41,9 +41,20 @@
     if (!(await confirm('Reset every preference to its default value?', { title: 'Reset Preferences', kind: 'warning' }))) return;
     draft = await resetPrefs();
   }
+  let checking = $state(false);
+  let update = $state<UpdateProgress | null>(null);
   async function updates() {
-    const r = await checkForUpdates();
-    void r; // the shell shows the outcome in a dialog
+    if (checking) return;
+    checking = true;
+    try {
+      // The shell shows the outcome in dialogs; progress arrives as events.
+      const r = await checkForUpdates();
+      if (r.error && !update) update = { text: `Update check failed: ${r.error}`, fraction: null, done: true };
+    } catch (e) {
+      update = { text: `Update check failed: ${String(e)}`, fraction: null, done: true };
+    } finally {
+      checking = false;
+    }
   }
   async function loadProtein() {
     try {
@@ -61,6 +72,11 @@
   }
 
   onMount(async () => {
+    try {
+      await onUpdateProgress((p) => (update = p));
+    } catch {
+      /* browser */
+    }
     draft = { ...(await prefsReady) };
     await loadProtein();
     if (section === 'printing') queueMicrotask(() => printing?.scrollIntoView({ block: 'start' }));
@@ -75,7 +91,13 @@
       <label>Recent files to remember <input type="number" min="1" max="25" bind:value={draft.recent_files} onchange={queueSave} /> (max 25)</label>
       <label><input type="checkbox" bind:checked={draft.warn_import} onchange={queueSave} /> Warn when opening a file that is not in Serial Cloner format</label>
       <label>Autosave every <input type="number" min="5" max="3600" bind:value={draft.autosave_secs} onchange={queueSave} /> seconds</label>
-      <label><input type="checkbox" bind:checked={draft.check_updates} onchange={queueSave} /> Check for a new version at start (once a day) <button type="button" onclick={updates}>Check now</button></label>
+      <label data-help-name="Check for a new version" data-help="Once a day at start, look for a newer release on GitHub. A release of the same major version is offered for download and install, then SerialClon.rs relaunches; a new major version only gets a notice with a link to its release page."><input type="checkbox" bind:checked={draft.check_updates} onchange={queueSave} /> Check for a new version at start (once a day) <button type="button" onclick={updates} disabled={checking} data-help-name="Check now" data-help="Look for a newer release right away. A release of the same major version can be downloaded and installed from here (offline or a bad signature is reported, nothing is changed); download progress shows below.">{checking ? 'Checking…' : 'Check now'}</button></label>
+      {#if update}
+        <div class="update-status" data-help-name="Update progress" data-help="Progress of the download and install of a new version. SerialClon.rs relaunches when it is installed; unsaved documents are offered for saving first.">
+          {#if update.fraction !== null && !update.done}<progress max="1" value={update.fraction}></progress>{/if}
+          <span>{update.text}</span>
+        </div>
+      {/if}
       <label>Theme
         <select bind:value={draft.theme} onchange={queueSave}>
           <option value="modern">Modern</option>
@@ -211,6 +233,16 @@
   }
   select {
     font: inherit;
+  }
+  .update-status {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--fg-muted);
+    font-size: var(--fs-small);
+  }
+  .update-status progress {
+    width: 160px;
   }
   .colors {
     display: grid;

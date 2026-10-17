@@ -7,9 +7,16 @@
 # the tag appears when the draft is published. Bundles are also uploaded as
 # workflow artifacts.
 #
-# Signing is intentionally absent. Without it the app still builds; users
-# just get the Gatekeeper / SmartScreen prompt the original had (the
-# installation page explains the unblocking step).
+# Code signing (Apple / Windows) is intentionally absent. Without it the app
+# still builds; users just get the Gatekeeper / SmartScreen prompt the
+# original had (the installation page explains the unblocking step).
+#
+# Updater signing is present: the bundles for the in-app updater (`.app.tar.gz`,
+# NSIS / MSI, AppImage) are signed with the minisign key held in the
+# TAURI_SIGNING_PRIVATE_KEY / TAURI_SIGNING_PRIVATE_KEY_PASSWORD secrets
+# (docs/development.md ▸ Releases), and tauri-action assembles `latest.json`
+# across the matrix on the draft release. The app reads it from
+# releases/latest/download/latest.json.
 name: Installers
 
 on:
@@ -129,6 +136,8 @@ jobs:
         uses: tauri-apps/tauri-action@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
           args: ${{ matrix.args }}
           tagName: v${{ needs.version.outputs.version }}
@@ -141,6 +150,7 @@ jobs:
             What changed: see CHANGELOG.md.
           releaseDraft: true
           prerelease: ${{ inputs.prerelease }}
+          includeUpdaterJson: true
           uploadWorkflowArtifacts: true
           # One artifact per bundle type. Both macOS arches build on the same arm64
           # runner, so `[arch]` would collide; the matrix slug is the explicit arch.

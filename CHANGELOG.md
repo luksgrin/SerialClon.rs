@@ -5,6 +5,18 @@ All notable changes to SerialClon.rs. The project reimplements Serial Cloner 2.6
 
 ## Unreleased
 
+### In-app updates (2026-10-17)
+
+- In-app updates (Tauri updater plugin). The daily check and Preferences ▸ Check now read the
+  latest release's `latest.json`; a newer release of the same major version is offered with its
+  release notes ("Download and install?"), downloaded with progress in the Preferences window,
+  verified against the project's signing key, installed, and the app relaunches (unsaved
+  documents are offered for saving first). A new major version, a Linux `.deb` install, or a
+  release without `latest.json` keeps the notice with a link to the release page. Offline or a
+  bad signature is reported plainly. The Installers workflow signs the update bundles and
+  attaches `latest.json` to the draft release. 1.0.0 installs get the notice once; the first
+  self-updating version is the one after it.
+
 ### Behaviour aligned with the original, third pass (2026-10-17)
 
 - Extract Fragment and Build a Construct write the original's comments: `Fragment extracted

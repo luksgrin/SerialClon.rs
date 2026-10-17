@@ -19,6 +19,7 @@ mod msa;
 mod prefs;
 mod protein;
 mod recent;
+mod update;
 mod windows;
 
 use std::sync::Mutex;
@@ -114,36 +115,45 @@ fn current_doc(app: &AppHandle) -> Option<DocId> {
 fn request_quit(app: &AppHandle) {
     let app = app.clone();
     std::thread::spawn(move || {
-        let dirty = app.state::<AppState>().store.lock().unwrap().dirty_ids();
-        for id in dirty {
-            windows::open_sequence(&app, id);
-            match io::confirm_close(&app, id) {
-                io::CloseDecision::Save => match io::save(&app, id, false) {
-                    Ok(true) => {}
-                    _ => return,
-                },
-                io::CloseDecision::Discard => {
-                    if let Some(d) = app.state::<AppState>().store.lock().unwrap().get_mut(id) {
-                        d.dirty = false;
-                    }
-                }
-                io::CloseDecision::Cancel => return,
-            }
+        if settle_documents(&app) {
+            app.exit(0);
         }
-        let ids: Vec<DocId> = app
-            .state::<AppState>()
-            .store
-            .lock()
-            .unwrap()
-            .list()
-            .into_iter()
-            .map(|(id, _)| id)
-            .collect();
-        for id in ids {
-            autosave::discard(&app, id);
-        }
-        app.exit(0);
     });
+}
+
+/// Offers to save every dirty document, then drops the autosave copies.
+/// `false` if the user cancelled (or a save failed): nothing may quit.
+/// Blocks on dialogs, so never call it on the main thread.
+pub(crate) fn settle_documents(app: &AppHandle) -> bool {
+    let dirty = app.state::<AppState>().store.lock().unwrap().dirty_ids();
+    for id in dirty {
+        windows::open_sequence(app, id);
+        match io::confirm_close(app, id) {
+            io::CloseDecision::Save => match io::save(app, id, false) {
+                Ok(true) => {}
+                _ => return false,
+            },
+            io::CloseDecision::Discard => {
+                if let Some(d) = app.state::<AppState>().store.lock().unwrap().get_mut(id) {
+                    d.dirty = false;
+                }
+            }
+            io::CloseDecision::Cancel => return false,
+        }
+    }
+    let ids: Vec<DocId> = app
+        .state::<AppState>()
+        .store
+        .lock()
+        .unwrap()
+        .list()
+        .into_iter()
+        .map(|(id, _)| id)
+        .collect();
+    for id in ids {
+        autosave::discard(app, id);
+    }
+    true
 }
 
 /// Runs a menu-bar or Toolbar action by id.
@@ -378,6 +388,8 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_clipboard_manager::init())
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
+        .plugin(tauri_plugin_process::init())
         .manage(AppState {
             store: Mutex::new(DocumentStore::default()),
             last_doc: Mutex::new(None),
@@ -530,7 +542,7 @@ pub fn run() {
             prefs::get_prefs,
             prefs::set_prefs,
             prefs::reset_prefs,
-            prefs::check_for_updates_now,
+            update::check_for_updates_now,
             commands::print_window,
             commands::app_info,
             commands::toggle_help_window,

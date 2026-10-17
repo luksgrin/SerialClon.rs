@@ -75,12 +75,51 @@ with `cargo test -- --ignored` when you want to.
 ## Releases
 
 Every change is a branch and a pull request against `main`, verified with the commands above
-plus a build of the bundle and a launch smoke test. Releases are manual: bump the version in
-`src-tauri/tauri.conf.json`, the workspace `Cargo.toml` and `package.json` (they must agree),
-merge, then run the **Installers** workflow from the Actions tab. It refuses a version that is
-not newer than the latest release, builds the installers for every platform and drafts the
-GitHub Release `v<version>`. The architecture and the product decisions are on the
-[Design](design.md) page.
+plus a build of the bundle and a launch smoke test. The architecture and the product decisions
+are on the [Design](design.md) page.
+
+Releases are cut by hand: bump the version in `src-tauri/tauri.conf.json`, the workspace
+`Cargo.toml` and `package.json` (they must agree and be newer than the latest `v*` tag), merge,
+then run **Actions ▸ Installers ▸ Run workflow**. The workflow builds every installer, drafts the
+GitHub Release `v<version>` and attaches `latest.json`, the manifest the in-app updater reads from
+`https://github.com/luksgrin/SerialClon.rs/releases/latest/download/latest.json`. Publishing the
+draft makes it the "latest" release, and running copies of the same major version offer to
+install it.
+
+### Updater signing key
+
+The installers are not code-signed, but the update bundles are signed with a minisign key, and
+the app (whose `plugins.updater.pubkey` in `tauri.conf.json` is the public half) refuses an
+update whose signature does not match. The private key never enters the repository
+(`*.key`, `*.key.pub` and `*.key.password` are ignored):
+
+- private key: `~/.config/serialclon-updater/serialclon.key` (mode 600) on the maintainer's
+  machine, public key next to it as `serialclon.key.pub`; the key has an empty password;
+- the Installers workflow reads it from two repository secrets, `TAURI_SIGNING_PRIVATE_KEY`
+  (the content of the key file) and `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` (empty).
+
+Set them once, before the first release that should self-update:
+
+```sh
+gh secret set TAURI_SIGNING_PRIVATE_KEY --repo luksgrin/SerialClon.rs < ~/.config/serialclon-updater/serialclon.key
+gh secret set TAURI_SIGNING_PRIVATE_KEY_PASSWORD --repo luksgrin/SerialClon.rs --body ""
+```
+
+A local release build signs the same way (`TAURI_SIGNING_PRIVATE_KEY` takes the key itself or
+the path to the key file; tauri-cli does not read a `TAURI_SIGNING_PRIVATE_KEY_PATH` variable):
+
+```sh
+TAURI_SIGNING_PRIVATE_KEY=~/.config/serialclon-updater/serialclon.key \
+TAURI_SIGNING_PRIVATE_KEY_PASSWORD="" cargo tauri build --bundles app
+# -> target/release/bundle/macos/SerialClon.rs.app.tar.gz (+ .sig), next to the .app
+```
+
+Without the key, `cargo tauri build` still bundles but then fails with "A public key has been
+found, but no private key": set the variables, or build with `--no-sign` for a local test.
+
+Losing the key means installed copies can no longer verify new releases: a replacement key
+needs a release carrying the new `pubkey` that users install by hand. Keep a backup.
+
 
 ## Contributing
 
