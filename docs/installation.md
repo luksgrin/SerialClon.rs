@@ -77,9 +77,23 @@ given on the command line are opened at startup as well.
 
 ## Updates
 
-SerialClon checks for a newer release on GitHub when it starts (it only reads the releases
-page; nothing about you is sent) and tells you in the Help window. Install the new version over
-the old one; your settings and data are kept.
+SerialClon checks GitHub for a newer release once a day when it starts (it only reads the
+release manifest; nothing about you is sent). Preferences ▸ **Check now** checks right away, and
+unticking "Check for a new version at start" turns the daily check off.
+
+- **Same major version** (for example 1.0.0 → 1.2.0): SerialClon offers to download and install
+  it. The download is verified against the project's signing key, shows its progress in the
+  Preferences window, offers to save unsaved documents, installs over the running copy and
+  relaunches. Your settings and data are kept.
+- **New major version** (for example 1.x → 2.0): you get a notice with a link to the release
+  page, and install it by hand as above.
+- **Linux:** only the AppImage can update itself. A `.deb` install is owned by the package
+  manager, so it gets the notice and link; install the new `.deb` with `dpkg -i`.
+- On Windows the installer runs in passive mode (a progress bar, no questions) and restarts the
+  app.
+
+Copies of 1.0.0 predate in-app updates: they show the notice and link once, and update
+themselves from the next version on.
 
 ## Where your data lives
 

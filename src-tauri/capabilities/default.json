@@ -41,6 +41,8 @@
     "core:window:allow-destroy",
     "dialog:default",
     "core:window:allow-set-max-size",
-    "opener:allow-open-url"
+    "opener:allow-open-url",
+    "updater:default",
+    "process:allow-restart"
   ]
 }
