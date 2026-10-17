@@ -4,7 +4,7 @@
 //! original did ("the comments associated with it summarizes how the
 //! fragment was obtained"), and inherits the features that lie inside it.
 //!
-//! - [`extract`]: Extract Fragment (M3).
+//! - [`extract`]: Extract Fragment.
 //! - [`ligate`]: blunting and ligation of fragments with cohesive ends (Build
 //!   a Construct).
 //! - [`pcr`]: Run a PCR with un-annealed tails and TA overhangs.

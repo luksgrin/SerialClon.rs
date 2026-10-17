@@ -1,4 +1,4 @@
-//! The M5 command surface: Build a Construct, Run a PCR, Create an
+//! The cloning command surface: Build a Construct, Run a PCR, Create an
 //! Adaptor, Make shRNA, Gateway cloning, Site Usage, the Enzyme Library,
 //! the Virtual Cutter and the Silent Map.
 

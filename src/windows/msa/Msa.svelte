@@ -1,7 +1,7 @@
 <script lang="ts">
   import { printPage } from '$lib/prefs';
   /**
-   * Align Multiple Sequences (⌘8, M6b): pick open sequences, align them with
+   * Align Multiple Sequences (⌘8): pick open sequences, align them with
    * the pure-Rust MAFFT port, see the alignment with conservation colours,
    * each sequence's Features above its row, coordinates on click, then copy
    * it (Clustal), extract the consensus, or save it as FASTA / Clustal.

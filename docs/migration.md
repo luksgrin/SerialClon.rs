@@ -31,12 +31,12 @@ is identical, what is different and why, and what was learned about the original
 | Build a Construct with an embedded graphic map on its left | Fragment slots plus the real Graphic Map: make the two-click selection there and *Use Selection in Build a Construct* | One map component instead of two; the map keeps all its features (drag, chooser, PNG). |
 | A mini web browser scraping NCBI and EMBL pages | Web Access on the NCBI E-utilities, the ENA API and the BLAST URL API | The 2013-era pages no longer exist. Network stays off unless you press a button. |
 | Several `RELibrary` files, switchable | One library: the bundled REBASE plus the enzymes you add; unchecked enzymes are hidden everywhere | Refreshing from REBASE is a script; per-file juggling is not needed. |
-| ~150 built-in Features | 131 of them, reconstructed from public records; 19 missing | The original's Collection files are not public. Import your own; see [Data](data.md). |
+| ~150 built-in Features | The original's own database, all 155 definitions, plus an *Additions* Collection that is off by default | Recovered from the 2.6.1 application; see [Data](data.md). |
 | Auto-update download | A check that tells you a new release exists | The installers are unsigned; you install them yourself. |
 | Signed macOS application (2.6) | Unsigned installers | See [Installation](installation.md) for the one-time unblocking. |
-| Read selection aloud | Not implemented | No cross-platform speech API worth the dependency; may return. |
 | Align two Sequences: BLAST2Seq first, local second | Local Smith-Waterman first, BLAST2Seq second, plus **Align Multiple Sequences** on MAFFT | The local one works offline and instantly; multiple alignment is new. |
-| One genetic code + alternative starts | The 27 NCBI tables, six pK tables for pI | The 2.6 options, completed. |
+| One genetic code + alternative starts; five pK tables | The 27 NCBI tables; the same five pK tables with the same values and the same pI algorithm | The 2.6 options, completed; the numbers match. |
+| Run a PCR: a 5' tail field and an annealing field per primer | One field per primer; the longest matching 3' core decides the annealing site | Users paste full primers with their tails. |
 
 Preferences knobs that existed in the original are listed on the
 [Preferences](windows/preferences.md) page.
@@ -53,20 +53,24 @@ saved. They matter because a lab trusts a number only if it matches what it got 
 | Restriction maps print the **first base** of the recognition site | The original's printed map of pBluescript II SK(+): 51 enzymes at their printed coordinates |
 | Non-palindromic sites and every offset-notation (type IIs) enzyme get a `>` / `<` arrow, even when the degenerate site is palindromic (HaeIV) | Same map |
 | Features are labelled on the Sequence Map at their **midpoint** | Same map: F1 ori 13..453 labelled at 233, T3 771..790 at 780 |
-| In `.xdna`, the feature-count byte is absent when there are no features; the third flag byte is "protect" | All seven shipped `.xdna` files |
+| In `.xdna`, the annotation block starts with an ends flag (0, 5, 3 or 35) followed by the two overhangs; the third feature flag byte is "protect" | The shipped `.xdna` files and fragments with every end combination saved by the original |
+| `SerialCloner_Ends=` in GenBank is `flag,left length,left bases,right length,right bases` | GenBank exports of the same fragments |
+| ORFs open only at the start codon chosen in Preferences, nested ORFs are listed, no minimum size by default | The original's ORF list of pBR322 |
+| The feature scan treats `#` in a consensus as a gap of any length | The original's own scan of its sample files |
 | DNA Strider files carry populated reserved fields that must survive a save | The genuine Strider file among the samples |
 | GenBank import copies the LOCUS and DEFINITION lines into the comment | `pBR322.xdna` as shipped, next to `pBR322.gb` |
 | The original's AmpR consensus starts at the internal Met and must be degenerate at two bases | Its annotations of pBR322 and pBluescript are both 660 bp and differ at two positions |
 | REBASE `#Name,site,a,b,` offsets count from the 3' end of the site; negative values are asymmetric type II sites | The `striderc` file itself (AciI `ccgc,-3,-1`) |
 
-## Things we could not verify
+## Known differences
 
-- The `.xdna` encoding of cohesive ends beyond "blunt", and the `SerialCloner_Ends` GenBank
-  field beyond `0,0,,0,`: no shipped sample has overhangs. A file saved from an extracted
-  fragment in the original would settle both.
+- The Extract and Ligation comments carry the same information as the original's but are
+  worded differently.
+- The GenBank export writes a standard-width LOCUS line; the original's is non-standard. Both
+  programs read each other's files.
 - The exact stacking order of colliding labels on the Sequence Map when two sites share a
   column (ours is alphabetical).
-- The 19 missing built-in Features.
 
-If you still have Serial Cloner running somewhere, files with cohesive ends and a copy of its
-`Features` folder are the two most valuable things you could contribute.
+The full comparison, function by function, is in `reference/docs/original-behaviour.md` in the
+repository. If a file saved by the original reads differently in SerialClon.rs, please open an
+issue with the file.

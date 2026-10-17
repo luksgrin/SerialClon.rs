@@ -19,7 +19,7 @@ sc-align = { path = "crates/sc-align" }
 sc-features = { path = "crates/sc-features" }
 sc-net = { path = "crates/sc-net" }
 
-# Shared third-party dependencies (PLAN.md §3).
+# Shared third-party dependencies (docs/design.md §3).
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 thiserror = "2.0"

@@ -33,3 +33,6 @@ Thumbs.db
 
 # Claude Code agent worktrees and session files
 .claude/
+
+# MkDocs output
+site/

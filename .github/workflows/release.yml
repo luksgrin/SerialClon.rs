@@ -1,5 +1,5 @@
 # Builds installers for every platform and drafts the GitHub Release
-# (PLAN.md §5). Manual only: Actions ▸ Installers ▸ Run workflow.
+# (docs/design.md §4). Manual only: Actions ▸ Installers ▸ Run workflow.
 #
 # The run refuses to start unless the version in src-tauri/tauri.conf.json,
 # the workspace Cargo.toml and package.json agree and is newer than the

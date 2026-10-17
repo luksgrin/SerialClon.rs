@@ -1,6 +1,6 @@
 <script lang="ts">
   /**
-   * The permanent contextual Help window (PLAN.md §1.1, item 2). It narrates
+   * The permanent contextual Help window (docs/design.md §1.1, item 2). It narrates
    * whatever the mouse is over in the front-most window; the text comes over
    * the help bus (`$lib/help-bus`). Closing it only hides it.
    */

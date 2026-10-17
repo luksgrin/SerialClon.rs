@@ -1,6 +1,6 @@
 //! The command surface exposed to the webviews.
 //!
-//! Commands are coarse-grained and document-oriented (`PLAN.md` §3): windows
+//! Commands are coarse-grained and document-oriented (`docs/design.md` §3): windows
 //! send an id and get a whole `DocumentView` back. After any change the new
 //! view is also broadcast as a `doc:changed` event to the document's windows.
 
@@ -343,7 +343,7 @@ pub struct SelectionInfo {
     pub size_aa: usize,
     /// MW in Da.
     pub mw: f64,
-    /// Isoelectric point with the chosen pK table (M6), `None` when empty.
+    /// Isoelectric point with the chosen pK table, `None` when empty.
     pub pi: Option<f64>,
     /// True for a Protein window: `peptide` is the selection itself.
     pub protein: bool,

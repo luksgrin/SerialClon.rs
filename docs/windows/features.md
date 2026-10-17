@@ -66,6 +66,6 @@ Import accepts three formats: SerialClon JSON, a generic tab-separated table
 
 ## The built-in Collections
 
-Generic, Yeast, Other, Tags & Cut and Gateway — 131 of the original's 150 names, every one
-reconstructed from a public record or a shipped sample file. See [Data](../data.md) for the
-provenance and the list of the 19 that could not be verified.
+Generic, Yeast, Other, Tags & Cut and Gateway: the original's own built-in database, all 155
+definitions, so a scan finds exactly what the original found. A sixth Collection, *Additions*,
+is off by default. See [Data](../data.md) for the provenance.

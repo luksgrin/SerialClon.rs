@@ -1,7 +1,7 @@
 //! The native format: DNA Strider `.xdna`, extended by Serial Cloner.
 //!
 //! Layout, verified byte for byte against the seven files in
-//! `reference/sequences/` (`PLAN.md` §1.4):
+//! `reference/sequences/` (`docs/file-formats.md`):
 //!
 //! ```text
 //! offset size  meaning

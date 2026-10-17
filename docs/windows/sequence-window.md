@@ -59,7 +59,7 @@ hit selects it in the window. Everything wraps around the origin of circular seq
 | Tm | The three formulas of the original manual: Wallace rule below 14 nt, `100.5 + 41·GC/n − 820/n + 16.6·log[Na+]` from 14 to 50 nt, `81.5 + 41·GC/n − 500/n + 16.6·log[Na+]` above, with [Na+] = 50 mM. |
 | A, C, G, T, %GC | Counts of the selection. |
 | Size (aa), MW | The translation from the first selected base. MW is the sum of integer residue masses, as the original computed it. |
-| pI | Isoelectric point with the pK table chosen in Protein ▸ *pK Table for pI* (Bjellqvist/ExPASy by default). |
+| pI | Isoelectric point with the pK table chosen in Protein ▸ *pK Table for pI* (EMBOSS by default, as in the original). |
 | Show only 1st ORF | Stop at the first stop codon, or read through (`*`). |
 | Peptide field | Select residues to select their codons in the sequence. Right-click to save the peptide as FASTA or open it as a protein window. |
 

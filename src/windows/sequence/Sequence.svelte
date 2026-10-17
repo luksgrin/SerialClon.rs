@@ -603,7 +603,7 @@
     <div class="tabs" role="tablist">
       <button type="button" role="tab" aria-selected={tab === 'sequence'} onclick={() => (tab = 'sequence')} data-help-name="Sequence tab" data-help="Use this tab to show the nucleotide sequence.">Sequence</button>
       <button type="button" role="tab" aria-selected={tab === 'comments'} onclick={() => (tab = 'comments')} data-help-name="Comments tab" data-help="Use this tab to show the comments associated to the sequence. DNA Strider limits comments to 255 characters.">Comments</button>
-      <button type="button" role="tab" aria-selected={tab === 'features'} onclick={() => (tab = 'features')} data-help-name="Features tab" data-help="Use this tab to see the Features of the sequence. Double-click a Feature to select its nucleotides. Editing Features arrives in M4.">Features</button>
+      <button type="button" role="tab" aria-selected={tab === 'features'} onclick={() => (tab = 'features')} data-help-name="Features tab" data-help="Use this tab to see the Features of the sequence. Double-click a Feature to select its nucleotides.">Features</button>
       <button type="button" role="tab" aria-selected={tab === 'extremities'} onclick={() => (tab = 'extremities')} data-help-name="Extremities tab" data-help="Use this tab to access the extremities of a linear insert. Cohesive ends can be directly modified here.">Extremities</button>
     </div>
 

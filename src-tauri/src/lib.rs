@@ -1,6 +1,6 @@
 //! The Tauri shell of SerialClon.rs.
 //!
-//! This crate is deliberately thin (`PLAN.md` §3): commands, the window manager,
+//! This crate is deliberately thin (`docs/design.md` §3): commands, the window manager,
 //! the menu bar, recent files and autosave. All the science lives in the
 //! UI-free `sc-*` crates.
 //!

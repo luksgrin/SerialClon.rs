@@ -1,4 +1,4 @@
-//! Generate ▸ Align Multiple Sequences (M6b): the MAFFT-based window.
+//! Generate ▸ Align Multiple Sequences ): the MAFFT-based window.
 //!
 //! The alignment runs on a worker thread; the window gets every row with
 //! its document's features so it can draw them above the aligned residues.

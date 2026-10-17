@@ -1,6 +1,6 @@
 //! The `DocumentStore`: every open sequence lives here, keyed by id. Windows
 //! hold ids, never copies, so a Sequence Window and its drawers can never
-//! diverge (`PLAN.md` §3).
+//! diverge (`docs/design.md` §3).
 
 use std::collections::{HashMap, VecDeque};
 use std::path::PathBuf;
@@ -568,7 +568,7 @@ fn overhang(length: i32, bases: &str) -> Overhang {
 /// Keeps features attached to their bases after `from..to` was replaced by
 /// `to - from + delta` bases: features after the edit shift, features
 /// spanning it stretch or shrink, features entirely inside a deletion are
-/// dropped. (M4 refines this; enough not to lose annotations while typing.)
+/// dropped.
 fn shift_features(features: &mut Vec<Feature>, from: usize, to: usize, delta: i64, new_len: usize) {
     let (from, to) = (from as i64 + 1, to as i64); // 1-based inclusive edit span
     let shift = |p: u32| -> Option<u32> {

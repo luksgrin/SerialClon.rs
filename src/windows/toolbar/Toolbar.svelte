@@ -1,9 +1,8 @@
 <script lang="ts">
   /**
-   * The Toolbar: the thin always-on-top icon strip (PLAN.md §1.1, item 1).
+   * The Toolbar: the thin always-on-top icon strip (docs/design.md §1.1, item 1).
    * Same buttons, same order and same groups as the original
-   * (reference/ui/00-desktop-overview.png). In M0 only Help is live; the
-   * others are wired up in the milestone that builds their window.
+   * (reference/ui/00-desktop-overview.png).
    */
   import { onMount } from 'svelte';
   import { getCurrentWindow, LogicalSize } from '@tauri-apps/api/window';

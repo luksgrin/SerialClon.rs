@@ -29,7 +29,6 @@ mkdocs build --strict
 ## Layout
 
 ```text
-PLAN.md                  research findings + the milestone plan, with notes on what each one established
 crates/
   sc-seq/                sequence model, alphabets, translation, genetic codes, Tm / MW / pI, ORFs,
                          codon usage, bisulfite
@@ -53,29 +52,35 @@ sequence lives in the Rust `DocumentStore` under an id; windows hold ids, never 
 
 ## Tests and golden fixtures
 
-The tests are what makes "the same" checkable. Besides unit tests, each milestone pinned itself
-to the original's own output:
+The tests are what makes "the same" checkable. Besides unit tests, the suite pins itself to
+the original's own output:
 
 - every shipped `.xdna` round-trips byte for byte;
 - digestion reproduces the original's printed restriction map of pBluescript II SK(+) (51
   enzymes, positions and strand arrows), and the Sequence Map renderer reproduces that map line
   for line;
-- a scan reproduces every annotation the original stored in its annotated sample files, and finds
-  EGFP, the CMV promoter and Kan/neoR at Clontech's coordinates in pEGFP-N1;
+- a scan with the built-in Collections reproduces, feature for feature, what the original's own
+  scan produced on six of its sample files;
+- `.xdna` files and GenBank exports with cohesive ends, saved by the original, read back with the
+  same ends and are written back byte for byte;
+- the ORF search lists the original's ORFs of pBR322 in its order;
 - an end-to-end subcloning (EGFP cut out of pEGFP-N1 with BamHI and NotI and ligated into
   pBluescript II KS(+)) checks the product, its ends and its inherited Features;
 - Tm and MW match the manual's Info-panel screenshot to the printed decimal; pI matches ExPASy;
-- the researched Feature definitions are found at their records' annotated coordinates;
 - pBluescript KS(+), SK(+) and pBR322 align with MAFFT and agree where they should.
 
 Network tests (NCBI, ENA, Kazusa, BLAST) are `#[ignore]`d so `cargo test` stays offline; run them
 with `cargo test -- --ignored` when you want to.
 
-## How the milestones were built
+## Releases
 
-`PLAN.md` §4 lists the milestones M0–M7 and, after each, the facts it established and anything
-deliberately deferred. Each milestone was a branch and a pull request against `main`, verified
-with the commands above plus a build of the bundle and a launch smoke test before merging.
+Every change is a branch and a pull request against `main`, verified with the commands above
+plus a build of the bundle and a launch smoke test. Releases are manual: bump the version in
+`src-tauri/tauri.conf.json`, the workspace `Cargo.toml` and `package.json` (they must agree),
+merge, then run the **Installers** workflow from the Actions tab. It refuses a version that is
+not newer than the latest release, builds the installers for every platform and drafts the
+GitHub Release `v<version>`. The architecture and the product decisions are on the
+[Design](design.md) page.
 
 ## Contributing
 
@@ -84,7 +89,7 @@ with the commands above plus a build of the bundle and a launch smoke test befor
   printed, saved or documented — the reference material is in `reference/`.
 - Never guess a sequence for the built-in Collections; cite the record.
 - Every control gets a `data-help` text for the Help window, in the manual's voice.
-- The two most useful contributions from users of the original: `.xdna` files with cohesive ends
-  (to pin the overhang encoding) and a copy of its `Features` folder (to complete the database).
+- The most useful contribution from users of the original: files it saved, in any format, that
+  SerialClon.rs reads differently.
 
 Licence: MIT OR Apache-2.0.

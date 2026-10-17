@@ -20,42 +20,32 @@ merged on top at startup, so a refresh never loses them.
 
 ## Built-in Feature Collections
 
-The original shipped ~150 Features in five Collections, but only their **names** are documented;
-the Collection files themselves were never public. SerialClon's Collections are a reconstruction
-from public records — **131 of the 150 names**:
+The five Collections (Generic, Yeast, Other, Tags & Cut, Gateway; 155 definitions) are Serial
+Cloner 2.6.1's own built-in Feature database, verbatim. The original keeps it inside the
+application and writes it to disk on first launch; those files were recovered from the 2.6.1
+Linux build and converted field for field into `resources/features/*.json`. A default scan
+therefore gives exactly the original's result on any sequence, and tests assert that on six of
+its sample files.
 
-| Collection | Present | Missing |
-|---|---|---|
-| Generic | 59 (+5 covered under another name) | 13: TetA, hGH polyA signal, EM7 promoter, mPGK Prom, tsr, oriS, oriRg, AML-P, EYFP, ECFP, AcGFP, IRES [2], Synthetic intron |
-| Yeast | 24 | — |
-| Other | 10 | — |
-| Tags & Cut | 22 | — |
-| Gateway | 11 | 6: attP3, attP4, attL3, attL4, attR3, attR4 (MultiSite) |
+A sixth Collection, *Additions*, holds definitions the original does not have (among them the
+MultiSite Gateway att sites). It is shipped unchecked for scanning; tick it in Manage Features
+to include it.
 
-Rules that were followed: nothing typed from memory. Every DNA consensus was read out of an
-annotated sample file the original shipped (which is exactly what its own scan found there) or
-out of a GenBank / RefSeq / SGD record at the record's annotated coordinates; every peptide comes
-from UniProt or a published sequence. The accession and coordinates are in each definition's
-comment. Where two canonical sources differ (pBR322 versus pBluescript AmpR; the S288C reference
-versus the alleles the pRS vectors carry; the *Streptomyces* `pac` versus the `pac` of pLKO.1) the
-consensus is degenerate at those positions and says so. Yeast promoters and terminators are the
-proximal genome regions (400 bp upstream of the ATG, 250 bp downstream of the stop), so any
-longer fragment a vector carries still contains them.
+The original's definitions are all simple: one consensus, which may contain IUPAC letters and
+the original's `#` gap wildcard. One definition is shipped on the opposite strand from the
+original's file: attB1, which the original alone defines on the reverse strand, so that all att
+sites read the same way. The verbatim dump and the conversion notes are under
+`reference/original/features/` and `resources/features/README.md`.
 
-The records behind the researched definitions are committed under `reference/sequences/genbank/`
-and a test scans each and asserts that every definition lands at the record's own coordinates.
-
-The 19 missing names have no verifiable public source: the MultiSite Gateway donor vectors are
-not deposited, and the other elements' defining vectors are undeposited or unannotated. Manage
-Features ▸ Import takes your own definitions; a copy of an old installation's `SerialCloner/Features/`
-folder would settle the whole list.
+An installation seeded by an earlier version keeps its old Collections until
+*Manage Features ▸ Restore built-in collections* is used.
 
 ## Codon usage tables
 
-Five tables are bundled, from the Kazusa Codon Usage Database (source URL and retrieval date in
-each file): *Escherichia coli* K-12 (the W3110 entry, 4332 CDS — Kazusa's "K12" entry has 14),
-*Saccharomyces cerevisiae*, *Homo sapiens*, *Mus musculus*, *Drosophila melanogaster*. Import
-others from the Codon Usage window.
+The nine tables Serial Cloner 2.6.1 shipped, recovered from the application, plus five from the
+Kazusa Codon Usage Database (source URL and retrieval date in each file): *Escherichia coli*
+K-12, *Saccharomyces cerevisiae*, *Homo sapiens*, *Mus musculus*, *Drosophila melanogaster*.
+Import others from the Codon Usage window.
 
 ## Genetic codes
 
@@ -64,11 +54,17 @@ codons.
 
 ## pK tables
 
-Bjellqvist/ExPASy (default; 6.78 for the twenty amino acids, 5.92 for serum albumin, as ExPASy
-computes them), EMBOSS, Sillero, Solomon, Lehninger, Rodwell.
+The five tables of the original with its values: EMBOSS (default), Wikipedia, DTASelect, Rodwell
+and Sillero. The pI is computed the way the original computes it, so the numbers match.
+
+## DNA ladders
+
+The four ladders of the original's virtual gel: GeneRuler 1 kb Plus, Smart Ladder, NEB 1 kb and
+Invitrogen 1 kb plus, with their bright reference bands.
 
 ## The reference material
 
 `reference/` in the repository holds what the reimplementation was measured against: the
-original's sample files (the format fixtures), its manuals and full changelog, the screenshots
-used on this site, and the 2012 enzyme database. See `reference/README.md`.
+original's sample files (the format fixtures), its manuals and version history, the screenshots
+used on this site, the 2012 enzyme database, and the data and golden files recovered from the
+2.6.1 application. See `reference/README.md` and `reference/docs/original-behaviour.md`.
