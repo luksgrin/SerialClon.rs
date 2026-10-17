@@ -239,6 +239,28 @@ pub fn recombine(
     inherit_into(&mut features, &vec, v2.cross, vec.len(), tail_offset);
     let n = bases.len() as u32;
     features.retain(|f| f.start <= n && f.end <= n);
+    let reaction_name = match reaction {
+        Reaction::Bp => "BP",
+        Reaction::Lr => "LR",
+    };
+    // The original's GateWayAnnotate marks the inserted region.
+    if tail_offset > v1.cross {
+        features.push(sc_seq::Feature {
+            name: format!("Insert from {}", insert.name),
+            description: format!(
+                "Fragment inserted from {} into {} [{}] reaction",
+                insert.name, vector.name, reaction_name
+            ),
+            kind: "misc_feature".into(),
+            start: v1.cross as u32 + 1,
+            end: tail_offset as u32,
+            strand: sc_seq::Strand::Forward,
+            show: true,
+            protect: false,
+            arrow: false,
+            color: sc_seq::Rgb(0x84, 0xa4, 0xc0),
+        });
+    }
     Ok(Sequence {
         name: format!("{} ({} x {})", product_kind, insert.name, vector.name),
         bases,
@@ -416,6 +438,17 @@ mod tests {
         let donor = read("pDONR201.xdna");
         let entry = recombine(Reaction::Bp, &insert, &donor, &c).unwrap();
         assert_eq!(entry.topology, Topology::Circular);
+        // The original's GateWayAnnotate feature over the inserted region.
+        let ins = entry
+            .features
+            .iter()
+            .find(|f| f.name == "Insert from attB-GFP")
+            .expect("Insert from feature");
+        assert_eq!(
+            ins.description,
+            "Fragment inserted from attB-GFP into pDONR201.xdna [BP] reaction"
+        );
+        assert!(ins.end > ins.start);
         assert!(
             String::from_utf8_lossy(&entry.bases)
                 .to_ascii_uppercase()
