@@ -1,6 +1,6 @@
 <script lang="ts">
   /**
-   * Manage Features (Features ReadMe §IX; reference/ui/09-manage-features.png):
+   * Manage Features (Features ReadMe §IX):
    * Collections on the left, their Features in the middle, the definition
    * editor (Simple / Complex) on the right. OK saves everything.
    */

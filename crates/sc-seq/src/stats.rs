@@ -139,7 +139,7 @@ mod tests {
 
     #[test]
     fn tm_matches_the_manual_screenshot() {
-        // reference/ui/04-selection-info-and-translation.png:
+        // The manual's Selection Information panel example:
         // A: 179  C: 157  G: 176  T: 154  %GC: 50.0  Tm: 79.7
         let c = BaseCounts {
             a: 179,

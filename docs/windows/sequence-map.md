@@ -4,11 +4,6 @@ Restriction ▸ Sequence Map (⌘M), the Sequence Window's button, or the Toolba
 restriction map with multi-frame translation, in the exact layout the original printed — verified
 line for line against a map printed by Serial Cloner 2.1.
 
-<figure markdown>
-![The original Sequence Map](../img/08-sequence-map.png)
-<figcaption>The Sequence Map (original screenshot) and its four control panels.</figcaption>
-</figure>
-
 ## Panels
 
 **Search** — a nucleotide string, amino acids separated by two spaces (`V  A  L`, three in codon

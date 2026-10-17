@@ -152,7 +152,7 @@ crates/sc-net        NCBI E-utilities, ENA, BLAST URL API
 src-tauri            Tauri 2 shell: documents, windows, menu, commands, preferences, autosave
 src                  Svelte user interface, one entry per window
 resources            RELibrary, the Feature Collections, codon usage tables, DNA ladders
-reference            the original's sample files, manuals, screenshots and recovered data
+reference            the original's sample files, golden files and recovered data
 docs                 documentation (MkDocs)
 ```
 
@@ -188,9 +188,8 @@ field; the GenBank header is standard-width; a few dialog texts are worded diffe
 
 SerialClon.rs is an **independent reimplementation**. It is not affiliated with, endorsed by, or
 derived from the source code of Serial Cloner or SerialBasics. Serial Cloner is © F. Perez and was
-distributed as freeware; its manuals and sample files are included under `reference/` as
-compatibility and interface documentation, and its distributed binaries were examined to recover
-the built-in data and to compare behaviour. See [`reference/README.md`](reference/README.md).
+distributed as freeware; its sample files are included under `reference/` as format fixtures, and
+its distributed binaries were examined to recover the built-in data and to compare behaviour. See [`reference/README.md`](reference/README.md).
 
 The restriction enzyme database is [REBASE](http://rebase.neb.com), © Dr. Richard J. Roberts,
 New England Biolabs, free for academic use. "Gateway" is a trademark of Thermo Fisher Scientific

@@ -42,7 +42,7 @@ src-tauri/               the Tauri shell: documents store, window manager, menu,
 src/windows/<name>/      one Vite entry + Svelte component per Serial Cloner window
 src/lib/                 the typed command API, the help bus, the shortcut map
 resources/               RELibrary, the Feature Collections, the codon usage tables
-reference/               the original's sample files, manuals, screenshots and 2012 enzyme database
+reference/               the original's sample files, golden files, recovered data and 2012 enzyme database
 docs/                    this site
 ```
 

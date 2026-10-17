@@ -65,6 +65,5 @@ Invitrogen 1 kb plus, with their bright reference bands.
 ## The reference material
 
 `reference/` in the repository holds what the reimplementation was measured against: the
-original's sample files (the format fixtures), its manuals and version history, the screenshots
-used on this site, the 2012 enzyme database, and the data and golden files recovered from the
-2.6.1 application. See `reference/README.md` and `reference/docs/original-behaviour.md`.
+original's sample files (the format fixtures), the 2012 enzyme database, and the data and golden
+files recovered from the 2.6.1 application. See `reference/README.md` and `reference/docs/original-behaviour.md`.

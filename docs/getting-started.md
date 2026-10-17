@@ -10,11 +10,6 @@ File ▸ Open… (⌘O / Ctrl+O) or the Toolbar's **Open** button. `.xdna`, FAST
 plain text are recognised by content, not by extension. Each sequence gets its own **Sequence
 Window**; a multi-FASTA or a multi-record GenBank file opens one window per record.
 
-<figure markdown>
-![The original Sequence Window](img/01-sequence-window.png)
-<figcaption>The Sequence Window (original screenshot): name, length, type, format, topology and lock at the top; from / to / length; the Sequence, Comments, Features and Extremities tabs; Save, Sequence Map, Graphic Map, Find and the Info panel button at the bottom.</figcaption>
-</figure>
-
 The **Format** field tells you what was read (DNA Strider, Serial Cloner, FASTA, GenBank, Text);
 the **Type** field is DNA, Degenerate DNA or Protein. Tick **Locked** if you want to be sure you
 cannot edit by accident.
@@ -48,11 +43,6 @@ Select residues in the peptide field to select their codons back in the sequence
 
 **Graphic Map** (⌘G) draws the plasmid — circular or linear — with unique sites in yellow,
 double sites in orange and, if you choose them, particular sites in blue, plus the Features.
-
-<figure markdown>
-![The original circular Graphic Map](img/07-graphic-map-circular.png)
-<figcaption>Circular Graphic Map (original screenshot). Drag any name box to arrange the figure before printing or saving it as PNG.</figcaption>
-</figure>
 
 ## 6. Cut a fragment out
 

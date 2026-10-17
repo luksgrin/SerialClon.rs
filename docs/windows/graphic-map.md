@@ -3,11 +3,6 @@
 Restriction ▸ Graphic Map (⌘G), the Sequence Window's button, or the Toolbar. One map per
 Sequence Window; it follows every edit of the sequence.
 
-<figure markdown>
-![Linear Graphic Map, original](../img/06-graphic-map-linear.png)
-<figcaption>Linear map (original screenshot): unique sites in yellow, double sites in orange, a particular site in blue; cohesive ends drawn in red with the overhang sequence in a grey box.</figcaption>
-</figure>
-
 ## Controls
 
 | Control | Effect |

@@ -1,6 +1,6 @@
 <script lang="ts">
   /**
-   * The Graphic Map (User Manual §IV.C; reference/ui/06 and 07): circular or
+   * The Graphic Map (User Manual §IV.C): circular or
    * linear map with Features and unique / double / particular sites, labels
    * you can drag, two-click fragment selection (green BEGIN, red END,
    * spacebar CW/CCW), Extract Fragment, save as PNG, print.

@@ -8,8 +8,7 @@ built in **Rust + Tauri 2** and shipping installers for **Windows, macOS and Ubu
     SerialClon.rs is an **independent reimplementation**. It is not affiliated with, endorsed by, or
     derived from the source code of Serial Cloner or SerialBasics. Serial Cloner is © F. Perez and
     was distributed as freeware; its manuals and sample files are used here only as compatibility
-    and interface documentation. The screenshots on this site labelled *original* are of Serial
-    Cloner 2.6 and come from its manuals.
+    and interface documentation.
 
 ## Why
 
@@ -40,13 +39,6 @@ The feature list is the easy part. These interaction details are the actual requ
   confirmation, Alt-click a checkbox = apply to all, Alt-click Import = Export).
 - Everything is one context menu away, and every generated sequence carries a provenance note in
   its comments.
-
-## The desktop
-
-<figure markdown>
-![The original Serial Cloner desktop](img/00-desktop-overview.png)
-<figcaption>The original (Serial Cloner 2.6): toolbar strip, a Sequence Window with its Info panel, the Find drawer, a circular Graphic Map, the Enzyme Library and the Help window. SerialClon.rs reproduces this layout with real OS windows.</figcaption>
-</figure>
 
 ## What is in 1.0
 

@@ -1,6 +1,6 @@
 <script lang="ts">
   /**
-   * The Sequence Window (User Manual §IV.A, reference/ui/01-sequence-window.png):
+   * The Sequence Window (User Manual §IV.A):
    * name, size, type, format, topology, lock, from/to/length spinners, the
    * Sequence / Comments / Features / Extremities tabs, the sequence field,
    * and the Save / Sequence Map / Graphic Map / Find / Show Info buttons.

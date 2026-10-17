@@ -63,7 +63,7 @@ fieldset {
 }
 
 /* ---------------------------------------------------------------------------
-   Aqua Classic: the look of Serial Cloner 2.6 on Mac OS X (reference/ui).
+   Aqua Classic: the look of Serial Cloner 2.6 on Mac OS X.
    Only tokens and generic controls change; layout is untouched.
    --------------------------------------------------------------------------- */
 :root[data-theme='aqua'] {

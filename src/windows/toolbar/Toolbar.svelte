@@ -1,8 +1,7 @@
 <script lang="ts">
   /**
    * The Toolbar: the thin always-on-top icon strip (docs/design.md §1.1, item 1).
-   * Same buttons, same order and same groups as the original
-   * (reference/ui/00-desktop-overview.png).
+   * Same buttons, same order and same groups as the original.
    */
   import { onMount } from 'svelte';
   import { getCurrentWindow, LogicalSize } from '@tauri-apps/api/window';

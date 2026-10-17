@@ -17,7 +17,7 @@ that still builds.
 | Enzyme data | `RELibrary`, REBASE `striderc.211` (October 2012), plain text |
 
 The requirements were taken from the official site, the User Manual, the Features ReadMe, the
-full version history and the shipped sample files, all kept under `reference/` in the repository.
+version history and the shipped sample files; the sample files are kept under `reference/`.
 The distributed binaries were later examined to recover the built-in data and to compare
 behaviour; see [Migration](migration.md) and `reference/docs/original-behaviour.md`.
 
@@ -133,7 +133,7 @@ SerialClon.rs/
 ├── src/windows/<name>/  one Vite entry and one Svelte component per window
 ├── src/lib/             the typed command API, the help bus, the shortcut map
 ├── resources/           RELibrary, the Feature Collections, the codon usage tables
-├── reference/           the original's sample files, manuals, screenshots, recovered data
+├── reference/           the original's sample files, golden files, recovered data
 └── docs/                this site
 ```
 
