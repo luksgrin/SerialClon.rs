@@ -24,12 +24,14 @@
 //! annotation block; all strings are Pascal strings (`u8` length + bytes):
 //!
 //! ```text
-//! 0x00                 marker
+//! u8   ends flag       0 blunt, 5 left end cohesive, 3 right end cohesive,
+//!                      35 both (the digits "5"/"3" read as a number)
 //! pstr right-overhang length as decimal text (+ = 5', − = 3'), then the
-//!                      overhang bases (abs(length) raw bytes) if non-zero
+//!                      overhang bases (abs(length) raw bytes, 5'→3' on the
+//!                      strand that carries them) if non-zero
 //! pstr left-overhang   same
-//! u8   feature count   ABSENT when there are no features (the block simply
-//!                      ends after the two overhangs)
+//! u8   feature count   the original always writes it (0 when none); it is
+//!                      tolerated absent
 //! per feature:
 //!   pstr name
 //!   pstr description   qualifiers separated by 0x0D
@@ -40,8 +42,9 @@
 //!   pstr colour        "r,g,b," decimal with trailing comma
 //! ```
 //!
-//! The overhang encoding beyond "0" (blunt) is not covered by any shipped
-//! sample and follows the plan's description; see [`read`]'s tests.
+//! The cohesive-end encoding is attested by files the original wrote
+//! (`reference/original/golden/ends/`, see
+//! `reference/docs/original-behaviour.md`); [`read`]'s tests check them.
 
 use sc_seq::{
     Ends, Feature, Overhang, Rgb, SeqType, Sequence, Source, Strand, Topology, XDNA_HEADER_LEN,
@@ -206,10 +209,14 @@ pub fn read(bytes: &[u8], name: &str) -> Result<Sequence> {
         bytes: rest,
         pos: 0,
     };
-    if cur.u8("annotation marker")? != 0 {
-        return Err(Error::Malformed(
-            "xdna: annotation block does not start with 0x00".into(),
-        ));
+    // The ends flag: 0 blunt, 5 left end cohesive, 3 right end cohesive,
+    // 35 both. The overhangs that follow carry the same information, so the
+    // flag is only validated.
+    let flag = cur.u8("ends flag")?;
+    if !matches!(flag, 0 | 3 | 5 | 35) {
+        return Err(Error::Malformed(format!(
+            "xdna: annotation block starts with ends flag {flag}, not 0, 3, 5 or 35"
+        )));
     }
     seq.source = Source::SerialCloner;
     seq.ends.right = cur.overhang("right")?;
@@ -275,10 +282,13 @@ pub fn write(seq: &Sequence) -> Vec<u8> {
     if plain_strider {
         return out;
     }
-    out.push(0);
+    out.push(crate::genbank::ends_flag(&seq.ends));
     write_overhang(&mut out, &seq.ends.right);
     write_overhang(&mut out, &seq.ends.left);
-    if !seq.features.is_empty() {
+    // 2.6.1 always writes the feature count; older files (the shipped
+    // pBR322.xdna) stop after the overhangs when there are no features, and
+    // that is what keeps them byte-for-byte on a round trip.
+    if !seq.features.is_empty() || !seq.ends.is_blunt() {
         let count = seq.features.len().min(255);
         out.push(count as u8);
         for f in &seq.features[..count] {
@@ -422,15 +432,72 @@ mod tests {
     }
 
     #[test]
-    fn cohesive_ends_round_trip_under_the_documented_encoding() {
+    fn cohesive_ends_round_trip_under_the_attested_encoding() {
         let mut seq = Sequence::new("frag", b"GATCCAAAG".to_vec());
         seq.ends.left = Overhang::five_prime(b"GATC");
         seq.ends.right = Overhang::three_prime(b"AG");
         let bytes = write(&seq);
-        let tail = &bytes[bytes.len() - (1 + 3 + 2 + 2 + 4)..];
-        assert_eq!(tail, b"\0\x02-2AG\x014GATC");
+        let tail = &bytes[bytes.len() - (1 + 3 + 2 + 2 + 4 + 1)..];
+        assert_eq!(tail, b"\x23\x02-2AG\x014GATC\0");
         let back = read(&bytes, "frag").unwrap();
         assert_eq!(back.ends, seq.ends);
+    }
+
+    /// Files the original wrote after the four single-end combinations were
+    /// typed into Sequence Window ▸ Extremities (see
+    /// `reference/docs/original-behaviour.md`).
+    #[test]
+    fn original_cohesive_end_files_are_read_and_written_back_byte_for_byte() {
+        let golden =
+            Path::new(env!("CARGO_MANIFEST_DIR")).join("../../reference/original/golden/ends");
+        let cases: [(&str, Overhang, Overhang, u8); 6] = [
+            (
+                "lin-L5.xdna",
+                Overhang::five_prime(b"GATC"),
+                Overhang::BLUNT,
+                5,
+            ),
+            (
+                "lin-L3.xdna",
+                Overhang::three_prime(b"CTAG"),
+                Overhang::BLUNT,
+                5,
+            ),
+            (
+                "lin-L5-3nt.xdna",
+                Overhang::five_prime(b"GAT"),
+                Overhang::BLUNT,
+                5,
+            ),
+            (
+                "lin-R5.xdna",
+                Overhang::BLUNT,
+                Overhang::five_prime(b"TCGA"),
+                3,
+            ),
+            (
+                "lin-R3.xdna",
+                Overhang::BLUNT,
+                Overhang::three_prime(b"AGCT"),
+                3,
+            ),
+            (
+                "pBR322-lin-L5-R5.xdna",
+                Overhang::five_prime(b"GATC"),
+                Overhang::five_prime(b"TCGA"),
+                35,
+            ),
+        ];
+        for (name, left, right, flag) in cases {
+            let bytes = std::fs::read(golden.join(name)).unwrap();
+            let seq = read(&bytes, name).unwrap();
+            assert_eq!(seq.len(), 4374, "{name}");
+            assert_eq!(seq.topology, Topology::Linear, "{name}");
+            assert_eq!(seq.ends.left, left, "{name}");
+            assert_eq!(seq.ends.right, right, "{name}");
+            assert_eq!(crate::genbank::ends_flag(&seq.ends), flag, "{name}");
+            assert_eq!(write(&seq), bytes, "{name}");
+        }
     }
 
     #[test]

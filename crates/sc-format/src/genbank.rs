@@ -31,9 +31,12 @@
 //! //
 //! ```
 //!
-//! `SerialCloner_Ends` is only attested as `0,0,,0,` (blunt); the cohesive
-//! form written here — `left,right,left-bases,0,right-bases` — is a guess
-//! that reproduces the attested case and is documented as such.
+//! `SerialCloner_Ends=flag,left-length,left-bases,right-length,right-bases`:
+//! the flag is 0 (blunt), 5 (left end cohesive), 3 (right end cohesive) or
+//! 35 (both); a length is positive for a 5' overhang and negative for a 3'
+//! one; the bases are read 5'→3' on the strand that carries them. Attested
+//! by the files the original wrote in `reference/original/golden/ends/`
+//! (see `reference/docs/original-behaviour.md`).
 
 use sc_seq::alphabet::{is_acgt, is_iupac};
 use sc_seq::{Ends, Feature, Overhang, Rgb, SeqType, Sequence, Source, Strand, Topology};
@@ -400,7 +403,10 @@ fn parse_ends(value: &str) -> Ends {
             .map(|s| s.trim().as_bytes().to_vec())
             .unwrap_or_default()
     };
-    let (left, right) = (int(0), int(1));
+    // `flag,left-length,left-bases,right-length,right-bases` (the flag is
+    // "5", "3" or "35" for a cohesive 5'/left, 3'/right or both ends, 0 for
+    // blunt); attested by `reference/original/golden/ends/`.
+    let (left, right) = (int(1), int(3));
     Ends {
         left: Overhang {
             length: left,
@@ -410,6 +416,19 @@ fn parse_ends(value: &str) -> Ends {
             length: right,
             bases: if right == 0 { Vec::new() } else { seq(4) },
         },
+    }
+}
+
+/// The ends flag Serial Cloner writes first in `SerialCloner_Ends=` and as
+/// the first byte of the `.xdna` annotation block: the digits "5" (the
+/// left, 5' end is cohesive) and "3" (the right, 3' end is cohesive) read
+/// as a decimal number, so 0, 5, 3 or 35.
+pub(crate) fn ends_flag(ends: &Ends) -> u8 {
+    match (ends.left.is_blunt(), ends.right.is_blunt()) {
+        (true, true) => 0,
+        (false, true) => 5,
+        (true, false) => 3,
+        (false, false) => 35,
     }
 }
 
@@ -547,10 +566,11 @@ pub fn write(seq: &Sequence, date: &str) -> String {
     }
     let (l, r) = (&seq.ends.left, &seq.ends.right);
     out.push_str(&format!(
-        "COMMENT     SerialCloner_Ends={},{},{},0,{}\n",
+        "COMMENT     SerialCloner_Ends={},{},{},{},{}\n",
+        ends_flag(&seq.ends),
         l.length,
-        r.length,
         String::from_utf8_lossy(&l.bases),
+        r.length,
         String::from_utf8_lossy(&r.bases)
     ));
     out.push_str("FEATURES             Location/Qualifiers\n");
@@ -681,6 +701,43 @@ mod tests {
         assert_eq!((amp.start, amp.end), (2635, 1976));
     }
 
+    /// The GenBank exports the original wrote for the same cohesive-end
+    /// fragments as the `.xdna` goldens: the `SerialCloner_Ends` line reads
+    /// back to the same overhangs, and we write it the same way.
+    #[test]
+    fn original_cohesive_end_exports_read_back_and_are_reproduced() {
+        let golden =
+            Path::new(env!("CARGO_MANIFEST_DIR")).join("../../reference/original/golden/ends");
+        let cases = [
+            ("lin-L5", "5,4,GATC,0,"),
+            ("lin-L3", "5,-4,CTAG,0,"),
+            ("lin-L5-3nt", "5,3,GAT,0,"),
+            ("lin-R5", "3,0,,4,TCGA"),
+            ("lin-R3", "3,0,,-4,AGCT"),
+            ("pBR322-lin-L5-R5", "35,4,GATC,4,TCGA"),
+        ];
+        for (stem, ends_line) in cases {
+            let gb = std::fs::read(golden.join(format!("{stem}.gb"))).unwrap();
+            let text = String::from_utf8_lossy(&gb);
+            assert!(
+                text.contains(&format!("SerialCloner_Ends={ends_line}\n")),
+                "{stem}"
+            );
+            let from_gb = &read(&gb).unwrap()[0];
+            let from_xdna = crate::xdna::read(
+                &std::fs::read(golden.join(format!("{stem}.xdna"))).unwrap(),
+                stem,
+            )
+            .unwrap();
+            assert_eq!(from_gb.ends, from_xdna.ends, "{stem}");
+            assert_eq!(from_gb.bases, from_xdna.bases, "{stem}");
+            assert!(
+                write(&from_xdna, "10/17/2026")
+                    .contains(&format!("SerialCloner_Ends={ends_line}\n"))
+            );
+        }
+    }
+
     #[test]
     fn write_then_read_preserves_everything_that_matters() {
         let mut seq = crate::xdna::read(&fixture("pBR322-annotated.xdna"), "pBR322").unwrap();
@@ -704,7 +761,7 @@ mod tests {
         assert!(text.contains("     rep_origin      complement(2516..3144)\n                     /label=ColE1 origin\n"));
         assert!(text.contains("     misc_feature    join(4300..4361,1..50)\n"));
         assert!(text.contains("/SerialCloner_Color=&h4682B4\n"));
-        assert!(text.contains("COMMENT     SerialCloner_Ends=4,0,GATC,0,\n"));
+        assert!(text.contains("COMMENT     SerialCloner_Ends=5,4,GATC,0,\n"));
         assert!(text.contains(
             "\n        1 ttctcatgtt tgacagctta tcatcgataa gctttaatgc ggtagtttat cacagttaaa\n"
         ));

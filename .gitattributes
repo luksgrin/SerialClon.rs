@@ -1,0 +1,12 @@
+# Everything under reference/ is either the original program's own output
+# (goldens, exports, embedded data) or a fixture it was tested against. The
+# tests compare those files byte for byte: the original writes LF line
+# endings, stray CR bytes inside comments and trailing spaces on sequence
+# lines, and all of that must survive a checkout unchanged. Never apply
+# end-of-line conversion to them, whatever core.autocrlf says on the host
+# (Git for Windows, and so the windows-latest CI runner, defaults to true).
+reference/** -text
+
+# Binary sequence formats, stated explicitly rather than left to detection.
+*.xdna binary
+*.dna  binary

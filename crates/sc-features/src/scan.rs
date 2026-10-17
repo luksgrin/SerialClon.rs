@@ -32,20 +32,72 @@ fn upper(s: &str) -> Vec<u8> {
         .collect()
 }
 
+/// Like [`upper`] but keeps `#`, the original's gap wildcard: its
+/// definition-to-regex table maps every IUPAC letter to a character class,
+/// `#` to `.*`, and drops any other character (`>`, digits, spaces).
+fn upper_dna(s: &str) -> Vec<u8> {
+    s.bytes()
+        .filter(|b| b.is_ascii_alphabetic() || *b == b'#')
+        .map(|b| b.to_ascii_uppercase())
+        .collect()
+}
+
+/// Every span matched by a consensus that may contain `#` gaps, as
+/// `(start, end)` half-open. A gap behaves like a greedy `.*` between two
+/// literal parts (what the original's regex does): the part after the gap
+/// is taken at its *last* occurrence, as long as the span stays within
+/// `max_span` bases.
+fn find_all_spans(
+    hay: &[u8],
+    pattern: &[u8],
+    max_start: usize,
+    max_span: usize,
+) -> Vec<(usize, usize)> {
+    let parts: Vec<&[u8]> = pattern
+        .split(|b| *b == b'#')
+        .filter(|p| !p.is_empty())
+        .collect();
+    let Some((&first, rest)) = parts.split_first() else {
+        return Vec::new();
+    };
+    if rest.is_empty() {
+        return find_all(hay, first, max_start)
+            .into_iter()
+            .map(|s| (s, s + first.len()))
+            .collect();
+    }
+    let mut out = Vec::new();
+    'starts: for s in find_all(hay, first, max_start) {
+        let mut end = s + first.len();
+        let limit = hay.len().min(s + max_span);
+        for part in rest {
+            let Some(t) = (end..(limit + 1).saturating_sub(part.len()))
+                .rev()
+                .find(|&i| matches_at(part, &hay[i..i + part.len()]))
+            else {
+                continue 'starts;
+            };
+            end = t + part.len();
+        }
+        out.push((s, end));
+    }
+    out
+}
+
 /// Matches a definition against one strand given as text (`hay`), which
 /// may be a doubled circular sequence; only matches starting before
 /// `max_start` count.
 fn match_strand(def: &FeatureDef, hay: &[u8], max_start: usize) -> Vec<Hit> {
-    let five = upper(&def.five);
+    let five = upper_dna(&def.five);
     let three = upper(&def.three);
     let p5 = upper(&def.potential_five);
     let p3 = upper(&def.potential_three);
     let up = upper(&def.upstream);
     let down = upper(&def.downstream);
     let mut hits = Vec::new();
-    for s in find_all(hay, &five, max_start) {
+    for (s, e) in find_all_spans(hay, &five, max_start, max_start) {
         let mut start = s;
-        let mut end = s + five.len();
+        let mut end = e;
         if !three.is_empty() {
             // The nearest 3' consensus after the 5' one.
             let Some(t) = (end..hay.len().saturating_sub(three.len()) + 1)
