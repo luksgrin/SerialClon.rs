@@ -117,8 +117,11 @@ Installers for macOS (`.dmg`, Apple Silicon / Intel / Universal), Windows (`.msi
 and Ubuntu (`.deb`, `.AppImage`) are attached to each
 [GitHub Release](https://github.com/luksgrin/SerialClon.rs/releases). They are **not code-signed**:
 the first launch needs the usual unblocking step on macOS and Windows, described in the
-[installation guide](https://luksgrin.github.io/SerialClon.rs/installation/). The app checks
-GitHub for a new version once a day (Preferences ▸ Check for a new version).
+[installation guide](https://luksgrin.github.io/SerialClon.rs/installation/). Updates are
+offered in the app: once a day (or Preferences ▸ Check now) it looks for a new release and
+downloads, verifies and installs one of the same major version, then relaunches; a new major
+version gets a link to its release page. On Linux only the AppImage can update itself; `.deb`
+installs get the link and are upgraded with `dpkg -i`.
 
 ## Building
 

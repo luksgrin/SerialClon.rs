@@ -53,6 +53,15 @@ export interface UpdateReport {
   error: string | null;
 }
 
+/** Download / install progress of an in-app update (`update:progress`). */
+export interface UpdateProgress {
+  text: string;
+  /** 0..1 while downloading with a known size. */
+  fraction: number | null;
+  /** True once installed, failed or cancelled. */
+  done: boolean;
+}
+
 export const DEFAULT_PREFS: Prefs = {
   color_unique: '#f2e14c',
   color_double: '#f0a53a',
@@ -151,7 +160,16 @@ export async function resetPrefs(): Promise<Prefs> {
   return saved;
 }
 
+/**
+ * Preferences ▸ Check now. The shell runs the updater: a release of the same
+ * major version is offered for download and install (progress arrives as
+ * `update:progress`), any other newer release gets a notice with a link.
+ */
 export const checkForUpdates = (): Promise<UpdateReport> => invoke<UpdateReport>('check_for_updates_now');
+
+/** Follows the progress of an in-app update. Resolves to the unlisten function. */
+export const onUpdateProgress = (cb: (p: UpdateProgress) => void) =>
+  listen<UpdateProgress>('update:progress', (e) => cb(e.payload));
 
 /** The current values, synchronously. */
 export const currentPrefs = (): Prefs => get(prefs);

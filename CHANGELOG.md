@@ -4,6 +4,18 @@ All notable changes to SerialClon.rs. The project reimplements Serial Cloner 2.6
 (F. Perez, SerialBasics, 2013) window for window; each entry names the milestone of
 [`PLAN.md`](PLAN.md) it completed.
 
+## Unreleased
+
+- In-app updates (Tauri updater plugin). The daily check and Preferences ▸ Check now read the
+  latest release's `latest.json`; a newer release of the same major version is offered with its
+  release notes ("Download and install?"), downloaded with progress in the Preferences window,
+  verified against the project's signing key, installed, and the app relaunches (unsaved
+  documents are offered for saving first). A new major version, a Linux `.deb` install, or a
+  release without `latest.json` keeps the notice with a link to the release page. Offline or a
+  bad signature is reported plainly. The Installers workflow signs the update bundles and
+  attaches `latest.json` to the draft release. 1.0.0 installs get the notice once; the first
+  self-updating version is the one after it.
+
 ## 1.0.0 — 2026-10-12
 
 The first release. Everything below is in it; the milestone work was done between

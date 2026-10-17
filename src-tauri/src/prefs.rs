@@ -1,23 +1,16 @@
 //! Preferences (⌘,): every knob the original had (User Manual, changelog),
 //! persisted to `prefs.json` in the app config directory and applied live —
 //! every change is broadcast as a `prefs:changed` event and the windows
-//! re-read. Also the original's "auto-check for update availability".
+//! re-read. The original's "auto-check for update availability" lives in
+//! `update.rs`.
 
 use std::path::PathBuf;
 use std::sync::Mutex;
-use std::time::{SystemTime, UNIX_EPOCH};
 
 use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, Emitter, Manager};
-use tauri_plugin_dialog::{DialogExt, MessageDialogButtons, MessageDialogKind};
-use tauri_plugin_opener::OpenerExt;
 
 use crate::{AppState, menu, protein, windows};
-
-/// The GitHub repository queried for new releases.
-pub const REPO: &str = "luksgrin/SerialClon.rs";
-/// Minimum time between two update checks.
-const UPDATE_CHECK_SECS: u64 = 24 * 3600;
 
 /// Every preference. Unknown fields in an old `prefs.json` fall back to
 /// their defaults.
@@ -234,12 +227,7 @@ pub fn apply_startup(app: &AppHandle) {
         windows::apply_toolbar_shift(app, p.toolbar_shift);
     }
     if p.check_updates {
-        let handle = app.clone();
-        std::thread::spawn(move || {
-            if due(&handle) {
-                let _ = check_for_updates(&handle, false);
-            }
-        });
+        crate::update::start_daily_check(app);
     }
 }
 
@@ -261,107 +249,6 @@ pub fn set_prefs(app: AppHandle, prefs: Prefs) -> Prefs {
 pub fn reset_prefs(app: AppHandle) -> Prefs {
     apply(&app, Prefs::default());
     get(&app)
-}
-
-fn stamp_file(app: &AppHandle) -> Option<PathBuf> {
-    app.path()
-        .app_config_dir()
-        .ok()
-        .map(|d| d.join("update-check.json"))
-}
-
-fn now() -> u64 {
-    SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map(|d| d.as_secs())
-        .unwrap_or(0)
-}
-
-/// True if no check ran in the last day.
-fn due(app: &AppHandle) -> bool {
-    let last: u64 = stamp_file(app)
-        .and_then(|f| std::fs::read_to_string(f).ok())
-        .and_then(|t| t.trim().parse().ok())
-        .unwrap_or(0);
-    now().saturating_sub(last) >= UPDATE_CHECK_SECS
-}
-
-/// What an update check found.
-#[derive(Debug, Clone, Serialize)]
-pub struct UpdateReport {
-    /// The version running.
-    pub current: String,
-    /// The latest release tag, if the check succeeded.
-    pub latest: Option<String>,
-    /// True if `latest` is newer than `current`.
-    pub newer: bool,
-    /// The release page.
-    pub url: Option<String>,
-    /// Why the check failed, if it did.
-    pub error: Option<String>,
-}
-
-/// Queries GitHub for the latest release. Failures are silent unless
-/// `interactive` (the Preferences button), in which case a dialog reports
-/// the outcome either way. A newer release offers to open its page.
-pub fn check_for_updates(app: &AppHandle, interactive: bool) -> UpdateReport {
-    if let Some(f) = stamp_file(app) {
-        let _ = std::fs::write(f, now().to_string());
-    }
-    let current = app.package_info().version.to_string();
-    let result =
-        protein::client(app).and_then(|c| c.latest_github_release(REPO).map_err(|e| e.to_string()));
-    let report = match result {
-        Ok(r) => UpdateReport {
-            newer: sc_net::is_newer(&r.tag_name, &current),
-            latest: Some(r.tag_name),
-            url: Some(r.html_url),
-            current,
-            error: None,
-        },
-        Err(e) => UpdateReport {
-            current,
-            latest: None,
-            newer: false,
-            url: None,
-            error: Some(e),
-        },
-    };
-    if report.newer {
-        let latest = report.latest.clone().unwrap_or_default();
-        let ok = app
-            .dialog()
-            .message(format!(
-                "SerialClon {latest} is available (you have {}).\nOpen the download page?",
-                report.current
-            ))
-            .title("A new version is available")
-            .kind(MessageDialogKind::Info)
-            .buttons(MessageDialogButtons::OkCancelCustom(
-                "Open".into(),
-                "Later".into(),
-            ))
-            .blocking_show();
-        if ok && let Some(url) = &report.url {
-            let _ = app.opener().open_url(url, None::<&str>);
-        }
-    } else if interactive {
-        let text = match &report.error {
-            Some(e) => format!("Could not check for updates:\n{e}"),
-            None => format!("SerialClon {} is up to date.", report.current),
-        };
-        app.dialog()
-            .message(text)
-            .title("Check for updates")
-            .blocking_show();
-    }
-    report
-}
-
-/// Preferences ▸ Check now.
-#[tauri::command]
-pub async fn check_for_updates_now(app: AppHandle) -> UpdateReport {
-    check_for_updates(&app, true)
 }
 
 /// The Preferences window's Reset button has a command-line twin,

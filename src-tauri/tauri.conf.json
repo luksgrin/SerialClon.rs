@@ -32,6 +32,7 @@
   },
   "bundle": {
     "active": true,
+    "createUpdaterArtifacts": true,
     "targets": [
       "app",
       "dmg",
@@ -109,5 +110,16 @@
         "mimeType": "chemical/x-genbank"
       }
     ]
+  },
+  "plugins": {
+    "updater": {
+      "endpoints": [
+        "https://github.com/luksgrin/SerialClon.rs/releases/latest/download/latest.json"
+      ],
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEMxMTc1MTJBNUI5RTk5MDEKUldRQm1aNWJLbEVYd1JjSEcyM2N4U25sNXRJeURZVDNkdUJUcC96RVUyMTdrNzdya2ZidXduL2gK",
+      "windows": {
+        "installMode": "passive"
+      }
+    }
   }
 }
