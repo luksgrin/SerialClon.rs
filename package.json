@@ -1,6 +1,6 @@
 {
   "name": "serialclon",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "private": true,
   "description": "An independent reimplementation of the Serial Cloner DNA cloning workbench (Rust + Tauri 2)",
   "type": "module",

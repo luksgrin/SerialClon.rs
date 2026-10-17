@@ -3,7 +3,7 @@
 All notable changes to SerialClon.rs. The project reimplements Serial Cloner 2.6.1
 (F. Perez, SerialBasics, 2013) window for window.
 
-## Unreleased
+## 1.0.1 — 2026-10-17
 
 ### In-app updates (2026-10-17)
 

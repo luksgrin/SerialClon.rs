@@ -3686,7 +3686,7 @@ dependencies = [
 
 [[package]]
 name = "sc-align"
-version = "1.0.0"
+version = "1.0.1"
 dependencies = [
  "mafft",
  "sc-format",
@@ -3697,7 +3697,7 @@ dependencies = [
 
 [[package]]
 name = "sc-clone"
-version = "1.0.0"
+version = "1.0.1"
 dependencies = [
  "sc-enzyme",
  "sc-features",
@@ -3709,7 +3709,7 @@ dependencies = [
 
 [[package]]
 name = "sc-enzyme"
-version = "1.0.0"
+version = "1.0.1"
 dependencies = [
  "sc-format",
  "sc-seq",
@@ -3719,7 +3719,7 @@ dependencies = [
 
 [[package]]
 name = "sc-features"
-version = "1.0.0"
+version = "1.0.1"
 dependencies = [
  "sc-format",
  "sc-seq",
@@ -3730,7 +3730,7 @@ dependencies = [
 
 [[package]]
 name = "sc-format"
-version = "1.0.0"
+version = "1.0.1"
 dependencies = [
  "roxmltree",
  "sc-seq",
@@ -3741,7 +3741,7 @@ dependencies = [
 
 [[package]]
 name = "sc-net"
-version = "1.0.0"
+version = "1.0.1"
 dependencies = [
  "reqwest",
  "serde",
@@ -3751,7 +3751,7 @@ dependencies = [
 
 [[package]]
 name = "sc-seq"
-version = "1.0.0"
+version = "1.0.1"
 dependencies = [
  "serde",
  "serde_json",
@@ -4018,7 +4018,7 @@ dependencies = [
 
 [[package]]
 name = "serialclon"
-version = "1.0.0"
+version = "1.0.1"
 dependencies = [
  "base64 0.22.1",
  "sc-align",
