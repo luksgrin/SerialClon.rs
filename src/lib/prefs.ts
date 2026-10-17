@@ -32,6 +32,7 @@ export interface Prefs {
   recent_files: number;
   warn_import: boolean;
   orf_min_codons: number;
+  orf_start_codons: string;
   pcr_ta_overhang: boolean;
   autosave_secs: number;
   check_updates: boolean;
@@ -73,7 +74,8 @@ export const DEFAULT_PREFS: Prefs = {
   autolock: false,
   recent_files: 10,
   warn_import: true,
-  orf_min_codons: 33,
+  orf_min_codons: 0,
+  orf_start_codons: 'ATG',
   pcr_ta_overhang: false,
   autosave_secs: 30,
   check_updates: true,

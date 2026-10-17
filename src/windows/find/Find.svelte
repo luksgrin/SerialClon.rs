@@ -56,6 +56,9 @@
   }
   async function runOrfs() {
     orfs = await api.findOrfs(id, MIN_ORF_CODONS);
+    // The original lists ORFs from the largest to the smallest.
+    sortKey = 'length';
+    sortAsc = false;
     selectedRow = -1;
   }
   async function runSite() {
@@ -141,8 +144,8 @@
     </div>
   {:else}
     <div class="row">
-      <button type="button" onclick={runOrfs} data-help-name="Find ORFs" data-help="Finds every ORF (ATG to stop) of at least {MIN_ORF_CODONS} codons on both strands, listed from the largest to the smallest. Incomplete ORFs (no stop codon reached) are in italic.">Find ORFs</button>
-      <span class="hint">≥ {MIN_ORF_CODONS} codons, both strands</span>
+      <button type="button" onclick={runOrfs} data-help-name="Find ORFs" data-help="Finds every ORF (start codon to stop, nested ones included) on both strands, listed from the largest to the smallest. Position is the lower end of the ORF on either strand. Incomplete ORFs (no stop codon reached) are in italic. The start codon and the minimum size are set in Preferences ▸ ORF.">Find ORFs</button>
+      <span class="hint">Start codon: {$prefs.orf_start_codons.replaceAll('|', ' | ')}{MIN_ORF_CODONS > 0 ? ` · ≥ ${MIN_ORF_CODONS} aa` : ''} · both strands</span>
     </div>
     <div class="results">
       <table>
@@ -150,7 +153,7 @@
         <tbody>
           {#each sorted(orfs) as o, i (o.start + ':' + o.forward)}
             <tr class:selected={selectedRow === i} class:incomplete={!o.complete} onclick={() => pick(i, Math.min(o.start, o.end) - 1, Math.max(o.start, o.end))}>
-              <td class="num">{o.start}</td><td class="num">{o.length}</td><td>{o.forward ? '+' : '−'}</td><td>{o.frame}</td>
+              <td class="num">{o.position}</td><td class="num">{o.length}</td><td>{o.forward ? '+' : '−'}</td><td>{o.forward ? '+' : '−'}{o.frame}</td>
             </tr>
           {/each}
         </tbody>

@@ -67,8 +67,12 @@ pub struct Prefs {
     pub recent_files: usize,
     /// Warn when opening a file that is not in Serial Cloner format.
     pub warn_import: bool,
-    /// Minimum ORF size for Find ▸ ORFs, in codons.
+    /// Minimum ORF size for Find ▸ ORFs, in codons (amino acids); 0 = no
+    /// limit, the original's default.
     pub orf_min_codons: usize,
+    /// Start codons that open an ORF, `|`-separated: one of the original's
+    /// four choices (`ATG`, `GTG`, `ATG|GTG`, `ATG|CTG|GTG|TTG`).
+    pub orf_start_codons: String,
     /// Run a PCR: 3' A overhang by default.
     pub pcr_ta_overhang: bool,
     /// Autosave interval in seconds.
@@ -117,7 +121,8 @@ impl Default for Prefs {
             autolock: false,
             recent_files: 10,
             warn_import: true,
-            orf_min_codons: 33,
+            orf_min_codons: 0,
+            orf_start_codons: "ATG".into(),
             pcr_ta_overhang: false,
             autosave_secs: 30,
             check_updates: true,
@@ -143,7 +148,10 @@ impl Prefs {
         self.smap_char_size = self.smap_char_size.clamp(6, 24);
         self.smap_print_size = self.smap_print_size.clamp(4, 16);
         self.smap_per_line = self.smap_per_line.clamp(10, 500);
-        self.orf_min_codons = self.orf_min_codons.clamp(1, 10_000);
+        self.orf_min_codons = self.orf_min_codons.clamp(0, 10_000);
+        if !sc_seq::translate::ORF_START_OPTIONS.contains(&self.orf_start_codons.as_str()) {
+            self.orf_start_codons = "ATG".into();
+        }
         self.autosave_secs = self.autosave_secs.clamp(5, 3600);
         self.toolbar_shift = self.toolbar_shift.clamp(-200, 400);
         self.read_speed = self.read_speed.clamp(0.5, 2.0);

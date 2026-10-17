@@ -6,7 +6,7 @@
 
 use sc_seq::alphabet::{is_palindromic, matches_at, reverse_complement};
 use sc_seq::stats::{BaseCounts, DEFAULT_NA_MOLAR, melting_temperature, peptide_len, protein_mw};
-use sc_seq::translate::{STANDARD, find_orfs};
+use sc_seq::translate::{STANDARD, find_orfs, orf_start_codons};
 use sc_seq::{Source, Strand, Topology};
 use serde::Serialize;
 use tauri::{AppHandle, Emitter, Manager};
@@ -473,6 +473,9 @@ pub fn find_site(app: AppHandle, id: DocId, enzyme: String) -> Result<Vec<Hit>, 
 /// An ORF for the Find drawer.
 #[derive(Debug, Clone, Serialize)]
 pub struct OrfHit {
+    /// 1-based lower coordinate of the ORF on either strand — the Position
+    /// column of the original's list (nested reverse ORFs share it).
+    pub position: usize,
     /// 1-based first base of the start codon.
     pub start: usize,
     /// 1-based last base.
@@ -487,9 +490,12 @@ pub struct OrfHit {
     pub complete: bool,
 }
 
-/// Find ▸ ORFs: every ORF of at least `min_codons`, longest first.
+/// Find ▸ ORFs: every ORF of at least `min_codons` (0 = no limit, as the
+/// original's empty field) opened by one of the preferences' start codons,
+/// longest first.
 #[tauri::command]
 pub fn find_orfs_cmd(app: AppHandle, id: DocId, min_codons: usize) -> Result<Vec<OrfHit>, String> {
+    let starts = orf_start_codons(&crate::prefs::get(&app).orf_start_codons);
     let state = app.state::<AppState>();
     let store = state.store.lock().unwrap();
     let doc = store.get(id).ok_or("no such document")?;
@@ -498,9 +504,11 @@ pub fn find_orfs_cmd(app: AppHandle, id: DocId, min_codons: usize) -> Result<Vec
         doc.seq.topology,
         &STANDARD,
         min_codons.max(1),
+        &starts,
     )
     .into_iter()
     .map(|o| OrfHit {
+        position: o.start.min(o.end) as usize,
         start: o.start as usize,
         end: o.end as usize,
         forward: o.strand == Strand::Forward,

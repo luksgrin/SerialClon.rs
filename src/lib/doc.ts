@@ -109,6 +109,8 @@ export interface Hit {
 }
 
 export interface OrfHit {
+  /** Lower coordinate on either strand (the original's Position column). */
+  position: number;
   start: number;
   end: number;
   forward: boolean;
