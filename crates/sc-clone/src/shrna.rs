@@ -23,15 +23,16 @@ pub struct Layout {
 }
 
 impl Layout {
-    /// The pSUPER layout: BglII / HindIII ends, TTCAAGAGA loop, TTTTT
-    /// terminator.
+    /// The pSUPER layout exactly as the original stores it
+    /// (`pSUPER,5GATC,CCC,TTCAAGAGA,TTTTTG,5AGCT`): BglII / HindIII 5' ends,
+    /// CCC prefix, TTCAAGAGA loop, TTTTTG terminator.
     pub fn psuper() -> Layout {
         Layout {
-            name: "pSUPER (BglII/HindIII)".into(),
+            name: "pSUPER".into(),
             left_overhang: "GATC".into(),
             prefix: "CCC".into(),
             loop_seq: "TTCAAGAGA".into(),
-            suffix: "TTTTTGGAAA".into(),
+            suffix: "TTTTTG".into(),
             right_overhang: "AGCT".into(),
         }
     }
@@ -170,7 +171,7 @@ mod tests {
         let core = "GACTTCAGCTTGGATCCAA";
         let s = shrna("sh", &Layout::psuper(), core, &[]);
         let expected_insert = format!(
-            "CCC{core}TTCAAGAGA{}TTTTTGGAAA",
+            "CCC{core}TTCAAGAGA{}TTTTTG",
             String::from_utf8(reverse_complement(core.as_bytes())).unwrap()
         );
         assert_eq!(s.top_oligo, format!("GATC{expected_insert}").as_bytes());
