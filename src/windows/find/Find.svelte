@@ -14,9 +14,11 @@
   const MIN_ORF_CODONS = $derived($prefs.orf_min_codons);
 
   let doc = $state<DocumentView | null>(null);
-  let tab = $state<'sequence' | 'site' | 'orfs'>('sequence');
+  let tab = $state<'sequence' | 'peptide' | 'site' | 'orfs'>('sequence');
   let query = $state('');
   let hits = $state<Hit[]>([]);
+  let peptideQuery = $state('');
+  let peptideHits = $state<OrfHit[]>([]);
   let orfs = $state<OrfHit[]>([]);
   let enzymes = $state<EnzymeEntry[]>([]);
   let enzyme = $state('');
@@ -54,6 +56,16 @@
     hits = q.length ? await api.findText(id, q) : [];
     selectedRow = -1;
   }
+  let peptideTimer: ReturnType<typeof setTimeout> | undefined;
+  function onPeptideQuery() {
+    clearTimeout(peptideTimer);
+    peptideTimer = setTimeout(runPeptide, 120);
+  }
+  async function runPeptide() {
+    const q = peptideQuery.replace(/[^A-Za-z*]/g, '');
+    peptideHits = q.length ? await api.findPeptide(id, q) : [];
+    selectedRow = -1;
+  }
   async function runOrfs() {
     orfs = await api.findOrfs(id, MIN_ORF_CODONS);
     // The original lists ORFs from the largest to the smallest.
@@ -82,6 +94,7 @@
       unlisten = await onDocChanged(id, async (d) => {
         doc = d;
         if (tab === 'sequence' && query) await runSearch();
+        if (tab === 'peptide' && peptideQuery) await runPeptide();
         if (tab === 'orfs' && orfs.length) await runOrfs();
         await loadEnzymes();
         if (tab === 'site' && enzyme) await runSite();
@@ -94,6 +107,7 @@
 <div class="drawer">
   <div class="tabs" role="tablist">
     <button type="button" role="tab" aria-selected={tab === 'sequence'} onclick={() => (tab = 'sequence')} data-help-name="Sequence tab" data-help="Click on this tab if you want to search for a sub-sequence string.">Sequence</button>
+    <button type="button" role="tab" aria-selected={tab === 'peptide'} onclick={() => (tab = 'peptide')} data-help-name="Peptide tab" data-help="Click on this tab if you want to search for a peptide in the six translations of the sequence.">Peptide</button>
     <button type="button" role="tab" aria-selected={tab === 'site'} onclick={() => (tab = 'site')} data-help-name="Site tab" data-help="Click on this tab if you want to search for a restriction site.">Site</button>
     <button type="button" role="tab" aria-selected={tab === 'orfs'} onclick={() => (tab = 'orfs')} data-help-name="ORFs tab" data-help="Click on this tab if you want to search for Open Reading Frames (ORF).">ORFs</button>
   </div>
@@ -115,6 +129,24 @@
         </tbody>
       </table>
       {#if query && !hits.length}<p class="hint">Not found.</p>{/if}
+    </div>
+  {:else if tab === 'peptide'}
+    <div class="row">
+      <input class="query" type="text" bind:value={peptideQuery} oninput={onPeptideQuery} placeholder="peptide (one-letter code, X = any)" spellcheck="false" data-help-name="Peptide field" data-help="Enter here the amino-acid string (one-letter code) you want to look for. It is searched in the three frames of both strands; X matches any residue." />
+      <button type="button" onclick={runPeptide} data-help-name="Find" data-help="Click here to start searching.">Find</button>
+    </div>
+    <div class="results" data-help-name="Occurrences" data-help="All the occurrences of the peptide, with the strand and the reading frame. Click on an occurrence to select the coding bases in the Sequence Window.">
+      <table>
+        <thead><tr><th onclick={() => sortBy('position')}>Position</th><th onclick={() => sortBy('length')}>Size</th><th onclick={() => sortBy('forward')}>Strand</th><th>Frame</th></tr></thead>
+        <tbody>
+          {#each sorted(peptideHits) as o, i (o.start + ':' + o.forward + ':' + o.frame)}
+            <tr class:selected={selectedRow === i} onclick={() => pick(i, Math.min(o.start, o.end) - 1, Math.max(o.start, o.end))}>
+              <td class="num">{o.position}</td><td class="num">{o.length}</td><td>{o.forward ? '+' : '−'}</td><td>{o.forward ? '+' : '−'}{o.frame}</td>
+            </tr>
+          {/each}
+        </tbody>
+      </table>
+      {#if peptideQuery && !peptideHits.length}<p class="hint">Not found.</p>{/if}
     </div>
   {:else if tab === 'site'}
     <div class="site">

@@ -450,6 +450,65 @@ pub fn find_text(app: AppHandle, id: DocId, query: String) -> Result<Vec<Hit>, S
     Ok(search(&doc.seq.bases, doc.seq.topology, &pattern))
 }
 
+/// Find ▸ Peptide (the original's second tab): every occurrence of an
+/// amino-acid string in the three translations of each strand (`X` matches
+/// any residue), as Position / Size / Strand / Frame rows; Size is in bases.
+#[tauri::command]
+pub fn find_peptide(app: AppHandle, id: DocId, query: String) -> Result<Vec<OrfHit>, String> {
+    let state = app.state::<AppState>();
+    let store = state.store.lock().unwrap();
+    let doc = store.get(id).ok_or("no such document")?;
+    let pattern: Vec<u8> = query
+        .bytes()
+        .filter(|b| b.is_ascii_alphabetic() || *b == b'*')
+        .map(|b| b.to_ascii_uppercase())
+        .collect();
+    let n = doc.seq.bases.len();
+    let mut out = Vec::new();
+    if pattern.is_empty() || n < 3 {
+        return Ok(out);
+    }
+    let rc = reverse_complement(&doc.seq.bases);
+    for (forward, strand) in [(true, doc.seq.bases.as_slice()), (false, rc.as_slice())] {
+        for frame in 0..3usize {
+            if n < frame + 3 {
+                continue;
+            }
+            let aa = STANDARD.translate(&strand[frame..], true).into_bytes();
+            if aa.len() < pattern.len() {
+                continue;
+            }
+            for i in 0..=aa.len() - pattern.len() {
+                let hit = pattern
+                    .iter()
+                    .zip(&aa[i..i + pattern.len()])
+                    .all(|(p, a)| *p == b'X' || p == a);
+                if !hit {
+                    continue;
+                }
+                let lo = frame + 3 * i;
+                let hi = lo + 3 * pattern.len();
+                let (start, end) = if forward {
+                    (lo + 1, hi)
+                } else {
+                    (n - lo, n - hi + 1)
+                };
+                out.push(OrfHit {
+                    position: start.min(end),
+                    start,
+                    end,
+                    forward,
+                    frame: frame as u8 + 1,
+                    length: 3 * pattern.len(),
+                    complete: true,
+                });
+            }
+        }
+    }
+    out.sort_by_key(|h| h.position);
+    Ok(out)
+}
+
 /// Find ▸ Site: every site of an enzyme.
 #[tauri::command]
 pub fn find_site(app: AppHandle, id: DocId, enzyme: String) -> Result<Vec<Hit>, String> {

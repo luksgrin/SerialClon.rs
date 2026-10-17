@@ -347,6 +347,7 @@ export const api = {
     invoke<SelectionInfo>('selection_info', { id, from, to, firstOrf }),
   findText: (id: number, query: string) => invoke<Hit[]>('find_text', { id, query }),
   findSite: (id: number, enzyme: string) => invoke<Hit[]>('find_site', { id, enzyme }),
+  findPeptide: (id: number, query: string) => invoke<OrfHit[]>('find_peptide', { id, query }),
   findOrfs: (id: number, minCodons: number) => invoke<OrfHit[]>('find_orfs_cmd', { id, minCodons }),
   enzymeList: (id: number) => invoke<EnzymeEntry[]>('enzyme_list', { id }),
   recentFiles: () => invoke<string[]>('recent_files'),

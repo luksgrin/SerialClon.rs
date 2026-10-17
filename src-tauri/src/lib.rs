@@ -539,6 +539,7 @@ pub fn run() {
             commands::selection_info,
             commands::find_text,
             commands::find_site,
+            commands::find_peptide,
             commands::find_orfs_cmd,
             commands::enzyme_list,
             commands::recent_files,

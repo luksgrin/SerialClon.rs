@@ -312,13 +312,25 @@ pub fn scan(seq: &Sequence, collections: &[Collection]) -> Vec<Feature> {
     out
 }
 
+/// Identity as the original's `Annot_to_Chain` sees it: a feature whose
+/// name, position, strand, type or colour was edited is no longer "the
+/// same" as the scan's hit, so a new scan leaves it alone and adds the hit
+/// beside it (Features ReadMe §VIII.D: "if you change something on an
+/// automatically found annotation (like its name, color, etc.), it will not
+/// anymore be automatically erased upon a new scan").
 fn same(a: &Feature, b: &Feature) -> bool {
-    a.name == b.name && a.start == b.start && a.end == b.end && a.strand == b.strand
+    a.name == b.name
+        && a.start == b.start
+        && a.end == b.end
+        && a.strand == b.strand
+        && a.kind == b.kind
+        && a.color == b.color
 }
 
 /// Applies scan results to a sequence's feature list (Features ReadMe
 /// §VIII.D): unprotected features identical to a hit are replaced; hits
-/// identical to a protected feature are dropped; everything else is added.
+/// identical to a protected feature are dropped; everything else is added
+/// (an edited feature counts as different, see [`same`]).
 /// Returns how many features were added.
 pub fn merge(existing: &mut Vec<Feature>, found: Vec<Feature>) -> usize {
     existing.retain(|e| e.protect || !found.iter().any(|f| same(e, f)));
@@ -462,11 +474,22 @@ mod tests {
         let def = FeatureDef::simple("site", "misc_feature", "#000000", "GAATTC");
         let s = seq("ccGAATTCcc");
         let found = scan_one(&s, &def);
+        // An untouched hit from a previous scan is replaced by the new one.
         let mut existing = vec![found[0].clone()];
-        existing[0].color = sc_seq::Rgb(1, 1, 1); // user recoloured but did not protect
         let added = merge(&mut existing, found.clone());
         assert_eq!(added, 2);
         assert_eq!(existing.len(), 2);
+        // A recoloured one is no longer identical: it stays and the hit is
+        // added beside it (the original's documented duplication).
+        let mut existing = vec![found[0].clone()];
+        existing[0].color = sc_seq::Rgb(1, 1, 1);
+        let added = merge(&mut existing, found.clone());
+        assert_eq!(added, 2);
+        assert_eq!(existing.len(), 3);
+        assert_eq!(existing[0].color, sc_seq::Rgb(1, 1, 1));
+        let mut existing = vec![found[0].clone()];
+        let added = merge(&mut existing, found.clone());
+        assert_eq!(added, 2);
         assert_eq!(existing[0].color, def.rgb());
         // Protected: kept, and the identical hit is not duplicated.
         let mut protected = vec![found[0].clone()];
