@@ -87,18 +87,6 @@ fn product(
     }
 }
 
-fn describe(o: &Overhang) -> String {
-    if o.is_blunt() {
-        "blunt".to_owned()
-    } else {
-        format!(
-            "{}' {}",
-            if o.is_five_prime() { 5 } else { 3 },
-            String::from_utf8_lossy(&o.bases)
-        )
-    }
-}
-
 /// Extracts the selected bases `from..to` (0-based, half-open; wrapping the
 /// origin of a circular sequence when `from > to`) as a blunt fragment.
 pub fn extract_selection(seq: &Sequence, from: usize, to: usize) -> Option<Sequence> {
@@ -130,13 +118,13 @@ pub fn extract_selection(seq: &Sequence, from: usize, to: usize) -> Option<Seque
         left: Overhang::BLUNT,
         right: Overhang::BLUNT,
     };
+    // The original's Sequence Window (`SeqWindow.GoGenerateFragment`):
+    // `Fragment extracted from <name> [between <from> and <to>]`.
     let comment = format!(
-        "Fragment extracted from {} [{} bp] from {} to {} (blunt ends)\r{}",
+        "Fragment extracted from {} [between {} and {}]",
         seq.name,
-        n,
         from + 1,
         if from <= to { to } else { to + n },
-        first_line(&seq.comment)
     );
     Some(product(
         seq,
@@ -165,10 +153,11 @@ pub fn extract_between(
         (begin.cut_top, begin.cut_bottom),
         (end.cut_top, end.cut_bottom),
     );
-    let (first, second, orientation) = match (seq.topology, clockwise) {
-        (Topology::Circular, true) => (a, b, "CW"),
-        (Topology::Circular, false) => (b, a, "CCW"),
-        (Topology::Linear, _) => (a, b, if clockwise { "sense" } else { "antisense" }),
+    // CW takes the arc from `begin` to `end`, CCW the complementary one; on
+    // a linear sequence "antisense" returns the antiparallel fragment.
+    let (first, second) = match (seq.topology, clockwise) {
+        (Topology::Circular, true) | (Topology::Linear, _) => (a, b),
+        (Topology::Circular, false) => (b, a),
     };
     let mut fragment = fragment_between(&seq.bases, seq.topology, first, second)?;
     let lo = first.0.min(first.1);
@@ -181,18 +170,20 @@ pub fn extract_between(
     } else {
         (lo, hi, None)
     };
+    // The original's Build a Construct window (`CircGraphMap.GoGenerateFragment`)
+    // writes `Fragment extracted from <name> [<size>  nt] : (<enzyme 5'>[<pos>] /
+    // <enzyme 3'>[<pos>])` from its labels: the source name, the fragment size
+    // label (`<n>  nt`, two spaces) and the two extremity labels, which get
+    // `-Blunt(filled)` / `-Blunt(trimmed)` when an end is processed (see
+    // [`crate::ligate::blunt_with`]). The orientation is not recorded.
     let comment = format!(
-        "Fragment extracted from {} [{} bp] between {} ({}) and {} ({}), {}\rLeft end: {} — Right end: {}\r{}",
+        "Fragment extracted from {} [{}  nt] : ({}[{}] / {}[{}])",
         seq.name,
-        n,
+        fragment.bases.len(),
         begin.enzyme,
         begin.position,
         end.enzyme,
         end.position,
-        orientation,
-        describe(&fragment.left),
-        describe(&fragment.right),
-        first_line(&seq.comment)
     );
     let name = if begin == end {
         format!("{} ({})", seq.name, begin.enzyme)
@@ -218,10 +209,6 @@ pub fn extract_between(
         return Some(out);
     }
     Some(product(seq, fragment, name, comment, lo, hi, wrap_hi))
-}
-
-fn first_line(comment: &str) -> &str {
-    comment.split(['\r', '\n']).next().unwrap_or("")
 }
 
 #[cfg(test)]
@@ -267,9 +254,8 @@ mod tests {
         assert_eq!(f.bases, b"GAATTC");
         assert!(f.ends.is_blunt());
         assert_eq!(f.topology, Topology::Linear);
-        assert!(f.comment.starts_with(
-            "Fragment extracted from pTest [19 bp] from 3 to 8 (blunt ends)\ra test plasmid"
-        ));
+        // The original's Sequence Window comment.
+        assert_eq!(f.comment, "Fragment extracted from pTest [between 3 and 8]");
         // Wrapping the origin.
         assert_eq!(extract_selection(&seq, 17, 2).unwrap().bases, b"cctt");
         assert!(extract_selection(&Sequence::new("l", b"ACGT".to_vec()), 3, 1).is_none());
@@ -284,8 +270,12 @@ mod tests {
         assert_eq!(f.bases, b"AATTCaaaGGATC");
         assert_eq!(f.ends.left, Overhang::five_prime(b"AATT"));
         assert_eq!(f.ends.right, Overhang::five_prime(b"GATC"));
-        assert!(f.comment.contains("between EcoRI (3) and BamHI (12), CW"));
-        assert!(f.comment.contains("Left end: 5' AATT — Right end: 5' GATC"));
+        // The original's Build a Construct comment: source name, size label
+        // (`<n>  nt`), then the two extremity labels with their positions.
+        assert_eq!(
+            f.comment,
+            "Fragment extracted from pTest [13  nt] : (EcoRI[3] / BamHI[12])"
+        );
         // The feature at 9..11 sits inside: fragment base 1 is sequence base 4.
         assert_eq!(f.features.len(), 1);
         assert_eq!((f.features[0].start, f.features[0].end), (6, 8));

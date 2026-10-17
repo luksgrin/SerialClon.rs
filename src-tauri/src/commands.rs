@@ -64,7 +64,11 @@ pub fn broadcast(app: &AppHandle, id: DocId) {
         // the id in the payload, so this is a true broadcast.
         let _ = app.emit("doc:changed", &view);
         if let Some(w) = app.get_webview_window(&windows::seq_label(id)) {
-            let title = if view.dirty {
+            // A product never saved is titled `Unsaved <name>` as the
+            // original titles its new windows; an edited file gets a dot.
+            let title = if view.dirty && view.path.is_none() {
+                format!("Unsaved {}", view.name)
+            } else if view.dirty {
                 format!("{} •", view.name)
             } else {
                 view.name.clone()
@@ -847,8 +851,13 @@ pub fn extract_fragment(
         let doc = store.get(id).ok_or("no such document")?;
         let begin: sc_clone::SiteRef = begin.into();
         let end: sc_clone::SiteRef = end.map(Into::into).unwrap_or_else(|| begin.clone());
-        sc_clone::extract_between(&doc.seq, &begin, &end, clockwise)
-            .ok_or("nothing to extract between these sites")?
+        let mut p = sc_clone::extract_between(&doc.seq, &begin, &end, clockwise)
+            .ok_or("nothing to extract between these sites")?;
+        // The original names the new window `Unsaved DNA Fragment #n`.
+        let mut counters = state.product_counters.lock().unwrap();
+        counters.dna_fragment += 1;
+        p.name = format!("DNA Fragment #{}", counters.dna_fragment);
+        p
     };
     Ok(open_product(&app, product))
 }
@@ -871,6 +880,10 @@ pub fn extract_selection(
         if from == 0 && to == doc.seq.len() && !doc.seq.topology.is_circular() {
             p.ends = doc.seq.ends.clone();
         }
+        // The original names the new window `Unsaved Fragment #n`.
+        let mut counters = state.product_counters.lock().unwrap();
+        counters.fragment += 1;
+        p.name = format!("Fragment #{}", counters.fragment);
         p
     };
     Ok(open_product(&app, product))

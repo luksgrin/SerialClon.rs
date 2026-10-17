@@ -34,7 +34,7 @@ impl Default for Settings {
         Settings {
             genetic_code: 1,
             pk_table: sc_seq::pi::DEFAULT.name.to_owned(),
-            codon_table: "ecoli-k12".to_owned(),
+            codon_table: "h-sapiens".to_owned(),
         }
     }
 }

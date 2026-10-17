@@ -6,6 +6,27 @@ All notable changes to SerialClon.rs. The project reimplements Serial Cloner 2.6
 
 ## Unreleased
 
+### Behaviour aligned with the original, third pass (2026-10-17)
+
+- Extract Fragment and Build a Construct write the original's comments: `Fragment extracted
+  from <name> [<n>  nt] : (<enzyme 5'>[<pos>] / <enzyme 3'>[<pos>])` (an end made blunt is
+  relabelled `-Blunt(filled)` / `-Blunt(trimmed)`), `Fragment extracted from <name> [between
+  <from> and <to>]` for a Sequence Window selection, and `Ligation of : <fragment 1> to
+  <fragment 2> and to <fragment 3>`. Products are named `DNA Fragment #n`, `Fragment #n` and
+  `Ligation #n` and open as `Unsaved <name>`, as the original titles its windows.
+- After a ligation and after a Gateway reaction the junctions are rescanned for features, as the
+  original does: a site rebuilt by compatible ends or a tag completed across a junction is
+  annotated, under the same merge/protect rules as a scan.
+- Gateway: *Use minimal att consensus* (the original's checkbox, remembered in the preferences)
+  locates the att sites with the original's short core consensus instead of the full
+  definitions, for vectors with unusual att arms.
+- Codon Usage lists the original's nine tables first (H. sapiens, M. musculus, R. norvegicus,
+  E. coli, S. cerevisiae, S. pombe, A. thaliana, P. pastoris, D. melanogaster, verbatim from the
+  original), with H. sapiens as the default; the five 2026 Kazusa tables follow.
+- The Virtual Cutter's gel offers the original's four ladders (GeneRuler 1 kb Plus, Smart
+  Ladder, NEB 1 kb, Invitrogen 1 kb plus), GeneRuler by default, bright reference bands drawn
+  bolder and the migration scale calibrated on the chosen ladder; the generic 1 kb ladder stays.
+
 ### Data recovered from the original binaries (2026-10-17)
 
 - The built-in Feature collections are now Serial Cloner 2.6.1's own database, all 155

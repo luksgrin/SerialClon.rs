@@ -54,6 +54,7 @@ pub fn blunt_with(seq: &mut Sequence, side: Side, mode: BluntMode) {
     if o.is_blunt() {
         return;
     }
+    label_blunt(&mut seq.comment, side, mode);
     let k = o.length.unsigned_abs() as usize;
     if mode == BluntMode::Remove {
         match side {
@@ -179,7 +180,7 @@ pub fn ligate(
         snapgene_extras: None,
     };
     inherit_into(&mut product.features, first, 0, first.len(), 0);
-    let mut parts = vec![format!("{} [{} bp]", first.name, first.len())];
+    let mut parts = vec![label(first)];
     for b in &fragments[1..] {
         let (bases, offset) = join(&product, b)?;
         product.bases = bases;
@@ -199,7 +200,7 @@ pub fn ligate(
                 color: sc_seq::Rgb(0x84, 0xa4, 0xc0),
             });
         }
-        parts.push(format!("{} [{} bp]", b.name, b.len()));
+        parts.push(label(b));
     }
     if circularize {
         if !compatible(&product.ends.right, &product.ends.left) {
@@ -215,23 +216,101 @@ pub fn ligate(
         let n = product.bases.len();
         product.bases.truncate(n - k);
         let n = product.bases.len() as u32;
+        // The last insert's feature reaches into the duplex now folded onto
+        // the origin: trim it to the last base rather than lose it.
+        for f in &mut product.features {
+            if f.name.starts_with("insert from ") && f.start <= n && f.end > n {
+                f.end = n;
+            }
+        }
         product.features.retain(|f| f.start <= n && f.end <= n);
         product.ends = Ends::default();
         product.topology = Topology::Circular;
     }
-    product.comment = format!(
-        "{} ligation of {}: {}\r{}",
-        if circularize { "Circular" } else { "Linear" },
-        fragments.len(),
-        parts.join(" + "),
-        fragments
-            .iter()
-            .map(|f| first_line(&f.comment))
-            .filter(|c| !c.is_empty())
-            .collect::<Vec<_>>()
-            .join(" | ")
-    );
+    // The original's comment (`CircGraphMap.GoGenerateFragment`): `Ligation
+    // of : <fragment 1> to <fragment 2> and to <fragment 3>`, each fragment
+    // as `<source> [<size>  nt] : (<enzyme 5'>[<pos>] / <enzyme 3'>[<pos>])`.
+    let mut comment = format!("Ligation of : {}", parts[0]);
+    for (i, p) in parts.iter().enumerate().skip(1) {
+        comment.push_str(if i == 1 { " to " } else { " and to " });
+        comment.push_str(p);
+    }
+    product.comment = comment;
     Ok(product)
+}
+
+/// The fragment as the original's Build a Construct window labels it: the
+/// provenance of a fragment extracted between two sites, without its
+/// `Fragment extracted from ` prefix; otherwise the name, the size label and
+/// the two ends.
+fn label(f: &Sequence) -> String {
+    let c = first_line(&f.comment);
+    match c.strip_prefix("Fragment extracted from ") {
+        Some(rest) if rest.contains(" : (") => rest.to_owned(),
+        _ => format!(
+            "{} [{}  nt] : ({}[1] / {}[{}])",
+            f.name,
+            f.len(),
+            describe(&f.ends.left),
+            describe(&f.ends.right),
+            f.len()
+        ),
+    }
+}
+
+/// Suffixes the extremity label of a `Fragment extracted from … : (<5'>[p] /
+/// <3'>[p])` comment with `-Blunt(filled)` / `-Blunt(trimmed)`, as the
+/// original's window relabels a processed end.
+fn label_blunt(comment: &mut String, side: Side, mode: BluntMode) {
+    let suffix = match mode {
+        BluntMode::Fill => "-Blunt(filled)",
+        BluntMode::Remove => "-Blunt(trimmed)",
+    };
+    let Some(open) = comment.find(" : (") else {
+        return;
+    };
+    // The labels themselves may hold parentheses (`-Blunt(filled)`): the
+    // closing one is the last of the line.
+    let Some(close) = comment.rfind(')') else {
+        return;
+    };
+    if close < open + 4 {
+        return;
+    }
+    let inner = &comment[open + 4..close];
+    let Some((left, right)) = inner.split_once(" / ") else {
+        return;
+    };
+    let relabel = |s: &str| match s.find('[') {
+        Some(b) if !s[..b].ends_with(suffix) => format!("{}{}{}", &s[..b], suffix, &s[b..]),
+        _ => s.to_owned(),
+    };
+    let (left, right) = match side {
+        Side::Left => (relabel(left), right.to_owned()),
+        Side::Right => (left.to_owned(), relabel(right)),
+    };
+    comment.replace_range(open + 4..close, &format!("{left} / {right}"));
+}
+
+/// The 0-based positions after which a junction follows in the product of
+/// [`ligate`] or of a Gateway reaction: both ends of every `insert from`
+/// feature, plus the closing junction of a circular product (the base before
+/// the origin). The original rescans the product for features around every
+/// junction (`SetAnnotations(seq, from, to, false)`).
+pub fn junctions(product: &Sequence) -> Vec<usize> {
+    let mut out: Vec<usize> = product
+        .features
+        .iter()
+        .filter(|f| f.name.starts_with("insert from ") || f.name.starts_with("Insert from "))
+        .flat_map(|f| [f.start as usize - 1, f.end as usize])
+        .filter(|&j| j > 0 && j < product.len())
+        .collect();
+    if product.topology.is_circular() && !product.is_empty() {
+        out.push(product.len());
+    }
+    out.sort_unstable();
+    out.dedup();
+    out
 }
 
 #[cfg(test)]
@@ -326,10 +405,81 @@ mod tests {
         assert_eq!((p.features[1].start, p.features[1].end), (9, 12));
         assert_eq!(p.features[2].name, "insert from ins");
         assert_eq!((p.features[2].start, p.features[2].end), (5, 12));
-        assert!(
-            p.comment
-                .starts_with("Linear ligation of 2: vec [8 bp] + ins [8 bp]")
+        // The original's comment: fragments without an extraction provenance
+        // are labelled with their name, size and ends.
+        assert_eq!(
+            p.comment,
+            "Ligation of : vec [8  nt] : (blunt[1] / 5' GATC[8]) to ins [8  nt] : (5' GATC[1] / blunt[8])"
         );
+        assert_eq!(junctions(&p), vec![4]);
+    }
+
+    #[test]
+    fn comment_follows_the_original_templates_and_blunting_relabels_the_ends() {
+        // Fragments as the Graphic Map extracts them carry the original's
+        // `Fragment extracted from …` line, which the ligation reuses.
+        let mut a = frag(
+            "DNA Fragment #1",
+            "AATTCggggGATC",
+            Overhang::five_prime(b"AATT"),
+            Overhang::five_prime(b"GATC"),
+        );
+        a.comment = "Fragment extracted from pVec [13  nt] : (EcoRI[396] / BamHI[1402])".into();
+        let mut b = frag(
+            "DNA Fragment #2",
+            "GATCttttGATC",
+            Overhang::five_prime(b"GATC"),
+            Overhang::five_prime(b"GATC"),
+        );
+        b.comment = "Fragment extracted from pIns [12  nt] : (BglII[10] / BamHI[220])".into();
+        let mut c = frag(
+            "DNA Fragment #3",
+            "GATCaaa",
+            Overhang::five_prime(b"GATC"),
+            Overhang::BLUNT,
+        );
+        c.comment = "Fragment extracted from pX [7  nt] : (BamHI[5] / SmaI[11])".into();
+        let p = ligate(&[a.clone(), b.clone(), c.clone()], false, "Ligation #1").unwrap();
+        assert_eq!(
+            p.comment,
+            "Ligation of : pVec [13  nt] : (EcoRI[396] / BamHI[1402]) to pIns [12  nt] : (BglII[10] / BamHI[220]) and to pX [7  nt] : (BamHI[5] / SmaI[11])"
+        );
+        // The insert feature's note is the fragment's provenance line.
+        let ins = p
+            .features
+            .iter()
+            .find(|f| f.name == "insert from DNA Fragment #2")
+            .unwrap();
+        assert_eq!(ins.description, b.comment);
+        assert_eq!(junctions(&p), vec![9, 17, 21]);
+
+        // Blunting relabels the processed extremity, once.
+        blunt_with(&mut a, Side::Left, BluntMode::Fill);
+        blunt_with(&mut a, Side::Left, BluntMode::Fill);
+        assert_eq!(
+            a.comment,
+            "Fragment extracted from pVec [13  nt] : (EcoRI-Blunt(filled)[396] / BamHI[1402])"
+        );
+        blunt_with(&mut a, Side::Right, BluntMode::Remove);
+        assert_eq!(
+            a.comment,
+            "Fragment extracted from pVec [13  nt] : (EcoRI-Blunt(filled)[396] / BamHI-Blunt(trimmed)[1402])"
+        );
+        // A circular product has a closing junction at the origin.
+        let v = frag(
+            "v",
+            "GATCccccGATC",
+            Overhang::five_prime(b"GATC"),
+            Overhang::five_prime(b"GATC"),
+        );
+        let i = frag(
+            "i",
+            "GATCttttGATC",
+            Overhang::five_prime(b"GATC"),
+            Overhang::five_prime(b"GATC"),
+        );
+        let circ = ligate(&[v, i], true, "c").unwrap();
+        assert_eq!(junctions(&circ), vec![8, 16]);
     }
 
     #[test]

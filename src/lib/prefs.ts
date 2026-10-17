@@ -34,6 +34,7 @@ export interface Prefs {
   orf_min_codons: number;
   orf_start_codons: string;
   pcr_ta_overhang: boolean;
+  gateway_minimal_att: boolean;
   autosave_secs: number;
   check_updates: boolean;
   proxy: string;
@@ -77,6 +78,7 @@ export const DEFAULT_PREFS: Prefs = {
   orf_min_codons: 0,
   orf_start_codons: 'ATG',
   pcr_ta_overhang: true,
+  gateway_minimal_att: false,
   autosave_secs: 30,
   check_updates: true,
   proxy: '',
