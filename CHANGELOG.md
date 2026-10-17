@@ -6,6 +6,8 @@ All notable changes to SerialClon.rs. The project reimplements Serial Cloner 2.6
 
 ## Unreleased
 
+### In-app updates (2026-10-17)
+
 - In-app updates (Tauri updater plugin). The daily check and Preferences ▸ Check now read the
   latest release's `latest.json`; a newer release of the same major version is offered with its
   release notes ("Download and install?"), downloaded with progress in the Preferences window,
@@ -15,6 +17,74 @@ All notable changes to SerialClon.rs. The project reimplements Serial Cloner 2.6
   bad signature is reported plainly. The Installers workflow signs the update bundles and
   attaches `latest.json` to the draft release. 1.0.0 installs get the notice once; the first
   self-updating version is the one after it.
+
+### Behaviour aligned with the original, third pass (2026-10-17)
+
+- Extract Fragment and Build a Construct write the original's comments: `Fragment extracted
+  from <name> [<n>  nt] : (<enzyme 5'>[<pos>] / <enzyme 3'>[<pos>])` (an end made blunt is
+  relabelled `-Blunt(filled)` / `-Blunt(trimmed)`), `Fragment extracted from <name> [between
+  <from> and <to>]` for a Sequence Window selection, and `Ligation of : <fragment 1> to
+  <fragment 2> and to <fragment 3>`. Products are named `DNA Fragment #n`, `Fragment #n` and
+  `Ligation #n` and open as `Unsaved <name>`, as the original titles its windows.
+- After a ligation and after a Gateway reaction the junctions are rescanned for features, as the
+  original does: a site rebuilt by compatible ends or a tag completed across a junction is
+  annotated, under the same merge/protect rules as a scan.
+- Gateway: *Use minimal att consensus* (the original's checkbox, remembered in the preferences)
+  locates the att sites with the original's short core consensus instead of the full
+  definitions, for vectors with unusual att arms.
+- Codon Usage lists the original's nine tables first (H. sapiens, M. musculus, R. norvegicus,
+  E. coli, S. cerevisiae, S. pombe, A. thaliana, P. pastoris, D. melanogaster, verbatim from the
+  original), with H. sapiens as the default; the five 2026 Kazusa tables follow.
+- The Virtual Cutter's gel offers the original's four ladders (GeneRuler 1 kb Plus, Smart
+  Ladder, NEB 1 kb, Invitrogen 1 kb plus), GeneRuler by default, bright reference bands drawn
+  bolder and the migration scale calibrated on the chosen ladder; the generic 1 kb ladder stays.
+
+### Data recovered from the original binaries (2026-10-17)
+
+- The built-in Feature collections are now Serial Cloner 2.6.1's own database, all 155
+  definitions, recovered by running the original's Linux build and reading the files it writes
+  on first launch (`reference/original/features/`). The 1.0.0 reconstruction had 131 names and
+  only 22 sequences right; the previous extras live on in a "SerialClon additions" collection
+  that is not scanned by default. The scanner gained the original's `#` gap wildcard. An install
+  seeded by 1.0.0 picks the new database up with *Manage Features ▸ Restore built-in
+  collections*.
+- `.xdna` cohesive ends and the GenBank `SerialCloner_Ends=` comment are now written the way the
+  original writes them (ends flag 0/5/3/35, overhang lengths signed by 5'/3', bases 5'→3' on
+  their strand), checked against files the original produced (`reference/original/golden/`).
+- Gateway site detection no longer reports an ambiguity when attP1 and attP2 (which differ by
+  one base) are both present.
+- The isoelectric point is computed the way the original computes it: its five pK tables
+  (EMBOSS, Wikipedia, DTASelect, Rodwell, Sillero, with its values and EMBOSS as the default)
+  and its 0.01-pH walk from pH 7 instead of a bisection over six other tables. A settings file
+  naming one of the dropped tables falls back to EMBOSS.
+- `reference/original/` also holds the archive inventory with SHA-256 digests, the fallback
+  enzyme library, DNA ladders, codon-usage tables, genetic-code names and pK tables read out
+  of the executable, and `reference/docs/original-behaviour.md` records the same/differs
+  verdicts of the behaviour comparison (Tm, protein MW, pI, scan, GenBank export).
+
+### Behaviour aligned with the original, second pass (2026-10-17)
+
+- Find ▸ ORFs works as Serial Cloner's: an ORF opens at every occurrence of the preference's
+  start codon (ATG by default; GTG, ATG|GTG or ATG|CTG|GTG|TTG in Preferences) and never at
+  the genetic code's alternative starts; nested ORFs are listed; the list is sorted by size;
+  Position is the lower end of the ORF on either strand and Frame carries the strand sign;
+  the minimum size is in amino acids with 0 (the default) meaning no limit. The first ten
+  rows of the original's pBR322 list are a test (`reference/original/golden/orf/`).
+- Find has the original's Peptide tab: an amino-acid string searched in the three frames of
+  both strands (X matches any residue), with Position / Size / Strand / Frame.
+- Build a Construct offers the original's three choices per extremity (Non-processed,
+  Blunt (Fill-In), Blunt (Remove)) instead of one polymerase-style checkbox, decides the
+  topology from the outer ends like the original (asking before a linear product or a lone
+  vector, with its wording), and marks every insert with an `insert from <name>` feature.
+  Gateway products get the original's `Insert from <insert>` feature too.
+- A feature whose name, colour or type was edited is no longer replaced by a new scan: the hit
+  is added beside it, as the Features ReadMe documents.
+- Preference defaults are the original's (read from its Preferences window, screenshots under
+  `reference/original/golden/prefs/`): map colours, 12 pt sequence field, 9 pt map labels,
+  11 pt Sequence Map, sequences locked when opened, limited window width, TA cloning on.
+- The built-in pSUPER shRNA layout is the original's (`CCC … TTCAAGAGA … TTTTTG` between
+  BglII and HindIII ends); the suffix was wrong.
+- `reference/original/embedded/help-texts.txt` holds the original's 113 help texts.
 
 ## 1.0.0 — 2026-10-12
 

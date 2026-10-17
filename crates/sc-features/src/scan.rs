@@ -32,20 +32,72 @@ fn upper(s: &str) -> Vec<u8> {
         .collect()
 }
 
+/// Like [`upper`] but keeps `#`, the original's gap wildcard: its
+/// definition-to-regex table maps every IUPAC letter to a character class,
+/// `#` to `.*`, and drops any other character (`>`, digits, spaces).
+fn upper_dna(s: &str) -> Vec<u8> {
+    s.bytes()
+        .filter(|b| b.is_ascii_alphabetic() || *b == b'#')
+        .map(|b| b.to_ascii_uppercase())
+        .collect()
+}
+
+/// Every span matched by a consensus that may contain `#` gaps, as
+/// `(start, end)` half-open. A gap behaves like a greedy `.*` between two
+/// literal parts (what the original's regex does): the part after the gap
+/// is taken at its *last* occurrence, as long as the span stays within
+/// `max_span` bases.
+fn find_all_spans(
+    hay: &[u8],
+    pattern: &[u8],
+    max_start: usize,
+    max_span: usize,
+) -> Vec<(usize, usize)> {
+    let parts: Vec<&[u8]> = pattern
+        .split(|b| *b == b'#')
+        .filter(|p| !p.is_empty())
+        .collect();
+    let Some((&first, rest)) = parts.split_first() else {
+        return Vec::new();
+    };
+    if rest.is_empty() {
+        return find_all(hay, first, max_start)
+            .into_iter()
+            .map(|s| (s, s + first.len()))
+            .collect();
+    }
+    let mut out = Vec::new();
+    'starts: for s in find_all(hay, first, max_start) {
+        let mut end = s + first.len();
+        let limit = hay.len().min(s + max_span);
+        for part in rest {
+            let Some(t) = (end..(limit + 1).saturating_sub(part.len()))
+                .rev()
+                .find(|&i| matches_at(part, &hay[i..i + part.len()]))
+            else {
+                continue 'starts;
+            };
+            end = t + part.len();
+        }
+        out.push((s, end));
+    }
+    out
+}
+
 /// Matches a definition against one strand given as text (`hay`), which
 /// may be a doubled circular sequence; only matches starting before
 /// `max_start` count.
 fn match_strand(def: &FeatureDef, hay: &[u8], max_start: usize) -> Vec<Hit> {
-    let five = upper(&def.five);
+    let five = upper_dna(&def.five);
     let three = upper(&def.three);
     let p5 = upper(&def.potential_five);
     let p3 = upper(&def.potential_three);
     let up = upper(&def.upstream);
     let down = upper(&def.downstream);
     let mut hits = Vec::new();
-    for s in find_all(hay, &five, max_start) {
+    for (s, e) in find_all_spans(hay, &five, max_start, max_start) {
         let mut start = s;
-        let mut end = s + five.len();
+        let mut end = e;
         if !three.is_empty() {
             // The nearest 3' consensus after the 5' one.
             let Some(t) = (end..hay.len().saturating_sub(three.len()) + 1)
@@ -260,13 +312,60 @@ pub fn scan(seq: &Sequence, collections: &[Collection]) -> Vec<Feature> {
     out
 }
 
+/// Scans for the features that span any of the `junctions` (0-based: the
+/// junction after base `j`, i.e. between bases `j` and `j + 1` of the
+/// sequence; `seq.len()` is the closing junction of a circular sequence,
+/// between its last base and base 1). This is the original's
+/// `SetAnnotations(seq, from, to, false)` after a ligation or a Gateway
+/// reaction: only features recreated across a junction are reported, so
+/// that a feature already inherited from a fragment is not found twice.
+pub fn scan_junctions(
+    seq: &Sequence,
+    collections: &[Collection],
+    junctions: &[usize],
+) -> Vec<Feature> {
+    let n = seq.len();
+    if n == 0 || junctions.is_empty() {
+        return Vec::new();
+    }
+    let spans = |f: &Feature, j: usize| {
+        let (lo, hi, wraps) = f.lo_hi();
+        let (lo, hi) = (lo as usize, hi as usize);
+        if j >= n {
+            // The closing junction: only a feature wrapping the origin spans it.
+            wraps
+        } else if wraps {
+            // A wrapping feature covers `hi..=n` and `1..=lo`.
+            hi <= j || j < lo
+        } else {
+            lo <= j && j < hi
+        }
+    };
+    scan(seq, collections)
+        .into_iter()
+        .filter(|f| junctions.iter().any(|&j| spans(f, j)))
+        .collect()
+}
+
+/// Identity as the original's `Annot_to_Chain` sees it: a feature whose
+/// name, position, strand, type or colour was edited is no longer "the
+/// same" as the scan's hit, so a new scan leaves it alone and adds the hit
+/// beside it (Features ReadMe §VIII.D: "if you change something on an
+/// automatically found annotation (like its name, color, etc.), it will not
+/// anymore be automatically erased upon a new scan").
 fn same(a: &Feature, b: &Feature) -> bool {
-    a.name == b.name && a.start == b.start && a.end == b.end && a.strand == b.strand
+    a.name == b.name
+        && a.start == b.start
+        && a.end == b.end
+        && a.strand == b.strand
+        && a.kind == b.kind
+        && a.color == b.color
 }
 
 /// Applies scan results to a sequence's feature list (Features ReadMe
 /// §VIII.D): unprotected features identical to a hit are replaced; hits
-/// identical to a protected feature are dropped; everything else is added.
+/// identical to a protected feature are dropped; everything else is added
+/// (an edited feature counts as different, see [`same`]).
 /// Returns how many features were added.
 pub fn merge(existing: &mut Vec<Feature>, found: Vec<Feature>) -> usize {
     existing.retain(|e| e.protect || !found.iter().any(|f| same(e, f)));
@@ -364,6 +463,35 @@ mod tests {
     }
 
     #[test]
+    fn junction_scan_reports_only_features_spanning_a_junction() {
+        // A ligation whose junction recreates a short tag consensus.
+        let tag = FeatureDef::simple("tag", "misc_feature", "#000000", "GAATTC");
+        let c = Collection {
+            name: "t".into(),
+            scan: true,
+            builtin: false,
+            features: vec![tag],
+        };
+        // GAATTC at 3..8 (spans the junction after base 5) and at 12..17
+        // (entirely inside the second fragment).
+        let s = seq("ccGAATTCaaaGAATTCaa");
+        let found = scan_junctions(&s, std::slice::from_ref(&c), &[5]);
+        assert_eq!(found.len(), 2, "forward and reverse hits of the palindrome");
+        assert!(found.iter().all(|f| f.lo_hi().0 == 3 && f.lo_hi().1 == 8));
+        // A junction inside no hit reports nothing; the exact boundary of a
+        // hit is not spanned.
+        assert!(scan_junctions(&s, std::slice::from_ref(&c), &[9, 10]).is_empty());
+        assert!(scan_junctions(&s, std::slice::from_ref(&c), &[8]).is_empty());
+        // The closing junction of a circle is spanned only by a wrapping hit.
+        let mut circ = seq("TTCaaaaaaaaaaaGAA");
+        circ.topology = sc_seq::Topology::Circular;
+        let found = scan_junctions(&circ, std::slice::from_ref(&c), &[circ.len()]);
+        assert_eq!(found.len(), 2);
+        assert!(found.iter().all(|f| f.lo_hi().2));
+        assert!(scan_junctions(&circ, std::slice::from_ref(&c), &[5]).is_empty());
+    }
+
+    #[test]
     fn peptide_definition_in_any_frame_and_strand() {
         let mut def = FeatureDef::simple("HA", "misc_feature", "#000000", "YPYDVPDYA");
         def.peptide = true;
@@ -410,11 +538,22 @@ mod tests {
         let def = FeatureDef::simple("site", "misc_feature", "#000000", "GAATTC");
         let s = seq("ccGAATTCcc");
         let found = scan_one(&s, &def);
+        // An untouched hit from a previous scan is replaced by the new one.
         let mut existing = vec![found[0].clone()];
-        existing[0].color = sc_seq::Rgb(1, 1, 1); // user recoloured but did not protect
         let added = merge(&mut existing, found.clone());
         assert_eq!(added, 2);
         assert_eq!(existing.len(), 2);
+        // A recoloured one is no longer identical: it stays and the hit is
+        // added beside it (the original's documented duplication).
+        let mut existing = vec![found[0].clone()];
+        existing[0].color = sc_seq::Rgb(1, 1, 1);
+        let added = merge(&mut existing, found.clone());
+        assert_eq!(added, 2);
+        assert_eq!(existing.len(), 3);
+        assert_eq!(existing[0].color, sc_seq::Rgb(1, 1, 1));
+        let mut existing = vec![found[0].clone()];
+        let added = merge(&mut existing, found.clone());
+        assert_eq!(added, 2);
         assert_eq!(existing[0].color, def.rgb());
         // Protected: kept, and the identical hit is not duplicated.
         let mut protected = vec![found[0].clone()];

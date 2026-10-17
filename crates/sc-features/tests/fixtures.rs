@@ -1,103 +1,106 @@
-//! The built-in collections against the shipped, annotated sample files:
-//! a scan must reproduce what the original's scan put in them.
+//! The built-in collections against what Serial Cloner 2.6.1 itself found.
+//!
+//! `reference/original/golden/scan/` holds the files the original wrote
+//! after *Features ▸ Scan Sequence* on the shipped sample files (see
+//! `reference/docs/original-behaviour.md`). A scan with the recovered
+//! definitions must produce exactly the same feature set, name by name and
+//! coordinate by coordinate.
+
+use std::collections::BTreeSet;
 
 use sc_features::{builtin_collections, merge, scan};
 use sc_seq::{Feature, Strand};
 
-const FIXTURES: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../reference/sequences");
+const SAMPLES: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../reference/sequences");
+const GOLDEN: &str = concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/../../reference/original/golden/scan"
+);
 
-fn read(name: &str) -> sc_seq::Sequence {
-    let path = format!("{FIXTURES}/{name}");
+fn read(dir: &str, name: &str) -> sc_seq::Sequence {
+    let path = format!("{dir}/{name}");
     sc_format::xdna::read(&std::fs::read(&path).unwrap(), name).unwrap()
 }
 
-fn found(seq: &sc_seq::Sequence) -> Vec<Feature> {
-    scan(seq, &builtin_collections())
+fn key(f: &Feature) -> (String, u32, u32, bool) {
+    (f.name.clone(), f.start, f.end, f.strand == Strand::Reverse)
 }
 
-fn has(list: &[Feature], name: &str, start: u32, end: u32, strand: Strand) -> bool {
-    list.iter()
-        .any(|f| f.name == name && f.start == start && f.end == end && f.strand == strand)
+/// Scans `sample` and merges the hits into its existing features, like the
+/// original's Scan Sequence; the result must equal the golden file's
+/// features (the original's pre-existing, user-made features are protected
+/// and excluded on both sides).
+fn check(sample: &str, golden: &str) {
+    let mut seq = read(SAMPLES, sample);
+    let expected: BTreeSet<_> = read(GOLDEN, golden)
+        .features
+        .iter()
+        .filter(|f| !f.protect)
+        .map(key)
+        .collect();
+    let hits = scan(&seq, &builtin_collections());
+    merge(&mut seq.features, hits);
+    let actual: BTreeSet<_> = seq
+        .features
+        .iter()
+        .filter(|f| !f.protect)
+        .map(key)
+        .collect();
+    assert_eq!(actual, expected, "{sample} vs {golden}");
 }
 
 #[test]
-fn ks_plus_annotations_are_reproduced() {
-    let seq = read("pBluescript-II-KS+-annotated.xdna");
-    let hits = found(&seq);
-    for f in &seq.features {
-        assert!(
-            has(&hits, &f.name, f.start, f.end, f.strand),
-            "{} [{}:{} {:?}] not found; hits: {:?}",
-            f.name,
-            f.start,
-            f.end,
-            f.strand,
-            hits.iter()
-                .map(|h| format!("{} {}:{}", h.name, h.start, h.end))
-                .collect::<Vec<_>>()
-        );
-    }
-    // Merging the scan into the stored annotations changes nothing but adds the new ones.
-    let mut features = seq.features.clone();
-    let before = features.len();
-    let added = merge(&mut features, hits);
-    assert!(features.len() >= before);
-    assert!(
-        added >= 1,
-        "the built-in database finds at least the lac promoter too"
+fn ks_plus_scan_matches_the_original() {
+    check("pBluescript-II-KS+.xdna", "pBluescript-scanned.xdna");
+}
+
+#[test]
+fn ks_plus_annotated_scan_matches_the_original() {
+    // Nine features were already there (an older database put them in);
+    // the 2.6.1 scan adds "Amp prom" and "lac" and changes nothing else.
+    check(
+        "pBluescript-II-KS+-annotated.xdna",
+        "KS(+)-annotated-scanned.xdna",
     );
 }
 
 #[test]
-fn pbr322_annotations_are_reproduced() {
-    let seq = read("pBR322-annotated.xdna");
-    let hits = found(&seq);
-    for f in &seq.features {
-        assert!(
-            has(&hits, &f.name, f.start, f.end, f.strand),
-            "{} [{}:{}] not found",
-            f.name,
-            f.start,
-            f.end
-        );
-    }
+fn pbr322_annotated_scan_matches_the_original() {
+    // Adds TetA (a second, longer tet definition) and "Amp prom".
+    check("pBR322-annotated.xdna", "pBR322-annotated-scanned.xdna");
 }
 
 #[test]
-fn pegfp_n1_is_annotated_at_clontechs_coordinates() {
-    let seq = read("pEGFP-N1.xdna");
-    let hits = found(&seq);
-    // EGFP 679..1398 including the start and stop codons picked up as potential ends.
-    assert!(
-        has(&hits, "EGFP", 679, 1398, Strand::Forward),
-        "{:?}",
-        hits.iter()
-            .map(|h| format!("{} {}:{}", h.name, h.start, h.end))
-            .collect::<Vec<_>>()
-    );
-    assert!(has(&hits, "CMV promoter", 1, 589, Strand::Forward));
-    assert!(has(&hits, "Kan/neoR", 2629, 3423, Strand::Forward));
-    assert!(hits.iter().any(|h| h.name == "SV40 late polyA"));
-    assert!(hits.iter().any(|h| h.name == "F1 ori"));
-    assert!(hits.iter().any(|h| h.name == "ColE1 origin"));
+fn pegfp_n1_scan_matches_the_original() {
+    // The original finds seven features here and, notably, not its own
+    // "CMV promoter" (whose consensus carries an N that pEGFP-N1 does not
+    // match) nor "SV40 late polyA".
+    check("pEGFP-N1.xdna", "pEGFP-N1-scanned.xdna");
 }
 
 #[test]
-fn gateway_vectors_carry_their_att_sites_and_ccdb() {
-    let donr = read("pDONR201.xdna");
-    let hits = found(&donr);
-    for name in ["AttP1", "AttP2", "ccdB", "CmR"] {
-        assert!(
-            hits.iter().any(|h| h.name == name),
-            "{name} missing from pDONR201"
-        );
-    }
-    let dest = read("pDEST14.xdna");
-    let hits = found(&dest);
-    for name in ["AttR1", "AttR2", "ccdB", "CmR", "AmpR", "T7"] {
-        assert!(
-            hits.iter().any(|h| h.name == name),
-            "{name} missing from pDEST14"
-        );
+fn gateway_vectors_scan_matches_the_original() {
+    // pDONR201 carries KanR, whose consensus has the `#` gap wildcard.
+    check("pDONR201.xdna", "pDONR201-scanned.xdna");
+    check("pDEST14.xdna", "pDEST14-scanned.xdna");
+}
+
+#[test]
+fn scan_is_idempotent_on_the_originals_output() {
+    // Scanning a file the original has already scanned adds nothing.
+    for golden in [
+        "pBluescript-scanned.xdna",
+        "pBR322-annotated-scanned.xdna",
+        "pDONR201-scanned.xdna",
+        "pDEST14-scanned.xdna",
+    ] {
+        let mut seq = read(GOLDEN, golden);
+        let before = seq.features.len();
+        let keys: BTreeSet<_> = seq.features.iter().map(key).collect();
+        let hits = scan(&seq, &builtin_collections());
+        merge(&mut seq.features, hits);
+        assert_eq!(seq.features.len(), before, "{golden}");
+        let after: BTreeSet<_> = seq.features.iter().map(key).collect();
+        assert_eq!(after, keys, "{golden}");
     }
 }

@@ -2,7 +2,7 @@
 //! Adaptor, Make shRNA, Gateway cloning, Site Usage, the Enzyme Library,
 //! the Virtual Cutter and the Silent Map.
 
-use sc_clone::ligate::{Side, blunt, ligate};
+use sc_clone::ligate::{BluntMode, Side, blunt_with, closes, ligate};
 use sc_clone::{SiteRef, extract_between};
 use sc_enzyme::library::parse_entry;
 use sc_seq::{Overhang, Sequence};
@@ -27,10 +27,51 @@ pub struct FragmentSpec {
     pub end: Option<SiteRefView>,
     /// CW / sense.
     pub clockwise: bool,
-    /// Blunt the left end before ligation.
-    pub blunt_left: bool,
-    /// Blunt the right end.
-    pub blunt_right: bool,
+    /// How the left end is processed before ligation.
+    pub blunt_left: BluntChoice,
+    /// How the right end is processed.
+    pub blunt_right: BluntChoice,
+}
+
+/// The original's three radio buttons per extremity.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize, Default)]
+#[serde(rename_all = "lowercase")]
+pub enum BluntChoice {
+    /// Non-processed: the end keeps its overhang.
+    #[default]
+    None,
+    /// Blunt (Fill-In).
+    Fill,
+    /// Blunt (Remove).
+    Remove,
+}
+
+/// What a ligation would produce, for the original's two confirmations.
+#[derive(Debug, Clone, Serialize)]
+pub struct LigationPlan {
+    /// The last right end ligates to the first left end: a circular plasmid.
+    /// Otherwise the product is linear ("Ligation will produce a linear
+    /// fragment and not a circular plasmid").
+    pub circular: bool,
+    /// Only one fragment ("Only one fragment/vector was selected and no
+    /// insert").
+    pub single: bool,
+}
+
+/// Checks the ends before ligating, like the original's Ligate button.
+#[tauri::command]
+pub fn ligation_plan(app: AppHandle, fragments: Vec<FragmentSpec>) -> Result<LigationPlan, String> {
+    let parts: Vec<Sequence> = fragments
+        .iter()
+        .map(|s| resolve(&app, s))
+        .collect::<Result<_, _>>()?;
+    if parts.is_empty() {
+        return Err("No ligation can proceed without a Fragment #1.".into());
+    }
+    Ok(LigationPlan {
+        circular: closes(&parts),
+        single: parts.len() == 1,
+    })
 }
 
 /// What a slot resolves to, for display before ligation.
@@ -73,11 +114,16 @@ fn resolve(app: &AppHandle, spec: &FragmentSpec) -> Result<Sequence, String> {
                 .ok_or("nothing between these sites")?
         }
     };
-    if spec.blunt_left {
-        blunt(&mut fragment, Side::Left);
+    let mode = |c: BluntChoice| match c {
+        BluntChoice::None => None,
+        BluntChoice::Fill => Some(BluntMode::Fill),
+        BluntChoice::Remove => Some(BluntMode::Remove),
+    };
+    if let Some(m) = mode(spec.blunt_left) {
+        blunt_with(&mut fragment, Side::Left, m);
     }
-    if spec.blunt_right {
-        blunt(&mut fragment, Side::Right);
+    if let Some(m) = mode(spec.blunt_right) {
+        blunt_with(&mut fragment, Side::Right, m);
     }
     Ok(fragment)
 }
@@ -119,13 +165,35 @@ pub fn ligate_construct(
         .iter()
         .map(|s| resolve(&app, s))
         .collect::<Result<_, _>>()?;
+    // The original names the new window `Unsaved Ligation #n`.
     let name = if name.trim().is_empty() {
-        "Construct".to_owned()
+        let state = app.state::<AppState>();
+        let mut counters = state.product_counters.lock().unwrap();
+        counters.ligation += 1;
+        format!("Ligation #{}", counters.ligation)
     } else {
         name
     };
-    let product = ligate(&parts, circular, &name).map_err(|e| e.to_string())?;
+    let mut product = ligate(&parts, circular, &name).map_err(|_| {
+        "Serial Cloner cannot ligate fragments in the indicated order.\nPlease check order, orientation and end compatibility".to_owned()
+    })?;
+    rescan_junctions(&app, &mut product);
     Ok(open_product(&app, product))
+}
+
+/// The original's `LigUpdateAnnot` and `GateWayAnnotate` end with
+/// `SetAnnotations(seq, from, to, false)` over every junction: features
+/// recreated across a junction (a site rebuilt by compatible ends, a tag
+/// completed by the insert) are found and merged like a scan would.
+fn rescan_junctions(app: &AppHandle, product: &mut Sequence) {
+    let junctions = sc_clone::ligate::junctions(product);
+    if junctions.is_empty() {
+        return;
+    }
+    let state = app.state::<AppState>();
+    let collections = state.collections.lock().unwrap();
+    let found = sc_features::scan_junctions(product, &collections, &junctions);
+    sc_features::merge(&mut product.features, found);
 }
 
 // ---------------------------------------------------------------- PCR --
@@ -350,8 +418,9 @@ pub fn gateway(
     vector: DocId,
     reaction: String,
     min_homology: Option<usize>,
+    minimal_att: Option<bool>,
 ) -> Result<DocumentView, String> {
-    let product = {
+    let mut product = {
         let state = app.state::<AppState>();
         let store = state.store.lock().unwrap();
         let ins = &store.get(insert).ok_or("no such insert document")?.seq;
@@ -369,10 +438,20 @@ pub fn gateway(
                 } else {
                     sc_clone::gateway::Reaction::Bp
                 };
-                sc_clone::gateway::recombine(r, ins, vec, gateway).map_err(|e| e.to_string())?
+                // "Use minimal att consensus" (the original's attDefCheckBox).
+                let consensus = if minimal_att.unwrap_or(false) {
+                    sc_clone::gateway::AttConsensus::Minimal
+                } else {
+                    sc_clone::gateway::AttConsensus::Full
+                };
+                sc_clone::gateway::recombine_with(r, ins, vec, gateway, consensus)
+                    .map_err(|e| e.to_string())?
             }
         }
     };
+    if reaction != "hr" {
+        rescan_junctions(&app, &mut product);
+    }
     Ok(open_product(&app, product))
 }
 
@@ -608,28 +687,50 @@ pub struct Digest {
     pub ladder: Vec<usize>,
     /// Ladder migrations.
     pub ladder_migrations: Vec<f64>,
+    /// Which ladder bands are bright reference bands.
+    pub ladder_bright: Vec<bool>,
+    /// The ladder's name.
+    pub ladder_name: String,
 }
 
-/// Cuts with the chosen enzymes.
+/// The ladders of the virtual gel, the original's four first.
 #[tauri::command]
-pub fn virtual_cut(app: AppHandle, id: DocId, enzymes: Vec<String>) -> Result<Digest, String> {
+pub fn ladders() -> Vec<String> {
+    sc_clone::cutter::ladders()
+        .into_iter()
+        .map(|l| l.name)
+        .collect()
+}
+
+/// Cuts with the chosen enzymes; `ladder` names one of [`ladders`] (the
+/// first when absent or unknown).
+#[tauri::command]
+pub fn virtual_cut(
+    app: AppHandle,
+    id: DocId,
+    enzymes: Vec<String>,
+    ladder: Option<String>,
+) -> Result<Digest, String> {
     let state = app.state::<AppState>();
     let store = state.store.lock().unwrap();
     let doc = store.get(id).ok_or("no such document")?;
     let library = state.library();
     let chosen: Vec<&sc_enzyme::Enzyme> = enzymes.iter().filter_map(|n| library.get(n)).collect();
     let sizes = sc_clone::cutter::fragment_sizes(&doc.seq, &chosen);
+    let mut all = sc_clone::cutter::ladders();
+    let pick = ladder
+        .and_then(|name| all.iter().position(|l| l.name == name))
+        .unwrap_or(0);
+    let ladder = all.swap_remove(pick);
+    let (lo, hi) = ladder.range();
+    let migrate = |s: usize| sc_clone::cutter::migration_between(s, lo, hi);
     Ok(Digest {
-        migrations: sizes
-            .iter()
-            .map(|&s| sc_clone::cutter::migration(s))
-            .collect(),
+        migrations: sizes.iter().map(|&s| migrate(s)).collect(),
         sizes,
-        ladder: sc_clone::cutter::LADDER_1KB.to_vec(),
-        ladder_migrations: sc_clone::cutter::LADDER_1KB
-            .iter()
-            .map(|&s| sc_clone::cutter::migration(s))
-            .collect(),
+        ladder: ladder.bands.iter().map(|b| b.0).collect(),
+        ladder_migrations: ladder.bands.iter().map(|b| migrate(b.0)).collect(),
+        ladder_bright: ladder.bands.iter().map(|b| b.1).collect(),
+        ladder_name: ladder.name,
     })
 }
 

@@ -50,6 +50,21 @@ pub struct AppState {
     pub hidden_enzymes: Mutex<std::collections::HashSet<String>>,
     /// Feature collections (Manage Features).
     pub collections: Mutex<Vec<sc_features::Collection>>,
+    /// Counters behind the original's product names: `DNA Fragment #n`
+    /// (Build a Construct / Graphic Map), `Fragment #n` (Sequence Window
+    /// selection) and `Ligation #n`.
+    pub product_counters: Mutex<ProductCounters>,
+}
+
+/// See [`AppState::product_counters`].
+#[derive(Debug, Default)]
+pub struct ProductCounters {
+    /// `DNA Fragment #n`.
+    pub dna_fragment: usize,
+    /// `Fragment #n`.
+    pub fragment: usize,
+    /// `Ligation #n`.
+    pub ligation: usize,
 }
 
 impl AppState {
@@ -385,6 +400,7 @@ pub fn run() {
             user_enzymes: Mutex::new(Vec::new()),
             hidden_enzymes: Mutex::new(std::collections::HashSet::new()),
             collections: Mutex::new(Vec::new()),
+            product_counters: Mutex::new(ProductCounters::default()),
         })
         .manage(protein::ProteinState::default())
         .manage(prefs::PrefsState::default())
@@ -551,6 +567,7 @@ pub fn run() {
             commands::selection_info,
             commands::find_text,
             commands::find_site,
+            commands::find_peptide,
             commands::find_orfs_cmd,
             commands::enzyme_list,
             commands::recent_files,
@@ -568,6 +585,7 @@ pub fn run() {
             commands::show_parent,
             cloning::preview_fragments,
             cloning::ligate_construct,
+            cloning::ligation_plan,
             cloning::run_pcr,
             cloning::check_primer,
             cloning::pcr_window_open,
@@ -584,6 +602,7 @@ pub fn run() {
             cloning::remove_enzyme,
             cloning::set_enzymes_hidden,
             cloning::virtual_cut,
+            cloning::ladders,
             cloning::silent_map,
             cloning::apply_silent_mutation,
             cloning::open_tool_window,

@@ -1,0 +1,342 @@
+# Help window titles and texts of Serial Cloner 2.6.1, in string-table order
+# (extracted from the Linux executable; "Window:Element" label, then the text).
+
+[CC: ]
+:Date:Subject:From:To:CC:BCC:Received:Return-Path:
+
+[mailto:serialcloner@serialbasics.com]
+http://www.youtube.com/user/serialbasics/videos
+
+[http://www.youtube.com/user/serialbasics/videos]
+http://serialbasics.free.fr/forum/index.php
+
+[Align:Prot WordSize]
+The 'short sequence' option requires that the shortest sequence is sequence. Do you want to swap Sequence 1 and Sequence 2 ?
+
+[Feature:ChangeCollection]
+Pasted Sequence seems not to be a DNA sequence.
+
+[Find:Substring]
+ARNDCEQGHILKMFPSTWYVarndceqghilkmfpstwyv
+
+[Find:FoundList]
+Hit List. Click to show a hit it in the sequence window. (*) indicate that the hit is over the origin. /!\\ Selection will be incomplete in this case.
+
+[Gateway:LenOfIdentity]
+Homologous Recombination possible (deletes 
+
+[SeqWin:StartPos]
+Enter the position you want to select from. You can use the arrows (up and down) to increase or decrease this value
+
+[SeqWin:StopPos]
+Enter the position of the end of the fragment you want to select. You can use the arrows (up and down) to increase or decrease this value
+
+[SeqWin:SelLen]
+Enter the Length of the fragment you want to select. You can use the arrows (up and down) to increase or decrease this value
+
+[SeqWin:SeqField]
+Enter here the actual sequence of the fragment. Type in or paste (ATGC letters only are accepted, other are filtered out). Ctrl-Click or Right-click displays a contextual menu.If a fragment is selected then the contextual menu allows to manipulate it. If a PCR window is opened then the contextual menu let you use the selected fragment as a PCR primer (function also available in the Edit Menu).
+
+[SeqWin:Comments]
+Enter here the comments concerning the DNA sequence. Limited to 255 character by DNA Strider(tm). 
+
+[SeqWin:Topo]
+The topology of the construct (Linear/circular) is indicated here. Control-Click/Right-Click displays a contextual menu to Linearize/Circularize the construct.
+
+[SeqWin:Open]
+Open another sequence inside this window 
+
+[SeqWin:Save]
+Save modification. Enabled if something was modified. Press Alt to change to 'Save As...' 
+
+[SeqWin:Info]
+Press to display/hide the Information window. On MS-Windows, if an Info window is already visible, pressing this button will link the Info window to this Sequence window. Info window displays the following data about the selected fragment: %of A,T,G and C ; %GC; calculated Tm ; Size (aa and MW) of the translated fragment (until the first in-frame Stop or the complete in-frame translation). Inside the Information window, real-time translation of the selected fragment is displayed
+
+[SeqWin:GraphicMap]
+Opens a new window and display the Graphic Map of this sequence. 
+
+[SeqWin:Find]
+Press to display/hide the Find window (also Command/F [MacOS] or Ctrl/F [MS-Windows]). On MS-Windows, if a Find window is already visible, it will target queries to this Sequence window. Find Window allows to search for a restriction site, a sub-sequence, or the next open reading frame (also accessible inside the Sequence window using Command/R [MacOS] or Ctrl/R [MS-Windows]. 
+
+[SeqWin:Cohes]
+Linear fragment extremities can be modified here. Cohesive extensions will be ignored by software like DNA Strider (tm).
+
+[SeqWin:Locked]
+Check the box to prevent unwanted modifications. Can be set (Preference window) to be automatically checked in newly opened sequences.
+
+[SeqWin:SeqName]
+Double-click to edit Sequence name. ALT-Click to show the corresponding File. Control-Click/Right-Click displays a contextual menu. 
+
+[SeqWin:DNA type]
+The type of sequence is shown here (DNA or Degenerate DNA). Degenerate DNA accapts non-ATGC letters belonging to the DNA alphabet (including N). Control-Click/Right-Click displays a contextual menu that allows to modify DNA type (DNA or degenerate DNA).
+
+[SeqWin:AddFeature]
+Add a new Feature. If a selection has been done in the Sequence Field, then the default coordinate will be the selection's one.
+
+[SeqWin:DeleteFeature]
+Remove a Feature. A confirmation window will pop-up. To avoid to display this confirmation window, press the ALT key before. The 'minus' will turn red to indicate that no confirmation will be asked for.
+
+[SeqWin:FeatureList]
+List of the Features. Features in bold are the ones that will be actually shown. The order in the list can be change dragging and droppping the features in the list. When multiple Features are superimposed, this order will dictate which one will be shown on the top. The Features are drawn in the order of the list. The bottom-most will be drawn on the top of the others.
+
+[SeqWin:Scan]
+Scan the Sequence to identify new Features. The features library used is at the moment an internal library. Future versions of Serial Cloner will let the user alter and create his/her own library.
+
+[SeqWin:FeatureName]
+The name of the Feature is shown, and can be modified, here..
+
+[SeqWin:FeatureColor]
+The color of the Feature is shown, and can be modified, here.
+
+[SeqWin:FeatureStart]
+The start coordinate of the feature is shown, and can be modified, here.
+
+[SeqWin:FeatureStop]
+The stop coordinate of the featureis shown, and can be modified, here.
+
+[SeqWin:FeatureCW]
+Whether the Feature is oriented ClockWise (CW) or Counter-ClockWise (CCW) is indicated, and can be modified, here.
+
+[SeqWin:FeatureDescription]
+Comments concerning the Feature are indicated, and can be modified, here. When importing NCBI sequence, long comments about annotation will stored here. In addition, if a Featiure has been added while displayig the translation of the sequence, the translation will be stored here.
+
+[SeqWin:FeatureCategory]
+The Category of the Feature (NCBI classification) is indicated, and can be modified, here.
+
+[SeqWin:FeatureType]
+The Type of the Feature (NCBI classification) is indicated, and can be modified, here.
+
+[SeqWin:FeatureArrow]
+Indicate here whether you want an arrow to be displayed at the extremity of the selected Feature in the Graphic map.
+
+[SeqWin:FeatureShow]
+Indicate here whether you want the selected Feature to be actually shown or just stored. Press 'S' to quickly toggle Show/Hide. To Show/Hide all features at once, press the 'ALT' key while clicking on the checkbox.
+
+[SeqWin:FeatureEdit]
+Use this button to toggle between the editing and non-editing mode. You have to be in the editing mode to alter the annotations. 
+
+[SeqWin:ColorFeature]
+Indicate here whether Features that are indicated as 'Shown' should be indicated in color in the Sequence Window.
+
+[Build:Map]
+Single click on an enzyme name selects the 'Start site' while double clicking selects the 'Stop Site' An arrow will indicate the selected fragment. Be careful : if the Insert is, say 'EcoRI/BamHI' then the vector should be 'BamHI/EcoRI'. Press space bar or Tab to select CW/CCW. The fragment selected (fragment 1, 2 or 3) will be used on the right side of the window for the ligation. Note that Type IIs enzymes (non palindromic, cutting outside of their recognition sites), indicated by a # are not well handled. Ctrl-Click or Right-click displays a contextual menu.
+
+[SiteUsage:List]
+The number of occurrences of each site is listed here. The list can be displayed in alphabetical order or according to the number of occurrence. Click on the colum header to change sorting principle. Entering the few first letters of an enzyme will force sorting in alphabetical order and position the list to the corresponding position. When pressing a number (1, 2, ...), sorting according to occurrence will be selected and the list scrolled to the corresponding position. Pressing '0' will thus scroll to absent sites, '1' to unique sites, etc...
+
+[SiteUsage:Filter]
+Comparative site usage : use this option to filter the enzyme list using the site usage of another sequence. This allows to quickly find, for example, site unique in one sequence and absent in another one, or unique in both sequences. 
+
+[SiteUsage:ExternalSeq]
+Choose the sequence to use as a reference to filter out the site usage. This pop-up menu will display the list of opened sequences.
+
+[PCR:Name]
+Enter here the primer name. This name will be used in the oligo summary area (yellow box).
+
+[PCR:Comments]
+Enter here primer comments. These are the comments found in the usual sequence window.
+
+[PCR:Save]
+Save the corresponding oligo in a 'Strider enriched' file format. Mac users : note that DNA Strider(tm) is able to read this file format but only Serial Cloner will detect that this is an oligonucleotide that has domain identical to the target to be amplified and an aditionnal tail domain
+
+[PCR:Open]
+When the opened sequence is an oligo that was saved by Serial Cloner (thus in a 'Strider enriched' format), 'identical' and 'tail' domains will be automatically updated.
+
+[PCR:Tail]
+Enter here the tail, usually not identical to the target sequence, that will be added at the extremity of the PCR fragment. 
+
+[PCR:Identical]
+Enter here the sequence 100% identical to the target to be amplified. If you do not know exactly how long is the identical sequence on a given primer, use the shortest that ensures its anchoring specificity (10 nt are usually enough) and incorporate the rest in the 'non identical' portion.Note that you can directly select the primer sequence in a sequence window and send it to the PCR window using a contextal menu or the Edit Menu.
+
+[PCR:Tm]
+Calculate the Tm of the primer. Two values are given, one for the 'identical' portion only (situation in the few first PCR cycles) and the second for the 'complete' oligo sequence.
+
+[PCR:Summary]
+Summarizes data concerning the pair of primer to be used in this PCR project. Copy this info to keep the data elsewhere or to order.
+
+[PCR:Eval]
+Click here to check whether a fragment could be amplified using this pair of primer and this matrix DNA. If no solution can be found that a message window is displayed and the size is indicated as '0 nt' in red in the black box underneath. If a fragment can be amplified, then its size is displayed in green in the black box. In this case, one can look at the restriction map of the amplified fragment by clicking on the black triangle on the left of the window.
+
+[PCR:Run]
+Works like the 'Evaluation' button but if a PCR can be done using this pair of primer and this matrix DNA then a new sequence window containing this fragment is opened. The sequence window comments will contains details about the PCR (primers, matrix).
+
+[PCR:Fragment]
+After pressing on the 'Evaluate' button, displays in green the size of the amplified fragment. Absence of amplification will be indicated by a '0 nt' length in red.
+
+[PCR:Toggle]
+Clicking on this triangle will display/hide the restriction map information underneath.
+
+[REMap:Show Home Window]
+Click here to show the Sequence Window that was used to draw the Restriction Map
+
+[Adapt:SaveAs]
+Save the adaptor sequence under a new name.
+
+[Info:NtData]
+Displays descriptive data about the nucleotide fragment selected in the sequence window : Tm, number of A,C,G and T, %GC. The information are updated in real time as the selection is modified.
+
+[Info:ProtData]
+The size in amino acids and calculated MW of the peptide obtained after translation of the nucleotide fragment selected in the sequence window is displayed. Translation starts at the beginning of the translation and the presence of an initiator ATG is indicated. The information are updated in real time as the selection is modified.
+
+[Info:Translation]
+Sequence of the peptide obtained after translation of the nucleotide fragment selected in the sequence window. A 'X' indicates that the codon is incomplete at the end of the selected fragment. The information are updated in real time as the selection is modified. Ctrl-Click/Right Click opens a contextual menu that allows to save the peptide sequence or to select the DNA sequence corresponding to the selected peptide. 
+
+[Info:FirstORF]
+When selected, only the first ORF translation will be displayed. When unchecked, STOP codons will be indicated by a asterisk but the full in-frame translation will be displayed.
+
+[RELibrary:List]
+The target site of each enzyme present in the current Restriction Enzyme Library is displayed here. The actual cutting scheme is presented above the list. Unselecting the checkbox on the left of the enzyme name will prevent the use of this enzyme in the graphic and restrictions maps.
+
+[RELibrary:Modify]
+Click here to open an additional window (MS Windows) or drawer (MacOsX) allowing to further modify the list. In this window, one can for example add new sites or restrict the list to certain type of enzymes. This window also allows to open and save RELibrary lists.
+
+[RELibrary:OK]
+Accept the modifications done to the current Restriction Library used, i.e. the inclusion or exclusion of certain enzymes from the list.
+
+[RELibrary:Cancel]
+Cancel the modifications done to the current Restriction Library, i.e. the inclusion or exclusion of certain enzymes from the list.
+
+[ModifyREL:SiteLen]
+Quickly include or exclude sites from the list according to the length of the site recognized. Fully degenerated nucleotides ('N') present in the consensus sequence are not considered in the calculation of the length of the site recognized.
+
+[ModifyREL:ExtLen]
+Quickly include or exclude sites from the list according to the length of the extension produced.
+
+[ModifyREL:AddTypeII]
+Adding a new type II restriction site. You need to provide a name (less than 9 characters), a target site (degenerate DNA accepted) and a cuting position. Then click the 'Add site' button to include it to the current list.
+
+[ModifyREL:AddTypeIIS]
+Adding a new type IIs restriction site (cuts outside from the recognized sequence) . You need to provide a name (less than 9 characters), a target site (degenerate DNA accepted) and a cutting position for the sense and the antisense strand. Then click the 'Add site' button to include it to the current list.
+
+[ModifyREL:Open]
+Open a new Restriction Enzyme Library. Complete Restriction Library source files can be found at <ftp://ftp.neb.com/pub/rebase> selecting the DNA strider format (strider [total] or striderc [commercial enzymes]). Clicking on this button will display a pop-up menu allowing to open a new RELibrary or a recently opened one. It is thus easy to quickly switch from a generic 'RELibrary' file to a 'More_than_6_base_cutter' file or to a 'Lab_Enz' file for example.
+
+[ModifyREL:Save]
+Save a new RElibary file. Unchecked enzymes will not be saved. This allows to build customized RELibrary files like, for example, a 'More_than_6_base_cutter' file or to a 'Lab_Enz' file. Macintosh users : note that if the file is saved under the name 'RELibrary' and stored in the same folder than Strider(tm) it will be used by this application.
+
+[shRNA:Name]
+Enter here the name of your shRNA. It will be used as a base to name each oligos in the 'Oligos to order window'.
+
+[shRNA:Comments]
+Enter here comments corresponding to your shRNA. These are the comments found in the usual sequence window.
+
+[shRNA:Scheme]
+Displays, and updates as you type, the overall structure of the shRNA according to the chosen Layout. The siRNA sequence is shown in red. A space separates the successive shRNA domains (cohesive ends, prefix, suffix, siRNA sequences and loop.).
+
+[shRNA:Oligos]
+The names and sequences of the oligonucleotides to be ordered to assemble the shRNA adaptor are given here. One can select an individual oligo, or press the 'Copy Oligos' button, to copy the oligo sequence in the clipboard and paste it elsewhere for ordering.
+
+[shRNA:Generate]
+Generate a new Sequence Window containing the new shRNA adaptor sequence. This Sequence Window will incorporate the cohesive extremity sequences, the comments and name that you entered. The sequence of the core siRNA used will be added in the comments.
+
+[shRNA:Select]
+The currently selected shRNA Layout is indicated here. Pressing this button will display a pull-down menu listing available shRNA layouts. Select the 'Manage shRNA Layouts...' to add, delete or edit shRNA layouts.
+
+[shRNA:Copy]
+Press this button to copy the oligos to ordered in the clipboard. One can use the classical Copy/Paste method to select individual sequences.
+
+[shRNA:siRNA]
+Enter here the sequence of the siRNA constituting the core of the shRNA adaptor.
+
+[shRNA:CopyGraphics]
+Press this button to copy the shRNA adaptor as picture in the Clipboard.
+
+[shRNA:SaveGraphics]
+Press this button to save the shRNA adaptor as a picture.
+
+[shRNA:Cohes5]
+Enter here the sequence of the protruding 5' extremity of the shRNA adaptor. Protrusions on the sense or antisense strand are mutually exclusive. Let empty if the 5' extremity is blunt in your adaptor. Unlock first the sequence to modify it.
+
+[shRNA:Cohes3]
+Enter here the sequence of the protruding 3' extremity of the shRNA adaptor. Protrusions on the sense or antisense strand are mutually exclusive. Let empty if the 3' extremity is blunt in your adaptor. Unlock first the sequence to modify it.
+
+[shRNA:Loop]
+Enter here the sequence of the Loop portion of the shRNA adaptor. Unlock first the sequence to modify it.
+
+[shRNA:Prefix]
+Enter here the sequence of the Prefix portion of the shRNA adaptor that will be added between the 5' cohesive end and the first siRNA domain. Unlock first the sequence to modify it.
+
+[shRNA:Suffix]
+Enter here the sequence of the Suffix portion of the shRNA adaptor that will be added between the second siRNA domain and  the 3' cohesive end. Unlock first the sequence to modify it.
+
+[shRNA:LayoutName]
+Enter here the name of the shRNA Layout. The character ',' is not allowed. Unlock first the sequence to modify it. Unlock first the sequence to modify it.
+
+[shRNA:Delete]
+Press this button to Delete the selected Layout. A confirmation window will be displayed.
+
+[shRNA:Undo]
+Press this button to Cancel the modifications and Revert to the saved shRNA layout.
+
+[shRNA:Lock]
+By default, the Layout are 'Locked'. Unlock before modifying them.
+
+[shRNA:LayoutList]
+The collection of available shRNA Layout is displayed here
+
+[shRNA:Close]
+Press this button to close this window and go back to the shRNA Constructrion Window.
+
+[SiteUsageTable:Landscape]
+Press here to organize the table in a format ready for 'Landscape' printing. The complete site usage will be organized in 7 columns. Note that you may also have to select 'Landscape' in the Print Setup window. 
+
+[SiteUsageTable:Portrait]
+Press here to organize the table in a format ready for 'Portrait' printing. The complete site usage will be organized in 4 columns. Note that you may also have to select 'Portrait' in the Print Setup window. 
+
+[SiteUsageTable:CheckBoxes]
+Select here the data tables to be displayed. 
+
+[SiteUsageTable:TextSize]
+You can modify here the size of the characters used in the tables.
+
+[SiteUsageTable:TextField]
+The different tables are displayed in this field. The totality, or only portion, of the tables can be copied in the clipboard or printed. The 'Copy To Clipboard' button can be used to copy the totality of the tables in the Clipboard.
+
+[VirtualCutter:SelectEnzymes]
+ This list allows to select restriction  enzymes to use to digest DNA. Names are selected either clicking on the box on the left of each name or double clicking on the enzyme name. You can unselect all names by double clicking on the first line. Entering the first few letters of the enzyme name will scroll the list to the corresponding position.
+
+[VirtualCutter:CopyGraphics]
+Copy the restriction report (Fragment size + Gel image) in the Clipboard 
+
+[VirtualCutter:SaveGraphics]
+Save the restriction report (Fragment size + Gel image). Saved as a PICT file under MacOSX or a BMP file under windows. 
+
+[VirtualCutter:CopyTextReport]
+Copy the restriction report as a text containing the Fragment size ( but not the gel image) in the Clipboard 
+
+[VirtualCutter:CurrentLadder]
+Indicate the name of the DNA ladder used during the gel migration. Can be changed using the 'DNA Ladder' button
+
+[VirtualCutter:GelImage]
+Displays a simulation of DNA migration. The selected DNA ladder is shown on the left an the cut DNA onthe right. The extend of migration can be modified using the slider on the left of the gel image.
+
+[VirtualCutter:SelectLadder]
+Press this button to chose/modify/create a DNA ladder to be used during the simulated gel migration.
+
+[VirtualCutter:PrintReport]
+Print the restriction report (Fragment size + Gel image).
+
+[VirtualCutter:TextReport]
+Reports the result of the restriction cleavage of the chosen DNA using the selected enzymes. Note that the topology of the DNA (linear or circular) can be modified using the checkbox located on the top-right of the window.
+
+[VirtualCutter:SelEnz]
+Indicate the name of the enzymes used for the cleavage. The enzymes can be selected using the list on the right of the window.
+
+[VirtualCutter:SelDNA]
+Use this button to select the DNA to be cut. Pressing this button will display a pop-up menu allowing to open a new sequence, use a sequence already displayed in a Sequence window, or use a recently opened sequence.Note that the topology of the DNA (linear or circular) can be modified using the checkbox located on the top-right of the window.
+
+[VirtualCutter:ChangeMigration]
+Use this slider to change the extend of migration of the fragments displayed in the simulated gel.
+
+[VirtualCutter:Topology]
+This checkbox indicate/modify the topology (linear or circular) of the DNA chosen to be cut.
+
+[Toolbar:General]
+Use these buttons for direct access to main functions. Press the [ALT] for additional shortcuts.
+
+[Feature:5'Sequence']
+The sequence entered here must be present upstream of the core sequence of the feature. It will however not be included in the found Feature. Code for degenerate nucleaotide can be used.
+
+[Feature:3'Sequence']
+The sequence entered here must be present downstream of the core sequence of the feature. It will however not be included in the found Feature. Code for degenerate nucleaotide can be used.
+

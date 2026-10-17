@@ -33,8 +33,8 @@ impl Default for Settings {
     fn default() -> Self {
         Settings {
             genetic_code: 1,
-            pk_table: sc_seq::pi::BJELLQVIST.name.to_owned(),
-            codon_table: "ecoli-k12".to_owned(),
+            pk_table: sc_seq::pi::DEFAULT.name.to_owned(),
+            codon_table: "h-sapiens".to_owned(),
         }
     }
 }

@@ -151,20 +151,51 @@ pub struct Orf {
     pub complete: bool,
 }
 
-/// Finds every ORF (ATG … stop) of at least `min_codons` codons on both
-/// strands, wrapping the origin of circular sequences. Sorted longest first,
-/// as the Find drawer lists them.
+/// The start-codon choices of the original's ORF/Protein preferences, as the
+/// `|`-separated strings it stores (`#StartCodon`).
+pub const ORF_START_OPTIONS: [&str; 4] = ["ATG", "GTG", "ATG|GTG", "ATG|CTG|GTG|TTG"];
+
+/// Parses an `ATG|GTG`-style start-codon preference; unknown or empty input
+/// means `ATG`.
+pub fn orf_start_codons(pref: &str) -> Vec<[u8; 3]> {
+    let mut out: Vec<[u8; 3]> = pref
+        .split('|')
+        .map(|s| s.trim().to_ascii_uppercase())
+        .filter(|s| s.len() == 3 && s.bytes().all(|b| b"ACGT".contains(&b)))
+        .map(|s| [s.as_bytes()[0], s.as_bytes()[1], s.as_bytes()[2]])
+        .collect();
+    if out.is_empty() {
+        out.push(*b"ATG");
+    }
+    out
+}
+
+/// Finds every ORF (start codon … stop) of at least `min_codons` codons on
+/// both strands, wrapping the origin of circular sequences. Every start codon
+/// opens its own ORF, so nested ORFs are all listed, as in Serial Cloner.
+/// `starts` is the preference's start-codon set (default `ATG` only — the
+/// genetic code's alternative starts are *not* used, exactly like the
+/// original). Sorted longest first, as the Find drawer lists them.
 pub fn find_orfs(
     bases: &[u8],
     topology: Topology,
     code: &GeneticCode,
     min_codons: usize,
+    starts: &[[u8; 3]],
 ) -> Vec<Orf> {
     let n = bases.len();
     let mut orfs = Vec::new();
     if n < 3 {
         return orfs;
     }
+    let is_start = |c: &[u8]| {
+        let c = [
+            c[0].to_ascii_uppercase(),
+            c[1].to_ascii_uppercase(),
+            c[2].to_ascii_uppercase(),
+        ];
+        starts.contains(&c)
+    };
     let rc = reverse_complement(bases);
     for (strand, s) in [(Strand::Forward, bases), (Strand::Reverse, rc.as_slice())] {
         // For circular sequences scan a doubled copy so ORFs may cross the
@@ -178,7 +209,7 @@ pub fn find_orfs(
         };
         let mut i = 0;
         while i + 3 <= n.min(scan.len()) {
-            if code.is_start(&scan[i..i + 3]) {
+            if is_start(&scan[i..i + 3]) {
                 let mut j = i;
                 let mut complete = false;
                 while j + 3 <= scan.len() {
@@ -294,7 +325,7 @@ mod tests {
     fn orfs_on_both_strands() {
         // ATG GCC TAA on top; reverse complement of "ATGAAATAG" is at the end.
         let dna = b"ccATGGCCTAAggCTATTTCATgg";
-        let orfs = find_orfs(dna, Topology::Linear, &STANDARD, 1);
+        let orfs = find_orfs(dna, Topology::Linear, &STANDARD, 1, &[*b"ATG"]);
         let fwd: Vec<_> = orfs
             .iter()
             .filter(|o| o.strand == Strand::Forward)
@@ -316,7 +347,7 @@ mod tests {
 
     #[test]
     fn incomplete_orf_is_reported_on_linear_sequences() {
-        let orfs = find_orfs(b"ATGGCCGGG", Topology::Linear, &STANDARD, 1);
+        let orfs = find_orfs(b"ATGGCCGGG", Topology::Linear, &STANDARD, 1, &[*b"ATG"]);
         assert_eq!(orfs.len(), 1);
         assert!(!orfs[0].complete);
         assert_eq!((orfs[0].start, orfs[0].end), (1, 9));
@@ -326,12 +357,80 @@ mod tests {
     fn orf_crosses_the_origin_of_a_circular_sequence() {
         // "GCCTAA" + "ggg" + "ATG": ATG at 10..12 continues at 1.
         let dna = b"GCCTAAgggATG";
-        let orfs = find_orfs(dna, Topology::Circular, &STANDARD, 1);
+        let orfs = find_orfs(dna, Topology::Circular, &STANDARD, 1, &[*b"ATG"]);
         let fwd: Vec<_> = orfs
             .iter()
             .filter(|o| o.strand == Strand::Forward)
             .collect();
         assert_eq!((fwd[0].start, fwd[0].end, fwd[0].length), (10, 6, 9));
         assert!(fwd[0].complete);
+    }
+}
+
+#[cfg(test)]
+mod original_goldens {
+    //! Serial Cloner 2.6.1 (Linux build under Xvfb) ▸ Find ▸ ORFs on the shipped
+    //! `pBR322.xdna`, default preferences (start codon ATG, no size limit, both
+    //! strands). The list is sorted by size; its first ten rows are
+    //! `Position, Size, Strand, Frame`. Position is the lower coordinate of the
+    //! ORF on both strands (so nested reverse ORFs share it), Size counts the
+    //! stop codon and Frame is the position of the start codon modulo 3 on the
+    //! strand that was scanned.
+    use super::*;
+
+    fn pbr322() -> Vec<u8> {
+        let text = std::fs::read_to_string(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../reference/sequences/pBR322.gb"
+        ))
+        .unwrap();
+        let origin = text.find("ORIGIN").unwrap();
+        // The ORIGIN line carries "EcoRI site."; the sequence starts at "1 ".
+        let body = &text[origin + 6..];
+        let body = &body[body.find(|c: char| c.is_ascii_digit()).unwrap()..];
+        let end = body.find("//").unwrap();
+        body[..end]
+            .bytes()
+            .filter(|b| b.is_ascii_alphabetic())
+            .map(|b| b.to_ascii_uppercase())
+            .collect()
+    }
+
+    #[test]
+    fn pbr322_orf_list_matches_serial_cloner() {
+        let seq = pbr322();
+        assert_eq!(seq.len(), 4361);
+        let orfs = find_orfs(&seq, Topology::Circular, &STANDARD, 1, &[*b"ATG"]);
+        let rows: Vec<(u32, u32, char, u8)> = orfs
+            .iter()
+            .take(10)
+            .map(|o| {
+                (
+                    o.start.min(o.end),
+                    o.length,
+                    if o.strand == Strand::Forward {
+                        '+'
+                    } else {
+                        '-'
+                    },
+                    o.frame,
+                )
+            })
+            .collect();
+        assert_eq!(
+            rows,
+            vec![
+                (86, 1191, '+', 2),
+                (158, 1119, '+', 2),
+                (248, 1029, '+', 2),
+                (353, 924, '+', 2),
+                (3293, 861, '-', 2),
+                (491, 786, '+', 2),
+                (515, 762, '+', 2),
+                (3293, 666, '-', 2),
+                (3293, 663, '-', 2),
+                (626, 651, '+', 2),
+            ]
+        );
     }
 }

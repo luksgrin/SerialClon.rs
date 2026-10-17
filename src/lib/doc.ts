@@ -109,6 +109,8 @@ export interface Hit {
 }
 
 export interface OrfHit {
+  /** Lower coordinate on either strand (the original's Position column). */
+  position: number;
   start: number;
   end: number;
   forward: boolean;
@@ -345,6 +347,7 @@ export const api = {
     invoke<SelectionInfo>('selection_info', { id, from, to, firstOrf }),
   findText: (id: number, query: string) => invoke<Hit[]>('find_text', { id, query }),
   findSite: (id: number, enzyme: string) => invoke<Hit[]>('find_site', { id, enzyme }),
+  findPeptide: (id: number, query: string) => invoke<OrfHit[]>('find_peptide', { id, query }),
   findOrfs: (id: number, minCodons: number) => invoke<OrfHit[]>('find_orfs_cmd', { id, minCodons }),
   enzymeList: (id: number) => invoke<EnzymeEntry[]>('enzyme_list', { id }),
   recentFiles: () => invoke<string[]>('recent_files'),
@@ -412,6 +415,7 @@ export const api = {
   previewFragments: (fragments: FragmentSpec[]) => invoke<FragmentPreview[]>('preview_fragments', { fragments }),
   ligateConstruct: (fragments: FragmentSpec[], circular: boolean, name: string) =>
     invoke<DocumentView>('ligate_construct', { fragments, circular, name }),
+  ligationPlan: (fragments: FragmentSpec[]) => invoke<LigationPlan>('ligation_plan', { fragments }),
   runPcr: (id: number, forward: string, reverse: string, ta: boolean) => invoke<DocumentView>('run_pcr', { id, forward, reverse, ta }),
   checkPrimer: (id: number, primer: string, reverse: boolean) => invoke<PrimerCheck>('check_primer', { id, primer, reverse }),
   pcrWindowOpen: () => invoke<boolean>('pcr_window_open'),
@@ -421,8 +425,8 @@ export const api = {
   saveShrnaLayouts: (layouts: ShrnaLayout[]) => invoke<void>('save_shrna_layouts', { layouts }),
   makeShrna: (name: string, layout: ShrnaLayout, core: string, mutations: number[], open: boolean) =>
     invoke<Oligos>('make_shrna', { name, layout, core, mutations, open }),
-  gateway: (insert: number, vector: number, reaction: 'bp' | 'lr' | 'hr', minHomology: number | null) =>
-    invoke<DocumentView>('gateway', { insert, vector, reaction, minHomology }),
+  gateway: (insert: number, vector: number, reaction: 'bp' | 'lr' | 'hr', minHomology: number | null, minimalAtt = false) =>
+    invoke<DocumentView>('gateway', { insert, vector, reaction, minHomology, minimalAtt }),
   siteUsage: (id: number, other: number | null) => invoke<UsageRow[]>('site_usage', { id, other }),
   libraryEntries: () => invoke<LibraryEntry[]>('library_entries'),
   isoschizomers: (name: string) => invoke<string[]>('isoschizomers', { name }),
@@ -430,7 +434,8 @@ export const api = {
   addEnzyme: (line: string) => invoke<LibraryEntry>('add_enzyme', { line }),
   removeEnzyme: (name: string) => invoke<void>('remove_enzyme', { name }),
   setEnzymesHidden: (names: string[], hidden: boolean) => invoke<void>('set_enzymes_hidden', { names, hidden }),
-  virtualCut: (id: number, enzymes: string[]) => invoke<Digest>('virtual_cut', { id, enzymes }),
+  virtualCut: (id: number, enzymes: string[], ladder: string | null = null) => invoke<Digest>('virtual_cut', { id, enzymes, ladder }),
+  ladders: () => invoke<string[]>('ladders'),
   silentMap: (id: number, from: number, to: number) => invoke<SilentRow[]>('silent_map', { id, from, to }),
   applySilentMutation: (id: number, position: number, mutated: string) => invoke<DocumentView>('apply_silent_mutation', { id, position, mutated }),
   openToolWindow: (which: string, id: number | null, from: number | null, to: number | null) =>
@@ -443,8 +448,16 @@ export interface FragmentSpec {
   begin: SiteRefView | null;
   end: SiteRefView | null;
   clockwise: boolean;
-  blunt_left: boolean;
-  blunt_right: boolean;
+  /** Non-processed / Blunt (Fill-In) / Blunt (Remove), as the original's radios. */
+  blunt_left: BluntChoice;
+  blunt_right: BluntChoice;
+}
+
+export type BluntChoice = 'none' | 'fill' | 'remove';
+
+export interface LigationPlan {
+  circular: boolean;
+  single: boolean;
 }
 
 export interface FragmentPreview {
@@ -501,6 +514,8 @@ export interface Digest {
   migrations: number[];
   ladder: number[];
   ladder_migrations: number[];
+  ladder_bright: boolean[];
+  ladder_name: string;
 }
 
 export interface SilentRow {

@@ -3,9 +3,14 @@
 Everything here comes from **Serial Cloner 2.6.1** (F. Perez / SerialBasics, March 2013,
 distributed as freeware) and is kept for one purpose: it is the **acceptance specification** for
 this reimplementation — file-format fixtures, interface documentation, and the behaviour we are
-matching. No Serial Cloner source code is included or was consulted; the binary was not
-disassembled. The formats below were derived from the published documentation and from the sample
-files the application itself ships.
+matching. No Serial Cloner source code is included or was consulted, and no binary is committed.
+The formats below were derived from the published documentation and from the sample files the
+application itself ships. In October 2026 the distributed binaries were additionally examined for
+interoperability and data recovery: the built-in Feature database and other embedded tables were
+read out of them, a few routines were decompiled to compare behaviour, and the Linux build was run
+(under Xvfb in a 32-bit Debian container) to produce golden files; what was found is under
+`original/` and in `docs/original-behaviour.md`. SerialClon.rs is an independent reimplementation
+and is not affiliated with or endorsed by the author of Serial Cloner.
 
 Sources, all retrieved 2026-09-06:
 
@@ -13,6 +18,16 @@ Sources, all retrieved 2026-09-06:
 - <http://serialbasics.free.fr/Serial_Cloner-Download.html> — downloads
 - `SerialCloner2-6.tar.gz` — the Linux distribution, which contains `RELibrary`, the sample
   sequences, the changelog, and the `Older files/` manuals
+
+## `original/` — data recovered from the binaries (2026-10-17)
+
+`ARCHIVES.md` and `SHA256SUMS.txt` inventory the five downloads. `features/` is the original's
+built-in Feature database as it writes it on first launch (JSON field for field, plus the raw
+files); `embedded/` the other tables read out of the executable (fallback enzyme library, DNA
+ladders, codon-usage tables, genetic code, feature-type groups, defaults); `golden/` the files the
+original itself produced when driven under Xvfb: its scan results for the sample sequences and
+linear fragments with every cohesive-end combination, as `.xdna` and GenBank. How, and what was
+compared, is in `docs/original-behaviour.md`.
 
 ## `sequences/` — format fixtures
 

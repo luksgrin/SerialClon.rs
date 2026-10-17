@@ -1,18 +1,21 @@
 //! Isoelectric point (changelog 2.6: "Estimates Isoelectric point of protein
 //! sequences", with "an option in the Preferences to select pK value tables").
 //!
-//! The net charge at a pH is the sum over ionisable groups of the
-//! Henderson–Hasselbalch fractions; the pI is found by bisection where the
-//! charge crosses zero. Six published pK sets are offered; the default is
-//! Bjellqvist's, which is what ExPASy Compute pI/Mw uses, so results can be
-//! checked against it (the tests do).
+//! Done the way the original does it (`GeneralMethods.FindIsoelectricPoint`
+//! and `Init_IsolectricPointTables`, see
+//! `reference/docs/original-behaviour.md`): the net charge at a pH is the
+//! sum over ionisable groups of the Henderson–Hasselbalch fractions,
+//! evaluated on a 0.01-pH grid from 0.00 to 14.00; starting at pH 7.00 the
+//! grid is walked towards the sign change and the first step where the
+//! charge is no longer on the starting side is the pI. The five pK sets are
+//! the original's, in its order, with its values; EMBOSS is its default.
 
 /// A set of pK values.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct PkTable {
     /// Name shown in Preferences.
     pub name: &'static str,
-    /// N-terminal amino group (default; Bjellqvist refines it per residue).
+    /// N-terminal amino group.
     pub n_term: f64,
     /// C-terminal carboxyl.
     pub c_term: f64,
@@ -32,20 +35,7 @@ pub struct PkTable {
     pub y: f64,
 }
 
-/// Bjellqvist et al. 1993 — the ExPASy set (default).
-pub const BJELLQVIST: PkTable = PkTable {
-    name: "Bjellqvist (ExPASy)",
-    n_term: 7.5,
-    c_term: 3.55,
-    c: 9.0,
-    d: 4.05,
-    e: 4.45,
-    h: 5.98,
-    k: 10.0,
-    r: 12.0,
-    y: 10.0,
-};
-/// EMBOSS `iep`.
+/// EMBOSS `iep` (the original's default).
 pub const EMBOSS: PkTable = PkTable {
     name: "EMBOSS",
     n_term: 8.6,
@@ -58,43 +48,30 @@ pub const EMBOSS: PkTable = PkTable {
     r: 12.5,
     y: 10.1,
 };
-/// Sillero & Ribeiro 1989.
-pub const SILLERO: PkTable = PkTable {
-    name: "Sillero",
+/// The set the original labels "Wikipedia".
+pub const WIKIPEDIA: PkTable = PkTable {
+    name: "Wikipedia",
     n_term: 8.2,
-    c_term: 3.2,
-    c: 9.0,
-    d: 4.0,
-    e: 4.5,
-    h: 6.4,
-    k: 10.4,
-    r: 12.0,
-    y: 10.0,
-};
-/// Solomon 1998 (Organic Chemistry).
-pub const SOLOMON: PkTable = PkTable {
-    name: "Solomon",
-    n_term: 9.6,
-    c_term: 2.4,
-    c: 8.3,
+    c_term: 3.65,
+    c: 8.18,
     d: 3.9,
-    e: 4.3,
-    h: 6.0,
-    k: 10.5,
-    r: 12.5,
-    y: 10.1,
+    e: 4.07,
+    h: 6.04,
+    k: 10.54,
+    r: 12.48,
+    y: 10.46,
 };
-/// Lehninger (Principles of Biochemistry).
-pub const LEHNINGER: PkTable = PkTable {
-    name: "Lehninger",
-    n_term: 9.69,
-    c_term: 2.34,
-    c: 8.33,
-    d: 3.86,
-    e: 4.25,
-    h: 6.0,
-    k: 10.5,
-    r: 12.4,
+/// DTASelect.
+pub const DTASELECT: PkTable = PkTable {
+    name: "DTASelect",
+    n_term: 8.0,
+    c_term: 3.1,
+    c: 8.5,
+    d: 4.4,
+    e: 4.4,
+    h: 6.5,
+    k: 10.0,
+    r: 12.0,
     y: 10.0,
 };
 /// Rodwell 1982.
@@ -110,33 +87,33 @@ pub const RODWELL: PkTable = PkTable {
     r: 11.5,
     y: 10.07,
 };
+/// Sillero & Ribeiro 1989.
+pub const SILLERO: PkTable = PkTable {
+    name: "Sillero",
+    n_term: 8.2,
+    c_term: 3.2,
+    c: 9.0,
+    d: 4.0,
+    e: 4.5,
+    h: 6.4,
+    k: 10.4,
+    r: 12.0,
+    y: 10.0,
+};
 
-/// Every table, default first.
-pub const PK_TABLES: [PkTable; 6] = [BJELLQVIST, EMBOSS, SILLERO, SOLOMON, LEHNINGER, RODWELL];
+/// Every table, in the original's order; the first is the default.
+pub const PK_TABLES: [PkTable; 5] = [EMBOSS, WIKIPEDIA, DTASELECT, RODWELL, SILLERO];
 
-/// Looks a table up by name; the default when unknown.
+/// The default table.
+pub const DEFAULT: PkTable = EMBOSS;
+
+/// Looks a table up by name; the default when unknown (a 1.0.0 settings file
+/// naming one of the tables that are no longer offered gets the default).
 pub fn pk_table(name: &str) -> &'static PkTable {
     PK_TABLES
         .iter()
         .find(|t| t.name.eq_ignore_ascii_case(name))
-        .unwrap_or(&BJELLQVIST)
-}
-
-/// Bjellqvist's N-terminal pK depends on the first residue (ExPASy does this).
-fn n_term_pk(table: &PkTable, first: u8) -> f64 {
-    if table.name != BJELLQVIST.name {
-        return table.n_term;
-    }
-    match first.to_ascii_uppercase() {
-        b'A' => 7.59,
-        b'M' => 7.0,
-        b'S' => 6.93,
-        b'P' => 8.36,
-        b'T' => 6.82,
-        b'V' => 7.44,
-        b'E' => 7.7,
-        _ => 7.5,
-    }
+        .unwrap_or(&PK_TABLES[0])
 }
 
 /// Net charge of a peptide at `ph`.
@@ -151,39 +128,49 @@ pub fn net_charge(peptide: &[u8], ph: f64, table: &PkTable) -> f64 {
     }
     let positive = |pk: f64| 1.0 / (1.0 + 10f64.powf(ph - pk));
     let negative = |pk: f64| -1.0 / (1.0 + 10f64.powf(pk - ph));
-    let mut q = positive(n_term_pk(table, residues[0])) + negative(table.c_term);
-    for &r in &residues {
-        q += match r {
-            b'K' => positive(table.k),
-            b'R' => positive(table.r),
-            b'H' => positive(table.h),
-            b'D' => negative(table.d),
-            b'E' => negative(table.e),
-            b'C' => negative(table.c),
-            b'Y' => negative(table.y),
-            _ => 0.0,
-        };
-    }
-    q
+    let count = |aa: u8| residues.iter().filter(|&&r| r == aa).count() as f64;
+    positive(table.n_term)
+        + negative(table.c_term)
+        + count(b'K') * positive(table.k)
+        + count(b'R') * positive(table.r)
+        + count(b'H') * positive(table.h)
+        + count(b'D') * negative(table.d)
+        + count(b'E') * negative(table.e)
+        + count(b'C') * negative(table.c)
+        + count(b'Y') * negative(table.y)
 }
 
 /// The isoelectric point of a peptide (`*` and unknown letters ignored),
 /// to two decimals like the original's Info panel. `None` for an empty
 /// peptide.
+///
+/// The original's walk: the charge is computed in single precision on the
+/// 0.01 grid; at pH 7.00 a charge of exactly zero gives 7.0, a negative one
+/// walks down to the first grid point with a non-negative charge, a
+/// positive one walks up to the first grid point with a non-positive
+/// charge (or stops at the end of the grid).
 pub fn isoelectric_point(peptide: &[u8], table: &PkTable) -> Option<f64> {
     if !peptide.iter().any(|b| b.is_ascii_alphabetic()) {
         return None;
     }
-    let (mut lo, mut hi) = (0.0f64, 14.0f64);
-    for _ in 0..60 {
-        let mid = (lo + hi) / 2.0;
-        if net_charge(peptide, mid, table) > 0.0 {
-            lo = mid;
-        } else {
-            hi = mid;
+    let charge = |i: i32| net_charge(peptide, f64::from(i) / 100.0, table) as f32;
+    let at7 = charge(700);
+    let step = if at7 == 0.0 {
+        700
+    } else if at7 < 0.0 {
+        let mut i = 699;
+        while i > 0 && charge(i) < 0.0 {
+            i -= 1;
         }
-    }
-    Some(((lo + hi) / 2.0 * 100.0).round() / 100.0)
+        i
+    } else {
+        let mut i = 701;
+        while i < 1400 && charge(i) > 0.0 {
+            i += 1;
+        }
+        i
+    };
+    Some(f64::from(step) / 100.0)
 }
 
 #[cfg(test)]
@@ -191,33 +178,56 @@ mod tests {
     use super::*;
 
     #[test]
-    fn matches_expasy_for_the_twenty_amino_acids() {
-        // ExPASy Compute pI/Mw, 2026-09-08: ACDEFGHIKLMNPQRSTVWY → pI 6.78.
-        let pi = isoelectric_point(b"ACDEFGHIKLMNPQRSTVWY", &BJELLQVIST).unwrap();
-        assert!((pi - 6.78).abs() <= 0.02, "{pi}");
+    fn walks_the_grid_to_the_sign_change() {
+        // Lysine alone: N-term 8.6, C-term 3.6, side chain 10.8 (EMBOSS).
+        let pi = isoelectric_point(b"K", &EMBOSS).unwrap();
+        assert!(net_charge(b"K", pi - 0.01, &EMBOSS) > 0.0);
+        assert!(net_charge(b"K", pi, &EMBOSS) <= 0.0);
+        assert!((9.6..=9.8).contains(&pi), "{pi}");
+        // Aspartate alone is acidic: the walk goes down from 7.
+        let pi = isoelectric_point(b"D", &EMBOSS).unwrap();
+        assert!(net_charge(b"D", pi, &EMBOSS) >= 0.0);
+        assert!(net_charge(b"D", pi + 0.01, &EMBOSS) < 0.0);
+        assert!((3.6..=3.9).contains(&pi), "{pi}");
     }
 
     #[test]
-    fn matches_expasy_for_serum_albumin() {
-        // ExPASy, same day: bovine serum albumin precursor → pI 5.92.
-        let bsa = b"MKWVTFISLLFLFSSAYSRGVFRRDAHKSEVAHRFKDLGEENFKALVLIAFAQYLQQCPFEDHVKLVNEVTEFAKTCVADESAENCDKSLHTLFGDKLCTVATLRETYGEMADCCAKQEPERNECFLQHKDDNPNLPRLVRPEVDVMCTAFHDNEETFLKKYLYEIARRHPYFYAPELLFFAKRYKAAFTECCQAADKAACLLPKLDELRDEGKASSAKQRLKCASLQKFGERAFKAWAVARLSQRFPKAEFAEVSKLVTDLTKVHTECCHGDLLECADDRADLAKYICENQDSISSKLKECCEKPLLEKSHCIAEVENDEMPADLPSLAADFVESKDVCKNYAEAKDVFLGMFLYEYARRHPDYSVVLLLRLAKTYETTLEKCCAAADPHECYAKVFDEFKPLVEEPQNLIKQNCELFEQLGEYKFQNALLVRYTKKVPQVSTPTLVEVSRNLGKVGSKCCKHPEAKRMPCAEDYLSVVLNQLCVLHEKTPVSDRVTKCCTESLVNRRPCFSALEVDETYVPKEFNAETFTFHADICTLSEKERQIKKQTALVELVKHKPKATKEQLKAVMDDFAAFVEKCCKADDKETCFAEEGKKLVAASQAALGL";
-        let pi = isoelectric_point(bsa, &BJELLQVIST).unwrap();
-        assert!((pi - 5.92).abs() <= 0.02, "{pi}");
-    }
-
-    #[test]
-    fn tables_and_edge_cases() {
-        assert_eq!(pk_table("emboss").name, "EMBOSS");
-        assert_eq!(pk_table("nope").name, BJELLQVIST.name);
-        assert!(isoelectric_point(b"", &EMBOSS).is_none());
-        assert!(isoelectric_point(b"***", &EMBOSS).is_none());
+    fn twenty_amino_acids_with_each_table() {
+        // The grid is 0.01 wide, so every table lands within 0.01 of the
+        // true root of its own charge function.
         for t in &PK_TABLES {
+            let pi = isoelectric_point(b"ACDEFGHIKLMNPQRSTVWY", t).unwrap();
             assert!(
-                isoelectric_point(b"KKKRRR", t).unwrap() > 10.0,
+                net_charge(b"ACDEFGHIKLMNPQRSTVWY", pi - 0.01, t) as f32 > 0.0,
                 "{}",
                 t.name
             );
-            assert!(isoelectric_point(b"DDDEEE", t).unwrap() < 4.5, "{}", t.name);
+            assert!(
+                net_charge(b"ACDEFGHIKLMNPQRSTVWY", pi + 0.01, t) as f32 <= 0.0,
+                "{}",
+                t.name
+            );
         }
+        // ExPASy (Bjellqvist) says 6.78 for this peptide; EMBOSS's set
+        // gives a value in the same region.
+        let pi = isoelectric_point(b"ACDEFGHIKLMNPQRSTVWY", &EMBOSS).unwrap();
+        assert!((6.5..=7.5).contains(&pi), "{pi}");
+    }
+
+    #[test]
+    fn ignores_stops_and_unknown_letters() {
+        let a = isoelectric_point(b"MKKR*", &EMBOSS);
+        let b = isoelectric_point(b"MKKR", &EMBOSS);
+        assert_eq!(a, b);
+        assert_eq!(isoelectric_point(b"***", &EMBOSS), None);
+        assert_eq!(isoelectric_point(b"", &EMBOSS), None);
+    }
+
+    #[test]
+    fn tables_are_looked_up_by_name_with_the_default_as_fallback() {
+        assert_eq!(pk_table("emboss").name, "EMBOSS");
+        assert_eq!(pk_table("DTASelect").name, "DTASelect");
+        assert_eq!(pk_table("Bjellqvist (ExPASy)").name, DEFAULT.name);
+        assert_eq!(PK_TABLES[0].name, DEFAULT.name);
     }
 }

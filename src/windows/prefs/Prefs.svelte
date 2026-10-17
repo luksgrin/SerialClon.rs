@@ -112,7 +112,13 @@
       <h2>Sequence Window</h2>
       <label>Character size <input type="number" min="8" max="32" bind:value={draft.seq_font_size} onchange={queueSave} /> px</label>
       <label>Read-out speed <input type="range" min="0.5" max="2" step="0.1" bind:value={draft.read_speed} onchange={queueSave} /> {draft.read_speed.toFixed(1)}×</label>
-      <label>Minimum ORF size (Find ▸ ORFs) <input type="number" min="1" max="10000" bind:value={draft.orf_min_codons} onchange={queueSave} /> codons</label>
+      <label>ORF start codon <select bind:value={draft.orf_start_codons} onchange={queueSave}>
+        <option value="ATG">ATG</option>
+        <option value="GTG">GTG</option>
+        <option value="ATG|GTG">ATG | GTG</option>
+        <option value="ATG|CTG|GTG|TTG">ATG | CTG | GTG | TTG</option>
+      </select></label>
+      <label>Minimum ORF size (Find ▸ ORFs) <input type="number" min="0" max="10000" bind:value={draft.orf_min_codons} onchange={queueSave} /> aa (0 = no limit)</label>
     </section>
 
     <section data-help-name="Graphic Map" data-help="Colours of the site categories and of the selection, character sizes, and whether names are boxed.">
