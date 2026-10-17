@@ -278,9 +278,21 @@ pub fn slug(name: &str) -> String {
     if s.is_empty() { "table".into() } else { s }
 }
 
-/// The tables compiled into the application (Kazusa, see each `source`).
+/// The tables compiled into the application: first the nine tables Serial
+/// Cloner 2.6.1 ships, in its order (recovered from the binary, see
+/// `resources/codon-usage/README.md`), then five newer Kazusa tables (see
+/// each `source`).
 pub fn builtin_tables() -> Vec<CodonTable> {
     [
+        include_str!("../../../resources/codon-usage/h-sapiens.json"),
+        include_str!("../../../resources/codon-usage/m-musculus.json"),
+        include_str!("../../../resources/codon-usage/r-norvegicus.json"),
+        include_str!("../../../resources/codon-usage/e-coli.json"),
+        include_str!("../../../resources/codon-usage/s-cerevisiae.json"),
+        include_str!("../../../resources/codon-usage/s-pombe.json"),
+        include_str!("../../../resources/codon-usage/a-thaliana.json"),
+        include_str!("../../../resources/codon-usage/p-pastoris.json"),
+        include_str!("../../../resources/codon-usage/d-melanogaster.json"),
         include_str!("../../../resources/codon-usage/ecoli-k12.json"),
         include_str!("../../../resources/codon-usage/yeast.json"),
         include_str!("../../../resources/codon-usage/human.json"),
@@ -299,7 +311,31 @@ mod tests {
     #[test]
     fn builtin_tables_load_and_round_trip_a_peptide() {
         let tables = builtin_tables();
-        assert_eq!(tables.len(), 5);
+        // Serial Cloner 2.6.1's nine tables, in its order, then five Kazusa ones.
+        assert_eq!(tables.len(), 14);
+        let names: Vec<&str> = tables.iter().map(|t| t.name.as_str()).collect();
+        assert_eq!(
+            &names[..9],
+            &[
+                "H. sapiens",
+                "M. musculus",
+                "R. norvegicus",
+                "E. coli",
+                "S. cerevisiae",
+                "S. pombe",
+                "A. thaliana",
+                "P. pastoris",
+                "D. melanogaster"
+            ]
+        );
+        for t in &tables[..9] {
+            assert!(t.source.starts_with("Serial Cloner 2.6.1"), "{}", t.name);
+            assert!(
+                t.codons
+                    .iter()
+                    .all(|c| c.fraction > 0.0 && !c.amino_acid.is_empty())
+            );
+        }
         for t in &tables {
             assert_eq!(t.codons.len(), 64, "{}", t.name);
             assert!(t.source.contains("kazusa"), "{}", t.name);
@@ -317,14 +353,14 @@ mod tests {
             );
         }
         // E. coli prefers CTG for leucine and CG* for arginine.
-        let pref = tables[0].preferred_codons();
+        let pref = tables[9].preferred_codons();
         assert_eq!(pref[&b'L'], "CTG");
         assert!(pref[&b'R'].starts_with("CG"));
     }
 
     #[test]
     fn parses_kazusa_and_gcg_layouts() {
-        let ecoli = &builtin_tables()[0];
+        let ecoli = &builtin_tables()[9];
         let ctg_pt = ecoli
             .codons
             .iter()
@@ -408,7 +444,7 @@ mod tests {
 
     #[test]
     fn genetic_code_from_table_and_json_round_trip() {
-        let t = &builtin_tables()[2];
+        let t = &builtin_tables()[11];
         let code = t.genetic_code();
         assert_eq!(code.amino_acid(b"ATG"), b'M');
         assert_eq!(code.amino_acid(b"TAA"), b'*');

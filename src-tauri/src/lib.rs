@@ -590,6 +590,7 @@ pub fn run() {
             cloning::remove_enzyme,
             cloning::set_enzymes_hidden,
             cloning::virtual_cut,
+            cloning::ladders,
             cloning::silent_map,
             cloning::apply_silent_mutation,
             cloning::open_tool_window,

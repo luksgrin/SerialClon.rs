@@ -687,28 +687,50 @@ pub struct Digest {
     pub ladder: Vec<usize>,
     /// Ladder migrations.
     pub ladder_migrations: Vec<f64>,
+    /// Which ladder bands are bright reference bands.
+    pub ladder_bright: Vec<bool>,
+    /// The ladder's name.
+    pub ladder_name: String,
 }
 
-/// Cuts with the chosen enzymes.
+/// The ladders of the virtual gel, the original's four first.
 #[tauri::command]
-pub fn virtual_cut(app: AppHandle, id: DocId, enzymes: Vec<String>) -> Result<Digest, String> {
+pub fn ladders() -> Vec<String> {
+    sc_clone::cutter::ladders()
+        .into_iter()
+        .map(|l| l.name)
+        .collect()
+}
+
+/// Cuts with the chosen enzymes; `ladder` names one of [`ladders`] (the
+/// first when absent or unknown).
+#[tauri::command]
+pub fn virtual_cut(
+    app: AppHandle,
+    id: DocId,
+    enzymes: Vec<String>,
+    ladder: Option<String>,
+) -> Result<Digest, String> {
     let state = app.state::<AppState>();
     let store = state.store.lock().unwrap();
     let doc = store.get(id).ok_or("no such document")?;
     let library = state.library();
     let chosen: Vec<&sc_enzyme::Enzyme> = enzymes.iter().filter_map(|n| library.get(n)).collect();
     let sizes = sc_clone::cutter::fragment_sizes(&doc.seq, &chosen);
+    let mut all = sc_clone::cutter::ladders();
+    let pick = ladder
+        .and_then(|name| all.iter().position(|l| l.name == name))
+        .unwrap_or(0);
+    let ladder = all.swap_remove(pick);
+    let (lo, hi) = ladder.range();
+    let migrate = |s: usize| sc_clone::cutter::migration_between(s, lo, hi);
     Ok(Digest {
-        migrations: sizes
-            .iter()
-            .map(|&s| sc_clone::cutter::migration(s))
-            .collect(),
+        migrations: sizes.iter().map(|&s| migrate(s)).collect(),
         sizes,
-        ladder: sc_clone::cutter::LADDER_1KB.to_vec(),
-        ladder_migrations: sc_clone::cutter::LADDER_1KB
-            .iter()
-            .map(|&s| sc_clone::cutter::migration(s))
-            .collect(),
+        ladder: ladder.bands.iter().map(|b| b.0).collect(),
+        ladder_migrations: ladder.bands.iter().map(|b| migrate(b.0)).collect(),
+        ladder_bright: ladder.bands.iter().map(|b| b.1).collect(),
+        ladder_name: ladder.name,
     })
 }
 

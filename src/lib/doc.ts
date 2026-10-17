@@ -434,7 +434,8 @@ export const api = {
   addEnzyme: (line: string) => invoke<LibraryEntry>('add_enzyme', { line }),
   removeEnzyme: (name: string) => invoke<void>('remove_enzyme', { name }),
   setEnzymesHidden: (names: string[], hidden: boolean) => invoke<void>('set_enzymes_hidden', { names, hidden }),
-  virtualCut: (id: number, enzymes: string[]) => invoke<Digest>('virtual_cut', { id, enzymes }),
+  virtualCut: (id: number, enzymes: string[], ladder: string | null = null) => invoke<Digest>('virtual_cut', { id, enzymes, ladder }),
+  ladders: () => invoke<string[]>('ladders'),
   silentMap: (id: number, from: number, to: number) => invoke<SilentRow[]>('silent_map', { id, from, to }),
   applySilentMutation: (id: number, position: number, mutated: string) => invoke<DocumentView>('apply_silent_mutation', { id, position, mutated }),
   openToolWindow: (which: string, id: number | null, from: number | null, to: number | null) =>
@@ -513,6 +514,8 @@ export interface Digest {
   migrations: number[];
   ladder: number[];
   ladder_migrations: number[];
+  ladder_bright: boolean[];
+  ladder_name: string;
 }
 
 export interface SilentRow {
