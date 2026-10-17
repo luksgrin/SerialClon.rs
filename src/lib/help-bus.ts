@@ -1,5 +1,5 @@
 /**
- * The contextual Help window (PLAN.md §1.1, item 2).
+ * The contextual Help window (docs/design.md §1.1, item 2).
  *
  * Any element in any window can carry a `data-help` attribute. When the mouse
  * moves over it, a `help:hover` event is sent to the Help window, which shows

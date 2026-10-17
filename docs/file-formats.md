@@ -21,16 +21,17 @@ offset  size  meaning
 100     12    reserved; Serial Cloner writes 0xFF at offset 111, DNA Strider at offset 92
 112     …     sequence ASCII (case preserved — lower case is data)
         …     comment ISO-8859-1 (lines separated by 0x0D)
-        1     0x00 → Serial Cloner annotation block follows (absent in plain Strider files)
+        1     ends flag → Serial Cloner annotation block follows (absent in plain Strider
+              files): 0 blunt, 5 left end cohesive, 3 right end cohesive, 35 both
 ```
 
 Annotation block (all strings are Pascal strings: `u8` length + bytes):
 
 ```text
-pstr right overhang length (decimal text; negative = 3', positive = 5')
-     overhang sequence (abs(len) bytes) if len != 0
+pstr right overhang length (decimal text; positive = 5' overhang, negative = 3')
+     overhang bases, 5'→3' on the strand that carries them (abs(len) bytes) if len != 0
 pstr left overhang  (same)
-u8   feature count  — ABSENT when there are no features
+u8   feature count  — always written by 2.6.1; absent in older files without features
 per feature:
   pstr name
   pstr description (qualifiers separated by 0x0D)
@@ -43,9 +44,8 @@ per feature:
 ```
 
 A plain DNA Strider file that gains no features or cohesive ends is written back as plain
-Strider; everything else gets the Serial Cloner block. The overhang encoding beyond `0` (blunt)
-follows the plan's description — no shipped sample has cohesive ends; a `.xdna` saved from an
-extracted fragment in the original would settle it.
+Strider; everything else gets the Serial Cloner block. The cohesive-end encoding was pinned with
+fragments of every end combination saved by the original (`reference/original/golden/ends/`).
 
 ## GenBank / EMBL / DDBJ (read + write)
 
@@ -57,7 +57,8 @@ through these qualifiers, which the original invented:
 COMMENT     Serial Cloner Genbank Format
 COMMENT     SerialCloner_Type=DNA
 COMMENT     SerialCloner_Comments=<comment, one continuation line per comment line>
-COMMENT     SerialCloner_Ends=0,0,,0,
+COMMENT     SerialCloner_Ends=0,0,,0,          flag,left length,left bases,right length,right bases
+                                               e.g. 35,4,GATC,4,TCGA or 5,-4,CTAG,0,
 FEATURES             Location/Qualifiers
      primer_bind     complement(771..790)
                      /label=T3
@@ -164,8 +165,7 @@ JSON with `name`, `taxid`, `source`, `retrieved`, `cds`, `codons_total` and 64 `
 (`codon`, `amino_acid`, `fraction`, `per_thousand`, `count`). Import accepts the Kazusa / GCG
 "codon frequency" text format, pasted or fetched from a URL.
 
-## Not yet
+## Not supported
 
-ApE `.ape` sequence files (its GenBank dialect opens already), Vector NTI `.ma4`, MacVector
-`.nucl`, DNAStar EditSeq `.seq` and pDRAW32 `.pdw` are on the list; the sample files for the
-first three are in the repository as fixtures.
+Vector NTI `.ma4`, MacVector `.nucl`, DNAStar EditSeq `.seq` and pDRAW32 `.pdw` are not read.
+ApE files open through the GenBank reader. Export from those programs to GenBank or FASTA.

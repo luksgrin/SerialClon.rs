@@ -1,4 +1,4 @@
-//! Multiple sequence alignment (Generate ▸ Align Multiple Sequences, M6b)
+//! Multiple sequence alignment (Generate ▸ Align Multiple Sequences)
 //! on the pure-Rust port of MAFFT 7.526 (`mafft` crate, byte-identical to
 //! the C reference). The original never had this window; its "Copy All
 //! Sequences To Multifasta … for CLUSTAL" workflow points at it.

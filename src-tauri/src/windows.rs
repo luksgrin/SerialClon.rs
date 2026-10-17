@@ -20,7 +20,7 @@ pub const HELP: &str = "help";
 
 /// Logical size of the Help window, roughly the original's proportions.
 const HELP_SIZE: (f64, f64) = (360.0, 170.0);
-/// Logical size of a new Sequence Window (reference/ui/01-sequence-window.png).
+/// Logical size of a new Sequence Window (as in the original).
 const SEQUENCE_SIZE: (f64, f64) = (640.0, 470.0);
 /// Logical size of the Find drawer.
 const FIND_SIZE: (f64, f64) = (320.0, 440.0);

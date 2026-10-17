@@ -1,4 +1,4 @@
-//! M6: protein windows, genetic codes, pI, codon usage and reverse
+//! Protein windows, genetic codes, pI, codon usage and reverse
 //! translation, bisulfite, alignment, and the network features (Web Access,
 //! BLAST). Settings (genetic code, pK table, codon table) persist in
 //! `settings.json`; user codon tables in `{app data}/codon-usage/`.
@@ -18,7 +18,7 @@ use crate::commands::{broadcast, open_product, view_of};
 use crate::documents::{DocId, Document, DocumentView, FeatureView};
 use crate::{menu, windows};
 
-/// Persisted choices (Preferences in M7; the commands exist now).
+/// Persisted choices, mirrored in Preferences.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Settings {
     /// NCBI genetic code id.
@@ -39,7 +39,7 @@ impl Default for Settings {
     }
 }
 
-/// M6 state.
+/// Protein, codon usage and alignment state.
 pub struct ProteinState {
     /// Choices.
     pub settings: Mutex<Settings>,

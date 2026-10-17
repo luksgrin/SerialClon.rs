@@ -364,7 +364,7 @@ export const api = {
   openSequenceMap: (id: number, from: number | null, to: number | null) => invoke<void>('open_sequence_map', { id, from, to }),
   savePng: (name: string, dataBase64: string) => invoke<boolean>('save_png', { name, dataBase64 }),
   showParent: (id: number) => invoke<void>('show_parent', { id }),
-  // ---- M6: protein, codon usage, alignment, web ----
+  // ---- protein, codon usage, alignment, web ----
   geneticCodes: () => invoke<GeneticCodeView[]>('genetic_codes'),
   setGeneticCode: (id: number) => invoke<void>('set_genetic_code', { id }),
   pkTables: () => invoke<[string, boolean][]>('pk_tables'),
@@ -411,7 +411,7 @@ export const api = {
   openReferenceAny: (which: string) => invoke<void>('open_reference_window', { which }),
   printWindow: () => invoke<void>('print_window'),
   listDocuments: () => invoke<[number, string][]>('list_documents'),
-  // --- M5: cloning ---
+  // --- cloning ---
   previewFragments: (fragments: FragmentSpec[]) => invoke<FragmentPreview[]>('preview_fragments', { fragments }),
   ligateConstruct: (fragments: FragmentSpec[], circular: boolean, name: string) =>
     invoke<DocumentView>('ligate_construct', { fragments, circular, name }),

@@ -3,7 +3,7 @@
 //! and fails with a plain message when offline.
 //!
 //! The 2013-era page scraping is replaced by the documented APIs
-//! (`PLAN.md` §2): NCBI E-utilities `efetch` for records, the ENA browser API
+//! (`docs/design.md` §2): NCBI E-utilities `efetch` for records, the ENA browser API
 //! for EMBL records, and the NCBI BLAST URL API (`CMD=Put` / `CMD=Get`) for
 //! remote searches, polled at the rate NCBI asks for (wait the estimated
 //! time, then not more than once a minute per request).

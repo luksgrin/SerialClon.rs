@@ -2,7 +2,7 @@ import { fileURLToPath, URL } from 'node:url';
 import { defineConfig } from 'vite';
 import { svelte } from '@sveltejs/vite-plugin-svelte';
 
-// One HTML entry per Serial Cloner window (PLAN.md §3). Each becomes its own
+// One HTML entry per Serial Cloner window (docs/design.md §3). Each becomes its own
 // Tauri `WebviewWindow`; the path is what `tauri.conf.json` / `windows.rs`
 // load, and Vite keeps it identical in dev and in `dist/`.
 const windows = [

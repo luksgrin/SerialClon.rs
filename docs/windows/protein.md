@@ -19,7 +19,7 @@ context menu; pasting a GenBank protein record creates one too.
 | **Codon Usage: …** | Shows the current table and opens the Codon Usage window. |
 | **Import Codon Usage…** | A new table from pasted text (Kazusa / GCG format) or a URL. |
 | **Choose Genetic Code** | One of the 27 NCBI translation tables (standard, vertebrate mitochondrial, yeast mitochondrial, bacterial, ciliate, …), with their alternative start codons. Applies to every translation. |
-| **pK Table for pI** | Bjellqvist/ExPASy (default), EMBOSS, Sillero, Solomon, Lehninger, Rodwell. |
+| **pK Table for pI** | EMBOSS (default), Wikipedia, DTASelect, Rodwell, Sillero: the original's five tables with its values. |
 
 The choices are saved in `settings.json`; in 1.0 they are also in Preferences.
 

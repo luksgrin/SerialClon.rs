@@ -1,8 +1,8 @@
 /**
  * The full keyboard map of Serial Cloner 2.6.1, from the User Manual (§III)
  * and the changelog. `C` is ⌘ on macOS and Ctrl elsewhere, as in the manual's
- * "[C+…]" notation. Windows wire these up from M2 on; M0 only defines them so
- * the Toolbar's hover help can show the right key on the right platform.
+ * "[C+…]" notation. Windows wire these up; the Toolbar's hover help also uses it
+ * to show the right key on the right platform.
  */
 
 export type Modifier = 'C' | 'shift' | 'alt';

@@ -1,7 +1,7 @@
 site_name: SerialClon.rs
 site_description: An open-source, maintained reimplementation of Serial Cloner — the DNA cloning workbench — in Rust + Tauri
 site_author: luksgrin
-site_url: https://luksgrin.github.io/SerialClon.rs/
+site_url: https://luksgrin.xyz/SerialClon.rs/
 
 repo_name: luksgrin/SerialClon.rs
 repo_url: https://github.com/luksgrin/SerialClon.rs
@@ -67,6 +67,7 @@ nav:
   - Migration from Serial Cloner: migration.md
   - Data: data.md
   - Development: development.md
+  - Design: design.md
 
 plugins:
   - search

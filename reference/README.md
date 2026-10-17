@@ -4,8 +4,8 @@ Everything here comes from **Serial Cloner 2.6.1** (F. Perez / SerialBasics, Mar
 distributed as freeware) and is kept for one purpose: it is the **acceptance specification** for
 this reimplementation — file-format fixtures, interface documentation, and the behaviour we are
 matching. No Serial Cloner source code is included or was consulted, and no binary is committed.
-The formats below were derived from the published documentation and from the sample files the
-application itself ships. In October 2026 the distributed binaries were additionally examined for
+The formats below were derived from the application's published documentation and from the
+sample files it ships; the manuals and screenshots themselves are not redistributed here. In October 2026 the distributed binaries were additionally examined for
 interoperability and data recovery: the built-in Feature database and other embedded tables were
 read out of them, a few routines were decompiled to compare behaviour, and the Linux build was run
 (under Xvfb in a 32-bit Debian container) to produce golden files; what was found is under
@@ -50,34 +50,12 @@ The example sequences shipped inside the application, used as round-trip tests f
 Lower case in a sequence is meaningful (Serial Cloner can restrict translation to uppercase) and
 must survive a round trip. Unknown header bytes must be preserved verbatim rather than zeroed.
 
-## `docs/` — documentation and changelog
+## `docs/` — golden values and the behaviour comparison
 
 | File | What it is |
 |---|---|
-| `SerialCloner-User-Manual-v1.2.pdf` / `.txt` | The only full user manual — menus, every shortcut, the Sequence Window field by field, Find, Graphic Map, Sequence Map, and the exact Tm formulas |
-| `SerialCloner-Features-ReadMe-v2.1.pdf` / `.txt` | The features/annotation system: data model, display, scanning, collections, and the complete list of ~150 built-in features |
-| `Serial-Cloner-History.txt` | Full changelog, beta10 → 2.6.1 — the most complete function inventory that exists |
-| `version_2-6-1-details.txt` | Final release notes |
-| `pBluescript-II-SK+-unique-sites-map.txt` | The Sequence Map of pBluescript II SK(+) printed by Serial Cloner 2.1 (Features ReadMe §IV), "cutting maximum 1 time": the digestion golden values — 51 enzymes with positions and strand arrows |
-
-`.txt` files are `pdftotext -layout` extractions of the PDFs, kept because they are greppable.
-
-## `ui/` — interface acceptance targets
-
-Screenshots extracted from the manuals. These are what "same UI" is measured against.
-
-| File | Window |
-|---|---|
-| `00-desktop-overview.png` | The whole application: toolbar strip, Sequence Window with the Info panel open, Find drawer, circular Graphic Map, RE Library, Help window |
-| `01-sequence-window.png` | Sequence Window, all 20 numbered elements |
-| `02-…-comments-tab.png` | Comments tab and the 255-character DNA Strider limit |
-| `03-…-extremities-tab.png` | Cohesive 5' / 3' end editor |
-| `04-selection-info-and-translation.png` | Tm, base counts, %GC, size, MW, pI, peptide field |
-| `05-find-drawer.png` | Find drawer — Sequence / Site / ORFs tabs, hit table |
-| `06-graphic-map-linear.png` | Linear map: stacked draggable labels, cohesive ends in red |
-| `07-graphic-map-circular.png` | Circular map with the Features / Unique / Double / Particular controls |
-| `08-sequence-map.png` | Text map: the four control panels and multi-frame translation |
-| `09-manage-features.png` | Feature Collection editor, Simple / Complex definitions |
+| `pBluescript-II-SK+-unique-sites-map.txt` | The Sequence Map of pBluescript II SK(+) as printed by the original, "cutting maximum 1 time": the digestion golden values — 51 enzymes with positions and strand arrows |
+| `original-behaviour.md` | The function-by-function comparison with the original and how the data under `original/` was obtained |
 
 ## `sequences/genbank/` — public records behind the built-in Features
 

@@ -47,11 +47,6 @@ A **complex** definition has:
 
 ## Manage Features
 
-<figure markdown>
-![Feature Collection window, original](../img/09-manage-features.png)
-<figcaption>The Feature Collection window (original screenshot): Collections, their Features, and the Simple / Complex editor.</figcaption>
-</figure>
-
 Collections on the left (the **Scan** checkbox says whether a Collection is used; unselect the
 ones you never need to speed scans up), Features of the selected Collection in the middle (with a
 search field and their own Scan checkboxes), the editor on the right: Simple / Complex tabs, DNA or
@@ -66,6 +61,6 @@ Import accepts three formats: SerialClon JSON, a generic tab-separated table
 
 ## The built-in Collections
 
-Generic, Yeast, Other, Tags & Cut and Gateway — 131 of the original's 150 names, every one
-reconstructed from a public record or a shipped sample file. See [Data](../data.md) for the
-provenance and the list of the 19 that could not be verified.
+Generic, Yeast, Other, Tags & Cut and Gateway: the original's own built-in database, all 155
+definitions, so a scan finds exactly what the original found. A sixth Collection, *Additions*,
+is off by default. See [Data](../data.md) for the provenance.

@@ -1,6 +1,6 @@
 <script lang="ts">
   /**
-   * The Sequence Map (User Manual §IV.D; reference/ui/08): the text
+   * The Sequence Map (User Manual §IV.D): the text
    * restriction map with multi-frame translation, driven by four control
    * panels — search, Translation, Restriction sites, Display — plus Features.
    */
