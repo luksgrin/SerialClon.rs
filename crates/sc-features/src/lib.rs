@@ -16,7 +16,7 @@ pub mod scan;
 use sc_seq::{Feature, Rgb};
 use serde::{Deserialize, Serialize};
 
-pub use scan::{merge, scan, scan_one};
+pub use scan::{merge, scan, scan_junctions, scan_one};
 
 /// A feature definition to scan for.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

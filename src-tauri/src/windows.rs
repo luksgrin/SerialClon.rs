@@ -169,12 +169,19 @@ pub fn open_sequence(app: &AppHandle, id: DocId) {
         let _ = w.set_focus();
         return;
     }
+    // A product never saved opens as `Unsaved <name>`, as in the original.
     let name = {
         let state = app.state::<AppState>();
         let store = state.store.lock().unwrap();
         store
             .get(id)
-            .map(|d| d.seq.name.clone())
+            .map(|d| {
+                if d.dirty && d.path.is_none() {
+                    format!("Unsaved {}", d.seq.name)
+                } else {
+                    d.seq.name.clone()
+                }
+            })
             .unwrap_or_default()
     };
     // Cascade new windows so they do not stack exactly.

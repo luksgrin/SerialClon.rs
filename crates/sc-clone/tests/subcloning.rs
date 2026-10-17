@@ -104,7 +104,10 @@ fn egfp_from_pegfp_n1_into_pbluescript_ks_plus() {
         find_sites(&product.bases, product.topology, lib.get("NotI").unwrap()).len(),
         1
     );
-    assert!(product.comment.starts_with("Circular ligation of 2:"));
+    // The original's comment: `Ligation of : <vector label> to <insert label>`,
+    // each label being the fragment's own provenance line.
+    assert!(product.comment.starts_with("Ligation of : pBluescript-II-KS+-annotated.xdna [2946  nt] : (NotI[2286] / BamHI[2268]) to pEGFP-N1.xdna [745  nt] : (BamHI[660] / NotI[1400])"));
+    assert!(product.comment.ends_with(")"));
 
     // Mismatched ends are refused: the pEGFP backbone (NotI…BamHI) presents
     // a NotI end to the vector's BamHI end.

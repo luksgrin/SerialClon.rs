@@ -165,15 +165,35 @@ pub fn ligate_construct(
         .iter()
         .map(|s| resolve(&app, s))
         .collect::<Result<_, _>>()?;
+    // The original names the new window `Unsaved Ligation #n`.
     let name = if name.trim().is_empty() {
-        "Construct".to_owned()
+        let state = app.state::<AppState>();
+        let mut counters = state.product_counters.lock().unwrap();
+        counters.ligation += 1;
+        format!("Ligation #{}", counters.ligation)
     } else {
         name
     };
-    let product = ligate(&parts, circular, &name).map_err(|_| {
+    let mut product = ligate(&parts, circular, &name).map_err(|_| {
         "Serial Cloner cannot ligate fragments in the indicated order.\nPlease check order, orientation and end compatibility".to_owned()
     })?;
+    rescan_junctions(&app, &mut product);
     Ok(open_product(&app, product))
+}
+
+/// The original's `LigUpdateAnnot` and `GateWayAnnotate` end with
+/// `SetAnnotations(seq, from, to, false)` over every junction: features
+/// recreated across a junction (a site rebuilt by compatible ends, a tag
+/// completed by the insert) are found and merged like a scan would.
+fn rescan_junctions(app: &AppHandle, product: &mut Sequence) {
+    let junctions = sc_clone::ligate::junctions(product);
+    if junctions.is_empty() {
+        return;
+    }
+    let state = app.state::<AppState>();
+    let collections = state.collections.lock().unwrap();
+    let found = sc_features::scan_junctions(product, &collections, &junctions);
+    sc_features::merge(&mut product.features, found);
 }
 
 // ---------------------------------------------------------------- PCR --
@@ -398,8 +418,9 @@ pub fn gateway(
     vector: DocId,
     reaction: String,
     min_homology: Option<usize>,
+    minimal_att: Option<bool>,
 ) -> Result<DocumentView, String> {
-    let product = {
+    let mut product = {
         let state = app.state::<AppState>();
         let store = state.store.lock().unwrap();
         let ins = &store.get(insert).ok_or("no such insert document")?.seq;
@@ -417,10 +438,20 @@ pub fn gateway(
                 } else {
                     sc_clone::gateway::Reaction::Bp
                 };
-                sc_clone::gateway::recombine(r, ins, vec, gateway).map_err(|e| e.to_string())?
+                // "Use minimal att consensus" (the original's attDefCheckBox).
+                let consensus = if minimal_att.unwrap_or(false) {
+                    sc_clone::gateway::AttConsensus::Minimal
+                } else {
+                    sc_clone::gateway::AttConsensus::Full
+                };
+                sc_clone::gateway::recombine_with(r, ins, vec, gateway, consensus)
+                    .map_err(|e| e.to_string())?
             }
         }
     };
+    if reaction != "hr" {
+        rescan_junctions(&app, &mut product);
+    }
     Ok(open_product(&app, product))
 }
 

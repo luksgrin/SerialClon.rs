@@ -39,6 +39,24 @@ pub enum GatewayError {
 
 const CORE: &[u8] = b"TTGTACAA";
 
+/// Which att definitions locate the sites: the original's "Use minimal att
+/// consensus" checkbox (`GateWayWin.attDefCheckBox` → `InitGatewaySeq`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum AttConsensus {
+    /// The full definitions of the Gateway Feature Collection.
+    #[default]
+    Full,
+    /// The original's minimal consensus, the same for every kind of site:
+    /// `TTTGTACAAAAAAG` for site 1 and `CTTTCTTGTACAAAGT` (antiparallel,
+    /// i.e. `ACTTTGTACAAGAAAG` on the sense strand) for site 2.
+    Minimal,
+}
+
+/// The original's minimal site-1 consensus.
+const MINIMAL_SITE1: &[u8] = b"TTTGTACAAAAAAG";
+/// The original's minimal site-2 consensus, read on the sense strand.
+const MINIMAL_SITE2: &[u8] = b"ACTTTGTACAAGAAAG";
+
 /// A located site: its span and the crossover point (0-based, before base).
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct Site {
@@ -96,14 +114,22 @@ fn find_site(
     collection: &Collection,
     prefix: &str,
     number: u8,
+    consensus: AttConsensus,
 ) -> Result<Option<Site>, GatewayError> {
     let wanted = format!("{prefix}{number}").to_ascii_lowercase();
-    let defs: Vec<Vec<u8>> = collection
-        .features
-        .iter()
-        .filter(|d| d.name.to_ascii_lowercase() == wanted && !d.peptide)
-        .map(|d| d.five.bytes().map(|b| b.to_ascii_uppercase()).collect())
-        .collect();
+    let defs: Vec<Vec<u8>> = match consensus {
+        AttConsensus::Minimal => vec![if number == 1 {
+            MINIMAL_SITE1.to_vec()
+        } else {
+            MINIMAL_SITE2.to_vec()
+        }],
+        AttConsensus::Full => collection
+            .features
+            .iter()
+            .filter(|d| d.name.to_ascii_lowercase() == wanted && !d.peptide)
+            .map(|d| d.five.bytes().map(|b| b.to_ascii_uppercase()).collect())
+            .collect(),
+    };
     if defs.is_empty() {
         return Err(GatewayError::Invalid(format!(
             "the Gateway Collection has no {prefix}{number} definition"
@@ -171,10 +197,11 @@ fn sites(
     seq: &Sequence,
     collection: &Collection,
     prefix: &str,
+    consensus: AttConsensus,
 ) -> Result<(Site, Site), GatewayError> {
-    let s1 = find_site(seq, collection, prefix, 1)?
+    let s1 = find_site(seq, collection, prefix, 1, consensus)?
         .ok_or_else(|| GatewayError::MissingSite(format!("{prefix}1"), seq.name.clone()))?;
-    let s2 = find_site(seq, collection, prefix, 2)?
+    let s2 = find_site(seq, collection, prefix, 2, consensus)?
         .ok_or_else(|| GatewayError::MissingSite(format!("{prefix}2"), seq.name.clone()))?;
     Ok((s1, s2))
 }
@@ -187,13 +214,14 @@ fn locate_pair(
     seq: &Sequence,
     collection: &Collection,
     prefix: &str,
+    consensus: AttConsensus,
 ) -> Result<(Sequence, Site, Site), GatewayError> {
-    let (s1, _) = sites(seq, collection, prefix)?;
+    let (s1, _) = sites(seq, collection, prefix, consensus)?;
     let mut seq = seq.clone();
     if !s1.forward {
         seq = antiparallel(&seq);
     }
-    let (s1, s2) = sites(&seq, collection, prefix)?;
+    let (s1, s2) = sites(&seq, collection, prefix, consensus)?;
     if s1.cross > s2.cross {
         if !seq.topology.is_circular() {
             return Err(GatewayError::Invalid(format!(
@@ -202,7 +230,7 @@ fn locate_pair(
             )));
         }
         seq.set_origin(s1.lo as u32 + 1);
-        let (s1, s2) = sites(&seq, collection, prefix)?;
+        let (s1, s2) = sites(&seq, collection, prefix, consensus)?;
         if s1.cross > s2.cross {
             return Err(GatewayError::Invalid(format!(
                 "{prefix}1 and {prefix}2 read in opposite directions in \"{}\"",
@@ -223,12 +251,23 @@ pub fn recombine(
     vector: &Sequence,
     collection: &Collection,
 ) -> Result<Sequence, GatewayError> {
+    recombine_with(reaction, insert, vector, collection, AttConsensus::Full)
+}
+
+/// [`recombine`] with the sites located by the chosen [`AttConsensus`].
+pub fn recombine_with(
+    reaction: Reaction,
+    insert: &Sequence,
+    vector: &Sequence,
+    collection: &Collection,
+    consensus: AttConsensus,
+) -> Result<Sequence, GatewayError> {
     let (ins_prefix, vec_prefix, product_kind) = match reaction {
         Reaction::Bp => ("attB", "attP", "Entry clone"),
         Reaction::Lr => ("attL", "attR", "Expression clone"),
     };
-    let (ins, i1, i2) = locate_pair(insert, collection, ins_prefix)?;
-    let (vec, v1, v2) = locate_pair(vector, collection, vec_prefix)?;
+    let (ins, i1, i2) = locate_pair(insert, collection, ins_prefix, consensus)?;
+    let (vec, v1, v2) = locate_pair(vector, collection, vec_prefix, consensus)?;
     let mut bases = vec.bases[..v1.cross].to_vec();
     bases.extend_from_slice(&ins.bases[i1.cross..i2.cross]);
     bases.extend_from_slice(&vec.bases[v2.cross..]);
@@ -489,6 +528,41 @@ mod tests {
             recombine(Reaction::Lr, &insert, &dest, &c),
             Err(GatewayError::MissingSite(..))
         ));
+    }
+
+    #[test]
+    fn minimal_att_consensus_gives_the_same_entry_clone() {
+        // The original's "Use minimal att consensus": the short core
+        // consensus locates every kind of site, here on the shipped donor
+        // vector and the concrete attB insert, with the same product as the
+        // full definitions.
+        let c = gateway();
+        let insert = attb_insert(&c);
+        let donor = read("pDONR201.xdna");
+        let full = recombine(Reaction::Bp, &insert, &donor, &c).unwrap();
+        let minimal =
+            recombine_with(Reaction::Bp, &insert, &donor, &c, AttConsensus::Minimal).unwrap();
+        assert_eq!(minimal.bases, full.bases);
+        // A vector whose arms differ from the definitions is still handled
+        // with the minimal consensus: a synthetic donor built from the cores
+        // only, which the full 232-bp attP definitions cannot match.
+        let synthetic = Sequence::new(
+            "synthetic",
+            format!(
+                "gggggggggg{}ccdBccdBccdB{}tttttttttt",
+                std::str::from_utf8(MINIMAL_SITE1).unwrap(),
+                std::str::from_utf8(MINIMAL_SITE2).unwrap()
+            )
+            .into_bytes(),
+        );
+        assert!(recombine(Reaction::Bp, &insert, &synthetic, &c).is_err());
+        let p =
+            recombine_with(Reaction::Bp, &insert, &synthetic, &c, AttConsensus::Minimal).unwrap();
+        assert!(
+            !p.bases.windows(4).any(|w| w == b"ccdB"),
+            "the ccdB stuffer is replaced"
+        );
+        assert!(p.bases.windows(ORF.len()).any(|w| w == ORF.as_bytes()));
     }
 
     #[test]

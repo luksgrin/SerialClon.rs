@@ -425,8 +425,8 @@ export const api = {
   saveShrnaLayouts: (layouts: ShrnaLayout[]) => invoke<void>('save_shrna_layouts', { layouts }),
   makeShrna: (name: string, layout: ShrnaLayout, core: string, mutations: number[], open: boolean) =>
     invoke<Oligos>('make_shrna', { name, layout, core, mutations, open }),
-  gateway: (insert: number, vector: number, reaction: 'bp' | 'lr' | 'hr', minHomology: number | null) =>
-    invoke<DocumentView>('gateway', { insert, vector, reaction, minHomology }),
+  gateway: (insert: number, vector: number, reaction: 'bp' | 'lr' | 'hr', minHomology: number | null, minimalAtt = false) =>
+    invoke<DocumentView>('gateway', { insert, vector, reaction, minHomology, minimalAtt }),
   siteUsage: (id: number, other: number | null) => invoke<UsageRow[]>('site_usage', { id, other }),
   libraryEntries: () => invoke<LibraryEntry[]>('library_entries'),
   isoschizomers: (name: string) => invoke<string[]>('isoschizomers', { name }),

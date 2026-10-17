@@ -312,6 +312,41 @@ pub fn scan(seq: &Sequence, collections: &[Collection]) -> Vec<Feature> {
     out
 }
 
+/// Scans for the features that span any of the `junctions` (0-based: the
+/// junction after base `j`, i.e. between bases `j` and `j + 1` of the
+/// sequence; `seq.len()` is the closing junction of a circular sequence,
+/// between its last base and base 1). This is the original's
+/// `SetAnnotations(seq, from, to, false)` after a ligation or a Gateway
+/// reaction: only features recreated across a junction are reported, so
+/// that a feature already inherited from a fragment is not found twice.
+pub fn scan_junctions(
+    seq: &Sequence,
+    collections: &[Collection],
+    junctions: &[usize],
+) -> Vec<Feature> {
+    let n = seq.len();
+    if n == 0 || junctions.is_empty() {
+        return Vec::new();
+    }
+    let spans = |f: &Feature, j: usize| {
+        let (lo, hi, wraps) = f.lo_hi();
+        let (lo, hi) = (lo as usize, hi as usize);
+        if j >= n {
+            // The closing junction: only a feature wrapping the origin spans it.
+            wraps
+        } else if wraps {
+            // A wrapping feature covers `hi..=n` and `1..=lo`.
+            hi <= j || j < lo
+        } else {
+            lo <= j && j < hi
+        }
+    };
+    scan(seq, collections)
+        .into_iter()
+        .filter(|f| junctions.iter().any(|&j| spans(f, j)))
+        .collect()
+}
+
 /// Identity as the original's `Annot_to_Chain` sees it: a feature whose
 /// name, position, strand, type or colour was edited is no longer "the
 /// same" as the scan's hit, so a new scan leaves it alone and adds the hit
@@ -425,6 +460,35 @@ mod tests {
         def.upstream = "TTT".into();
         assert!(scan_one(&with, &def).is_empty());
         assert_eq!(scan_one(&seq("TTTGTGAGCAAGAAAGAGCTGTAC"), &def).len(), 1);
+    }
+
+    #[test]
+    fn junction_scan_reports_only_features_spanning_a_junction() {
+        // A ligation whose junction recreates a short tag consensus.
+        let tag = FeatureDef::simple("tag", "misc_feature", "#000000", "GAATTC");
+        let c = Collection {
+            name: "t".into(),
+            scan: true,
+            builtin: false,
+            features: vec![tag],
+        };
+        // GAATTC at 3..8 (spans the junction after base 5) and at 12..17
+        // (entirely inside the second fragment).
+        let s = seq("ccGAATTCaaaGAATTCaa");
+        let found = scan_junctions(&s, std::slice::from_ref(&c), &[5]);
+        assert_eq!(found.len(), 2, "forward and reverse hits of the palindrome");
+        assert!(found.iter().all(|f| f.lo_hi().0 == 3 && f.lo_hi().1 == 8));
+        // A junction inside no hit reports nothing; the exact boundary of a
+        // hit is not spanned.
+        assert!(scan_junctions(&s, std::slice::from_ref(&c), &[9, 10]).is_empty());
+        assert!(scan_junctions(&s, std::slice::from_ref(&c), &[8]).is_empty());
+        // The closing junction of a circle is spanned only by a wrapping hit.
+        let mut circ = seq("TTCaaaaaaaaaaaGAA");
+        circ.topology = sc_seq::Topology::Circular;
+        let found = scan_junctions(&circ, std::slice::from_ref(&c), &[circ.len()]);
+        assert_eq!(found.len(), 2);
+        assert!(found.iter().all(|f| f.lo_hi().2));
+        assert!(scan_junctions(&circ, std::slice::from_ref(&c), &[5]).is_empty());
     }
 
     #[test]

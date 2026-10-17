@@ -75,6 +75,10 @@ pub struct Prefs {
     pub orf_start_codons: String,
     /// Run a PCR: 3' A overhang by default.
     pub pcr_ta_overhang: bool,
+    /// Gateway: "Use minimal att consensus" (the original's attDefCheckBox):
+    /// sites are located with the short core consensus instead of the full
+    /// definitions.
+    pub gateway_minimal_att: bool,
     /// Autosave interval in seconds.
     pub autosave_secs: u64,
     /// Check GitHub for a new release at start (at most once a day).
@@ -124,6 +128,7 @@ impl Default for Prefs {
             orf_min_codons: 0,
             orf_start_codons: "ATG".into(),
             pcr_ta_overhang: true,
+            gateway_minimal_att: false,
             autosave_secs: 30,
             check_updates: true,
             proxy: String::new(),
