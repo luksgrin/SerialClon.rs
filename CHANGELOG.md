@@ -20,6 +20,10 @@ All notable changes to SerialClon.rs. The project reimplements Serial Cloner 2.6
   their strand), checked against files the original produced (`reference/original/golden/`).
 - Gateway site detection no longer reports an ambiguity when attP1 and attP2 (which differ by
   one base) are both present.
+- The isoelectric point is computed the way the original computes it: its five pK tables
+  (EMBOSS, Wikipedia, DTASelect, Rodwell, Sillero, with its values and EMBOSS as the default)
+  and its 0.01-pH walk from pH 7 instead of a bisection over six other tables. A settings file
+  naming one of the dropped tables falls back to EMBOSS.
 - `reference/original/` also holds the archive inventory with SHA-256 digests, the fallback
   enzyme library, DNA ladders, codon-usage tables, genetic-code names and pK tables read out
   of the executable, and `reference/docs/original-behaviour.md` records the same/differs
