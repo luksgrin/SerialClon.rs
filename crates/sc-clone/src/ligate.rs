@@ -185,7 +185,7 @@ pub fn ligate(
         product.bases = bases;
         product.ends.right = b.ends.right.clone();
         inherit_into(&mut product.features, b, 0, b.len(), offset);
-        if b.len() > 0 {
+        if !b.is_empty() {
             product.features.push(sc_seq::Feature {
                 name: format!("insert from {}", b.name),
                 description: first_line(&b.comment).to_owned(),
@@ -376,7 +376,7 @@ mod tests {
         );
         assert!(closes(&[a.clone(), b.clone()]));
         assert!(!closes(&[a.clone(), a.clone()]));
-        assert!(closes(std::slice::from_ref(&b)) == closes(&[b.clone()]));
+        assert!(!closes(std::slice::from_ref(&b)));
         assert!(!closes(&[]));
     }
 

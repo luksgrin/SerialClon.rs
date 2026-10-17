@@ -397,7 +397,15 @@ mod tests {
         assert_eq!(p.recent_files, 25);
         assert_eq!(p.theme, "modern");
         assert_eq!(p.seq_font_size, 8);
-        assert_eq!(p.color_unique, "#f2e14c");
+        // The original's unique-site colour, RGB(255,255,175).
+        assert_eq!(p.color_unique, "#ffffaf");
         assert!(p.warn_import);
+        // ORF preferences: no size limit by default; an unknown start-codon
+        // choice falls back to ATG.
+        assert_eq!(p.orf_min_codons, 0);
+        let q: Prefs = serde_json::from_str(r#"{"orf_start_codons": "TTG"}"#).unwrap();
+        assert_eq!(q.sanitised().orf_start_codons, "ATG");
+        let q: Prefs = serde_json::from_str(r#"{"orf_start_codons": "ATG|GTG"}"#).unwrap();
+        assert_eq!(q.sanitised().orf_start_codons, "ATG|GTG");
     }
 }

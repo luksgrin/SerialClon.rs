@@ -29,6 +29,30 @@ All notable changes to SerialClon.rs. The project reimplements Serial Cloner 2.6
   of the executable, and `reference/docs/original-behaviour.md` records the same/differs
   verdicts of the behaviour comparison (Tm, protein MW, pI, scan, GenBank export).
 
+### Behaviour aligned with the original, second pass (2026-10-17)
+
+- Find ▸ ORFs works as Serial Cloner's: an ORF opens at every occurrence of the preference's
+  start codon (ATG by default; GTG, ATG|GTG or ATG|CTG|GTG|TTG in Preferences) and never at
+  the genetic code's alternative starts; nested ORFs are listed; the list is sorted by size;
+  Position is the lower end of the ORF on either strand and Frame carries the strand sign;
+  the minimum size is in amino acids with 0 (the default) meaning no limit. The first ten
+  rows of the original's pBR322 list are a test (`reference/original/golden/orf/`).
+- Find has the original's Peptide tab: an amino-acid string searched in the three frames of
+  both strands (X matches any residue), with Position / Size / Strand / Frame.
+- Build a Construct offers the original's three choices per extremity (Non-processed,
+  Blunt (Fill-In), Blunt (Remove)) instead of one polymerase-style checkbox, decides the
+  topology from the outer ends like the original (asking before a linear product or a lone
+  vector, with its wording), and marks every insert with an `insert from <name>` feature.
+  Gateway products get the original's `Insert from <insert>` feature too.
+- A feature whose name, colour or type was edited is no longer replaced by a new scan: the hit
+  is added beside it, as the Features ReadMe documents.
+- Preference defaults are the original's (read from its Preferences window, screenshots under
+  `reference/original/golden/prefs/`): map colours, 12 pt sequence field, 9 pt map labels,
+  11 pt Sequence Map, sequences locked when opened, limited window width, TA cloning on.
+- The built-in pSUPER shRNA layout is the original's (`CCC … TTCAAGAGA … TTTTTG` between
+  BglII and HindIII ends); the suffix was wrong.
+- `reference/original/embedded/help-texts.txt` holds the original's 113 help texts.
+
 ## 1.0.0 — 2026-10-12
 
 The first release. Everything below is in it; the milestone work was done between
