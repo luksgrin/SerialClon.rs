@@ -556,6 +556,7 @@ pub fn run() {
             commands::show_parent,
             cloning::preview_fragments,
             cloning::ligate_construct,
+            cloning::ligation_plan,
             cloning::run_pcr,
             cloning::check_primer,
             cloning::pcr_window_open,
